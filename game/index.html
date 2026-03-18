@@ -58,250 +58,159 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
 </div>
 </div>
 <script>
-const CW=800,CH=480,T=16,GR=0.55,MF=9;
+const CW=800,CH=480,T=16,GR=0.6,MF=10;
 
 // ═══ ASSET LOADER ═══
 const Assets={
-  images:{},
-  meta:{},
-  total:0,
-  loaded:0,
-
-  // Parse a .txt sprite atlas metadata file
+  images:{},meta:{},total:0,loaded:0,
   parseMeta(txt){
     const anims={};
     for(const line of txt.split('\n')){
       const m=line.match(/^(.+?)\s*=\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/);
       if(!m)continue;
-      const path=m[1].trim();
-      const x=+m[2],y=+m[3],w=+m[4],h=+m[5];
-      // Extract animation name: everything before /frameNNNN or the whole name
+      const path=m[1].trim(),x=+m[2],y=+m[3],w=+m[4],h=+m[5];
       let anim=path,frame=0;
       const fm=path.match(/^(.+?)(?:\/frame(\d+)(?:\.png)?|\.png)?$/);
-      if(fm){
-        anim=fm[1];
-        frame=fm[2]?+fm[2]:0;
-      }
-      // Strip the prefix (e.g. sph_knight_red/)
+      if(fm){anim=fm[1];frame=fm[2]?+fm[2]:0}
       const parts=anim.split('/');
       if(parts.length>1)anim=parts.slice(1).join('/');
       if(!anims[anim])anims[anim]=[];
       anims[anim].push({x,y,w,h,frame});
     }
-    // Sort each anim by frame
     for(const k in anims)anims[k].sort((a,b)=>a.frame-b.frame);
     return anims;
   },
-
   async load(manifest){
     this.total=manifest.length;this.loaded=0;
-    const bar=document.getElementById('loadBar');
-    const info=document.getElementById('loadInfo');
-
+    const bar=document.getElementById('loadBar'),info=document.getElementById('loadInfo');
     const promises=manifest.map(item=>{
       if(item.type==='image'){
-        return new Promise((res,rej)=>{
+        return new Promise(res=>{
           const img=new Image();
           img.onload=()=>{this.images[item.key]=img;this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%';info.textContent=item.path;res()};
-          img.onerror=()=>{console.warn('Failed to load:',item.path);this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%';res()};
+          img.onerror=()=>{console.warn('Failed:',item.path);this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%';res()};
           img.src=item.path;
         });
       }else if(item.type==='meta'){
         return fetch(item.path).then(r=>r.text()).then(txt=>{
-          this.meta[item.key]=this.parseMeta(txt);
-          this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%';info.textContent=item.path;
-        }).catch(()=>{console.warn('Failed to load meta:',item.path);this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%'});
+          this.meta[item.key]=this.parseMeta(txt);this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%';info.textContent=item.path;
+        }).catch(()=>{console.warn('Failed meta:',item.path);this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%'});
       }
     });
     await Promise.all(promises);
   }
 };
 
-// ═══ SPRITESHEET ANIMATION ═══
+// ═══ SPRITESHEET ANIMATION (for .txt atlas sprites) ═══
 class SpriteAnim{
   constructor(imgKey,metaKey,defaultAnim){
-    this.imgKey=imgKey;
-    this.metaKey=metaKey;
-    this.anim=defaultAnim||'idle';
-    this.frame=0;
-    this.timer=0;
-    this.speed=0.08; // seconds per frame
-    this.done=false;
+    this.imgKey=imgKey;this.metaKey=metaKey;
+    this.anim=defaultAnim||'idle';this.frame=0;this.timer=0;this.speed=0.08;this.done=false;
   }
-  play(anim,speed){
-    if(this.anim===anim)return;
-    this.anim=anim;this.frame=0;this.timer=0;this.done=false;
-    if(speed)this.speed=speed;
-  }
-  update(dt){
-    this.timer+=dt;
-    const frames=this.getFrames();
-    if(!frames||!frames.length)return;
-    if(this.timer>=this.speed){
-      this.timer-=this.speed;
-      this.frame++;
-      if(this.frame>=frames.length){this.frame=frames.length-1;this.done=true}
-    }
-  }
-  updateLoop(dt){
-    this.timer+=dt;
-    const frames=this.getFrames();
-    if(!frames||!frames.length)return;
-    if(this.timer>=this.speed){this.timer-=this.speed;this.frame=(this.frame+1)%frames.length}
-  }
-  getFrames(){
-    const meta=Assets.meta[this.metaKey];
-    if(!meta)return null;
-    return meta[this.anim]||null;
-  }
-  getCurrent(){
-    const frames=this.getFrames();
-    if(!frames||!frames.length)return null;
-    return frames[Math.min(this.frame,frames.length-1)];
-  }
+  play(anim,speed){if(this.anim===anim)return;this.anim=anim;this.frame=0;this.timer=0;this.done=false;if(speed)this.speed=speed}
+  update(dt){this.timer+=dt;const f=this.getFrames();if(!f||!f.length)return;if(this.timer>=this.speed){this.timer-=this.speed;this.frame++;if(this.frame>=f.length){this.frame=f.length-1;this.done=true}}}
+  updateLoop(dt){this.timer+=dt;const f=this.getFrames();if(!f||!f.length)return;if(this.timer>=this.speed){this.timer-=this.speed;this.frame=(this.frame+1)%f.length}}
+  getFrames(){const m=Assets.meta[this.metaKey];return m?m[this.anim]||null:null}
+  getCurrent(){const f=this.getFrames();return f&&f.length?f[Math.min(this.frame,f.length-1)]:null}
   draw(x,y,flip,scale){
-    const img=Assets.images[this.imgKey];
-    const f=this.getCurrent();
-    if(!img||!f)return;
-    const sc=scale||1;
-    const dx=x-R.cam.x,dy=y-R.cam.y;
-    const dw=f.w*sc,dh=f.h*sc;
-    if(flip){
-      R.x.save();R.x.translate(dx+dw,dy);R.x.scale(-1,1);
-      R.x.drawImage(img,f.x,f.y,f.w,f.h,0,0,dw,dh);
-      R.x.restore();
-    }else{
-      R.x.drawImage(img,f.x,f.y,f.w,f.h,dx,dy,dw,dh);
-    }
+    const img=Assets.images[this.imgKey],f=this.getCurrent();if(!img||!f)return;
+    const sc=scale||1,dx=x-R.cam.x,dy=y-R.cam.y,dw=f.w*sc,dh=f.h*sc;
+    if(flip){R.x.save();R.x.translate(dx+dw,dy);R.x.scale(-1,1);R.x.drawImage(img,f.x,f.y,f.w,f.h,0,0,dw,dh);R.x.restore()}
+    else R.x.drawImage(img,f.x,f.y,f.w,f.h,dx,dy,dw,dh);
   }
 }
 
-// ═══ PIXEL CRAWLER ENEMY (horizontal strip format) ═══
+// ═══ PIXEL CRAWLER ENEMY (horizontal strip spritesheets: idle=4f, run=6f, hit=4f, death=6f, all 64x64) ═══
 class PCEnemy{
-  constructor(x,y,w,h,nm,col,hp,dmg,ai,baseDir){
+  constructor(x,y,w,h,nm,col,hp,dmg,ai,baseDir,hasHit){
     this.x=x;this.y=y;this.w=w;this.h=h;this.nm=nm;this.col=col;
     this.hp=hp;this.mhp=hp;this.dmg=dmg;this.ai=ai;
     this.vx=0;this.vy=0;this.gnd=false;this.rt=true;
-    this.dir=1;this.pt=0;this.akt=0;this.spd=1;this.ag=130;
+    this.dir=1;this.pt=0;this.akt=0;this.spd=1.2;this.ag=150;
     this.inv=0;this.on=true;
-    this.baseDir=baseDir||'enemies';
-    // Load 4 separate images for Pixel Crawler enemies
     this.idle=Assets.images[baseDir+'_idle'];
     this.run=Assets.images[baseDir+'_run'];
     this.death=Assets.images[baseDir+'_death'];
-    this.hit=Assets.images[baseDir+'_hit'];
-    // Animation state
-    this.anim='idle';this.frame=0;this.timer=0;this.speed=0.08;
+    this.hit=hasHit!==false?Assets.images[baseDir+'_hit']:null;
+    this.anim='idle';this.frame=0;this.timer=0;this.speed=0.1;
   }
-  hits(o){return this.x<o.x+o.w&&this.x+this.w>o.x&&this.y<o.y+o.h&&this.y+this.h>o.y}
-  blk(tm,dx,dy){
-    const nx=this.x+dx,ny=this.y+dy;
-    const m=3;
-    return tm.sol((nx+m)/T|0,(ny+m)/T|0)||tm.sol((nx+this.w-m-1)/T|0,(ny+m)/T|0)||
-           tm.sol((nx+m)/T|0,(ny+this.h-1)/T|0)||tm.sol((nx+this.w-m-1)/T|0,(ny+this.h-1)/T|0);
+  hits(o){return this.on&&this.x<o.x+o.w&&this.x+this.w>o.x&&this.y<o.y+o.h&&this.y+this.h>o.y}
+  // Simple AABB collision — only check bottom-center and bottom-left/right
+  onSolid(tm){
+    const bx1=Math.floor((this.x+4)/T),bx2=Math.floor((this.x+this.w-4)/T);
+    const by=Math.floor((this.y+this.h)/T);
+    return tm.sol(bx1,by)||tm.sol(bx2,by);
   }
-  mv(tm){
-    if(this.vx!==0){
-      if(!this.blk(tm,this.vx,0))this.x+=this.vx;
-      else{const s=Math.sign(this.vx);let c=0;while(!this.blk(tm,s,0)&&c<Math.abs(this.vx)+1){this.x+=s;c++}this.vx=0}
-    }
-    if(this.vy!==0){
-      if(!this.blk(tm,0,this.vy)){this.y+=this.vy;this.gnd=false}
-      else{if(this.vy>0)this.gnd=true;const s=Math.sign(this.vy);let c=0;while(!this.blk(tm,0,s)&&c<Math.abs(this.vy)+1){this.y+=s;c++}this.vy=0}
-    }
-    if(this.blk(tm,0,0)){for(let i=1;i<=6;i++){if(!this.blk(tm,0,-i)){this.y-=i;break}}}
+  blockedH(tm,dx){
+    const nx=this.x+dx;
+    const tx=dx>0?Math.floor((nx+this.w-2)/T):Math.floor((nx+2)/T);
+    const ty1=Math.floor((this.y+4)/T),ty2=Math.floor((this.y+this.h-2)/T);
+    return tm.sol(tx,ty1)||tm.sol(tx,ty2);
   }
-  hurt(n){if(this.inv>0)return;this.hp-=n;this.inv=0.4;P.emit(this.x+this.w/2,this.y+this.h/2,8,'#f44',4,0.4,2);if(this.hp<=0){this.hp=0;this.die()}}
-  die(){this.on=false;this.anim='death';this.frame=0;this.timer=0;P.emit(this.x+this.w/2,this.y+this.h/2,15,'#f44',5,0.6,3)}
   update(dt,tm,heroes){
     if(!this.on)return;if(this.inv>0)this.inv-=dt;this.akt-=dt;
     const h=heroes.find(h=>h.ctrl&&h.on);if(!h)return;
-    const d=Math.abs(this.x-h.x);
+    const dist=Math.abs(this.x-h.x);
     if(this.ai==='patrol'){
       this.pt+=dt;if(this.pt>2.5){this.dir*=-1;this.pt=0}
       this.vx=this.spd*this.dir;this.rt=this.dir>0;
-      if(d<this.ag)this.ai='chase';
+      if(dist<this.ag)this.ai='chase';
       this.anim='idle';
-    }
-    else if(this.ai==='chase'){
-      if(d>240){this.ai='patrol';return}
-      this.vx=(h.x>this.x?1:-1)*this.spd*1.3;this.rt=this.vx>0;
+    }else if(this.ai==='chase'){
+      if(dist>280){this.ai='patrol';return}
+      this.vx=(h.x>this.x?1:-1)*this.spd*1.4;this.rt=this.vx>0;
       this.anim='run';
       if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1;this.anim='hit'}
-    }
-    else if(this.ai==='static'){
-      this.vx=0;
-      if(d<60)this.anim='hit';
-      else this.anim='idle';
+    }else if(this.ai==='static'){
+      this.vx=0;this.anim=dist<60?'hit':'idle';
       if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1.2}
     }
-    this.vy=Math.min(this.vy+GR,MF);this.mv(tm);
-    // Update animation
+    // Gravity
+    this.vy=Math.min(this.vy+GR,MF);
+    // Move horizontally
+    if(this.vx!==0&&!this.blockedH(tm,this.vx))this.x+=this.vx;
+    else this.vx=0;
+    // Move vertically
+    if(this.vy>0&&this.onSolid(tm)){
+      this.y=Math.floor((this.y+this.h)/T)*T-this.h;this.vy=0;this.gnd=true;
+    }else{this.y+=this.vy;this.gnd=false}
+    // Animate
     this.timer+=dt;
-    const img=this.anim==='idle'?this.idle:this.anim==='run'?this.run:this.anim==='hit'?this.hit:this.death;
-    if(img){
-      let frames=0;
-      if(this.anim==='idle')frames=4;
-      else if(this.anim==='run')frames=6;
-      else if(this.anim==='hit')frames=4;
-      else if(this.anim==='death')frames=6;
-      if(this.timer>=this.speed){this.timer-=this.speed;this.frame++;if(this.frame>=frames)this.frame=this.anim==='death'?frames-1:0}
-    }
+    const img=this.anim==='run'?this.run:this.anim==='hit'?(this.hit||this.idle):this.idle;
+    const fc=this.anim==='run'?6:4;
+    if(img&&this.timer>=this.speed){this.timer-=this.speed;this.frame=(this.frame+1)%fc}
   }
+  hurt(n){if(this.inv>0)return;this.hp-=n;this.inv=0.4;P.emit(this.x+this.w/2,this.y+this.h/2,8,'#f44',4,0.4,2);if(this.hp<=0){this.hp=0;this.on=false;P.emit(this.x+this.w/2,this.y+this.h/2,15,this.col,5,0.6,3)}}
   draw(){
     if(!this.on)return;if(this.inv>0&&((this.inv*12)|0)%2)return;
-    const img=this.anim==='idle'?this.idle:this.anim==='run'?this.run:this.anim==='hit'?this.hit:this.death;
+    const img=this.anim==='run'?this.run:this.anim==='hit'?(this.hit||this.idle):this.idle;
     if(!img)return;
-    let frames=0;
-    if(this.anim==='idle')frames=4;
-    else if(this.anim==='run')frames=6;
-    else if(this.anim==='hit')frames=4;
-    else if(this.anim==='death')frames=6;
-    const fw=64,fh=64;
-    const sx=this.frame*fw;
+    const fw=64,fh=64,sx=this.frame*fw;
     const dx=this.x+this.w/2-fw/2-R.cam.x,dy=this.y+this.h-fh-R.cam.y;
-    if(this.rt){
-      R.x.drawImage(img,sx,0,fw,fh,dx,dy,fw,fh);
-    }else{
-      R.x.save();R.x.translate(dx+fw,dy);R.x.scale(-1,1);
-      R.x.drawImage(img,sx,0,fw,fh,0,0,fw,fh);
-      R.x.restore();
-    }
+    if(this.rt)R.x.drawImage(img,sx,0,fw,fh,dx,dy,fw,fh);
+    else{R.x.save();R.x.translate(dx+fw,dy);R.x.scale(-1,1);R.x.drawImage(img,sx,0,fw,fh,0,0,fw,fh);R.x.restore()}
     if(this.hp<this.mhp){R.rect(this.x,this.y-5,this.w,3,'#333');R.rect(this.x,this.y-5,this.w*(this.hp/this.mhp),3,this.hp/this.mhp>0.5?'#4a4':'#f44')}
     R.txt(this.nm,this.x+this.w/2-R.cam.x,this.y-9-R.cam.y,'#faa',8,'center');
   }
 }
 
-// ═══ EFFECT SPRITE (horizontal strip) ═══
+// ═══ EFFECT SPRITE ═══
 class FXSprite{
-  constructor(imgKey,frameW,frameH,totalFrames,speed){
-    this.imgKey=imgKey;this.fw=frameW;this.fh=frameH;
-    this.total=totalFrames;this.speed=speed||0.06;
-    this.frame=0;this.timer=0;this.active=false;
-    this.x=0;this.y=0;this.flip=false;
-  }
+  constructor(imgKey,fw,fh,total,speed){this.imgKey=imgKey;this.fw=fw;this.fh=fh;this.total=total;this.speed=speed||0.06;this.frame=0;this.timer=0;this.active=false;this.x=0;this.y=0;this.flip=false}
   play(x,y,flip){this.x=x;this.y=y;this.flip=flip||false;this.frame=0;this.timer=0;this.active=true}
-  update(dt){
-    if(!this.active)return;
-    this.timer+=dt;if(this.timer>=this.speed){this.timer-=this.speed;this.frame++;if(this.frame>=this.total)this.active=false}
-  }
+  update(dt){if(!this.active)return;this.timer+=dt;if(this.timer>=this.speed){this.timer-=this.speed;this.frame++;if(this.frame>=this.total)this.active=false}}
   draw(){
-    if(!this.active)return;
-    const img=Assets.images[this.imgKey];if(!img)return;
-    const sx=this.frame*this.fw,sy=0;
-    const dx=this.x-this.fw/2-R.cam.x,dy=this.y-this.fh/2-R.cam.y;
-    if(this.flip){R.x.save();R.x.translate(dx+this.fw,dy);R.x.scale(-1,1);R.x.drawImage(img,sx,sy,this.fw,this.fh,0,0,this.fw,this.fh);R.x.restore()}
-    else R.x.drawImage(img,sx,sy,this.fw,this.fh,dx,dy,this.fw,this.fh);
+    if(!this.active)return;const img=Assets.images[this.imgKey];if(!img)return;
+    const sx=this.frame*this.fw,dx=this.x-this.fw/2-R.cam.x,dy=this.y-this.fh/2-R.cam.y;
+    if(this.flip){R.x.save();R.x.translate(dx+this.fw,dy);R.x.scale(-1,1);R.x.drawImage(img,sx,0,this.fw,this.fh,0,0,this.fw,this.fh);R.x.restore()}
+    else R.x.drawImage(img,sx,0,this.fw,this.fh,dx,dy,this.fw,this.fh);
   }
 }
 
 // ═══ INPUT ═══
 const I={k:{},j:{},
   init(){
-    addEventListener('keydown',e=>{
-      if(!this.k[e.code])this.j[e.code]=true;this.k[e.code]=true;
-      if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.code))e.preventDefault();
-    });
+    addEventListener('keydown',e=>{if(!this.k[e.code])this.j[e.code]=true;this.k[e.code]=true;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.code))e.preventDefault()});
     addEventListener('keyup',e=>{this.k[e.code]=false});
     document.getElementById('dlg').addEventListener('click',e=>{this.j['Space']=true;e.stopPropagation()});
     document.getElementById('c').addEventListener('click',e=>{if(D.on)this.j['Space']=true});
@@ -315,7 +224,6 @@ const R={c:null,x:null,cam:{x:0,y:0},
   cls(col){this.x.fillStyle=col;this.x.fillRect(0,0,CW,CH)},
   rect(x,y,w,h,col){this.x.fillStyle=col;this.x.fillRect(x-this.cam.x,y-this.cam.y,w,h)},
   sr(x,y,w,h,col){this.x.fillStyle=col;this.x.fillRect(x,y,w,h)},
-  tile(img,sx,sy,sw,sh,dx,dy){this.x.drawImage(img,sx,sy,sw,sh,dx-this.cam.x,dy-this.cam.y,sw,sh)},
   txt(t,x,y,c,s,a){this.x.fillStyle=c||'#fff';this.x.font=(s||11)+'px "Courier New",monospace';this.x.textAlign=a||'left';this.x.fillText(t,x,y)},
   a(v){this.x.globalAlpha=v},ra(){this.x.globalAlpha=1}
 };
@@ -327,106 +235,113 @@ const P={ps:[],
   draw(){this.ps.forEach(p=>{R.a(Math.max(0,p.l/p.ml));R.rect(p.x,p.y,p.s,p.s,p.c)});R.ra()}
 };
 
-// ═══ TILEMAP (using tileset images) ═══
+// ═══ TILEMAP ═══
+// Tile types: 0=air, 1=floor, 2=wall, 3=platform, 4=deco_gold, 5=bookshelf
 class TM{
-  constructor(w,h){
-    this.w=w;this.h=h;this.d=new Uint8Array(w*h);
-    // Tile types: 0=air, 1=stone_wall, 2=dark_wall, 3=wood_plat, 5=gold_deco, 6=bookshelf, 7=water, 8=moss, 9=sand
-  }
+  constructor(w,h){this.w=w;this.h=h;this.d=new Uint8Array(w*h)}
   set(x,y,v){if(x>=0&&x<this.w&&y>=0&&y<this.h)this.d[y*this.w+x]=v}
   get(x,y){if(x<0||x>=this.w||y<0||y>=this.h)return 1;return this.d[y*this.w+x]}
-  sol(x,y){const v=this.get(x,y);return v===1||v===2||v===3||v===6||v===8}
-  draw(useLibBG){
-    const castleImg=Assets.images['tiles_castle'];
-    const libImg=Assets.images['tiles_library'];
+  sol(x,y){const v=this.get(x,y);return v>=1&&v<=5}
+
+  draw(tilesetKey){
+    const timg=Assets.images[tilesetKey];
     const sx=Math.max(0,(R.cam.x/T)|0),sy=Math.max(0,(R.cam.y/T)|0);
     const ex=Math.min(this.w,sx+((CW/T)|0)+2),ey=Math.min(this.h,sy+((CH/T)|0)+2);
-    // Castle tileset is 416x400 => 26x25 tiles of 16x16
-    // Library tileset is 400x400 => 25x25 tiles of 16x16
-    const tileColors={1:'#4a4a6a',2:'#2a2a4a',3:'#5a4a3a',5:'#c8a84e',6:'#6a4a3a',7:'#1a3a5a',8:'#3a5a3a',9:'#7a6a5a'};
+
     for(let y=sy;y<ey;y++)for(let x=sx;x<ex;x++){
       const v=this.get(x,y);
       const dx=x*T-R.cam.x,dy=y*T-R.cam.y;
-      // Fill background (air tiles) with wall texture so no empty space shows
-      if(v===0){
-        if(useLibBG&&libImg){
-          // Library background: dark wooden walls from top-left of library tileset
-          // Library tileset rows 0-2 (y=0-48) have solid dark wood tiles
-          const tx=((x*3+y*7)%5)*16;const ty=((x*5+y*2)%3)*16;
-          R.x.drawImage(libImg,tx,ty,16,16,dx,dy,16,16);
-          R.x.fillStyle='rgba(5,5,16,0.6)';R.x.fillRect(dx,dy,T,T);
-        }else if(castleImg){
-          // Castle background: stone wall tiles from rows 0-2 of castle tileset
-          // Castle tileset rows 0-1 (y=0-32) have solid stone wall tiles, cols 0-7
-          const tx=((x*7+y*13)%8)*16;const ty=((x*3+y*5)%2)*16;
-          R.x.drawImage(castleImg,tx,ty,16,16,dx,dy,16,16);
-          R.x.fillStyle='rgba(10,10,30,0.5)';R.x.fillRect(dx,dy,T,T);
+
+      if(timg){
+        if(v===0){
+          // AIR: draw darkened background wall from tileset
+          // Castle tileset: top-left 128x32 area has solid stone wall tiles (rows 0-1, cols 0-7)
+          // Library tileset: top-left 80x48 area has dark wood tiles
+          const tx=((x*7+y*3)%6)*T, ty=((x*3+y*7)%2)*T;
+          R.x.drawImage(timg,tx,ty,T,T,dx,dy,T,T);
+          R.x.fillStyle='rgba(0,0,10,0.55)';R.x.fillRect(dx,dy,T,T);
+        }else if(v===1){
+          // FLOOR: bright stone/wood from row 0
+          const tx=((x*5+y*11)%8)*T;
+          R.x.drawImage(timg,tx,0,T,T,dx,dy,T,T);
+        }else if(v===2){
+          // WALL: darker variant from row 1
+          const tx=((x*3+y*7)%8)*T;
+          R.x.drawImage(timg,tx,T,T,T,dx,dy,T,T);
+        }else if(v===3){
+          // PLATFORM: slightly different row
+          const tx=((x*11+y*5)%6)*T;
+          R.x.drawImage(timg,tx,T*2,T,T,dx,dy,T,T);
+        }else if(v===4){
+          // GOLD DECO
+          R.x.drawImage(timg,0,T*4,T,T,dx,dy,T,T);
+        }else if(v===5){
+          // BOOKSHELF
+          const tx=((x*3+y)%4)*T;
+          R.x.drawImage(timg,tx,T*3,T,T,dx,dy,T,T);
         }
-        continue;
-      }
-      // Use tileset sub-images for solid tiles
-      if(castleImg&&(v===1||v===2||v===5||v===9)){
-        let tx,ty;
-        if(v===1){tx=((x*7+y*13)%8)*16;ty=0}  // stone wall (row 0, cols 0-7)
-        else if(v===2){tx=((x*3+y*7)%8)*16;ty=16}  // dark wall (row 1)
-        else if(v===9){tx=((x*5+y*3)%8)*16;ty=32}  // sand/floor (row 2)
-        else{tx=((x*3)%4)*16;ty=64}  // gold deco (row 4)
-        R.x.drawImage(castleImg,tx,ty,16,16,dx,dy,16,16);
-      }else if(libImg&&(v===6||v===3)){
-        let tx,ty;
-        if(v===6){tx=((x*5+y*11)%5)*16;ty=48}  // bookshelf (row 3)
-        else{tx=((x*3+y*5)%5)*16+80;ty=0}  // wood platform (row 0, cols 5+)
-        R.x.drawImage(libImg,tx,ty,16,16,dx,dy,16,16);
       }else{
-        R.x.fillStyle=tileColors[v]||'#444';R.x.fillRect(dx,dy,T,T);
-        if(v===7){R.x.fillStyle='#2a5a7a';R.x.fillRect(dx+((x*5+y*3)%12),dy+((x*7+y)%12),4,2)}
-        if(v===8){R.x.fillStyle='#2a4a2a';R.x.fillRect(dx+((x+y*3)%10),dy+((x*5+y)%10),4,3)}
+        // Fallback colors
+        const cols={0:'#1a1a2a',1:'#4a4a6a',2:'#3a3a5a',3:'#5a4a3a',4:'#c8a84e',5:'#6a4a3a'};
+        R.x.fillStyle=cols[v]||'#222';R.x.fillRect(dx,dy,T,T);
       }
     }
   }
 }
 
-// ═══ ENTITY ═══
+// ═══ ENTITY BASE ═══
 class Ent{
   constructor(x,y,w,h){this.x=x;this.y=y;this.w=w;this.h=h;this.vx=0;this.vy=0;this.gnd=false;this.rt=true;this.hp=100;this.mhp=100;this.on=true;this.inv=0}
   hits(o){return this.x<o.x+o.w&&this.x+this.w>o.x&&this.y<o.y+o.h&&this.y+this.h>o.y}
-  blk(tm,dx,dy){
-    const nx=this.x+dx,ny=this.y+dy;
-    const m=4; // collision margin from edges
-    return tm.sol((nx+m)/T|0,(ny+m)/T|0)||tm.sol((nx+this.w-m-1)/T|0,(ny+m)/T|0)||
-           tm.sol((nx+m)/T|0,(ny+this.h-1)/T|0)||tm.sol((nx+this.w-m-1)/T|0,(ny+this.h-1)/T|0);
+
+  // Simplified collision: check if feet are on solid ground
+  onSolid(tm){
+    const bx1=Math.floor((this.x+4)/T),bx2=Math.floor((this.x+this.w-4)/T);
+    const by=Math.floor((this.y+this.h)/T);
+    return tm.sol(bx1,by)||tm.sol(bx2,by);
   }
+  // Check horizontal blocking
+  blockedH(tm,dx){
+    const nx=this.x+dx;
+    const tx=dx>0?Math.floor((nx+this.w-2)/T):Math.floor((nx+2)/T);
+    const ty1=Math.floor((this.y+6)/T),ty2=Math.floor((this.y+this.h-2)/T);
+    return tm.sol(tx,ty1)||tm.sol(tx,ty2);
+  }
+  // Check ceiling
+  blockedUp(tm){
+    const tx1=Math.floor((this.x+4)/T),tx2=Math.floor((this.x+this.w-4)/T);
+    const ty=Math.floor((this.y-1)/T);
+    return tm.sol(tx1,ty)||tm.sol(tx2,ty);
+  }
+
   mv(tm){
-    // Horizontal
+    // Horizontal: simple - move if not blocked
     if(this.vx!==0){
-      if(!this.blk(tm,this.vx,0))this.x+=this.vx;
+      if(!this.blockedH(tm,this.vx))this.x+=this.vx;
       else{
-        const s=Math.sign(this.vx);
-        let c=0;
-        while(!this.blk(tm,s,0)&&c<Math.abs(this.vx)+1){this.x+=s;c++}
+        // Snap to tile edge
+        if(this.vx>0)this.x=Math.floor((this.x+this.w-2)/T)*T-(this.w-2);
+        else this.x=Math.ceil((this.x+2)/T)*T-2;
         this.vx=0;
       }
     }
     // Vertical
-    if(this.vy!==0){
-      if(!this.blk(tm,0,this.vy)){this.y+=this.vy;this.gnd=false}
-      else{
-        if(this.vy>0)this.gnd=true;
-        const s=Math.sign(this.vy);
-        let c=0;
-        while(!this.blk(tm,0,s)&&c<Math.abs(this.vy)+1){this.y+=s;c++}
-        this.vy=0;
-      }
-    }
-    // Anti-stuck: if embedded in a solid tile, push up
-    if(this.blk(tm,0,0)){
-      let pushed=false;
-      for(let i=1;i<=8;i++){
-        if(!this.blk(tm,0,-i)){this.y-=i;pushed=true;break}
-      }
-      if(!pushed)for(let i=1;i<=4;i++){
-        if(!this.blk(tm,i,0)){this.x+=i;break}
-        if(!this.blk(tm,-i,0)){this.x-=i;break}
+    if(this.vy<0){
+      // Moving up
+      if(this.blockedUp(tm)){this.vy=0;this.y=Math.ceil(this.y/T)*T}
+      else this.y+=this.vy;
+      this.gnd=false;
+    }else{
+      // Moving down or stationary
+      if(this.vy>0&&this.onSolid(tm)){
+        // Land on surface: snap to top of tile
+        this.y=Math.floor((this.y+this.h)/T)*T-this.h;
+        this.vy=0;this.gnd=true;
+      }else if(this.vy===0&&!this.onSolid(tm)){
+        // Walked off edge
+        this.gnd=false;this.vy+=GR;this.y+=this.vy;
+      }else{
+        this.y+=this.vy;this.gnd=false;
       }
     }
   }
@@ -434,24 +349,22 @@ class Ent{
   die(){this.on=false;P.emit(this.x+this.w/2,this.y+this.h/2,15,'#f44',5,0.6,3)}
 }
 
-// ═══ HERO ═══
+// ═══ HERO (with DOUBLE JUMP) ═══
 class Hero extends Ent{
   constructor(nm,x,y,col,imgKey,metaKey,type,skillFX,atkFX){
-    // type: 'knight' (112x80) or 'classic' (40x40)
-    const cw=type==='knight'?28:18;
-    const ch=type==='knight'?40:30;
+    const cw=type==='knight'?26:16;
+    const ch=type==='knight'?38:28;
     super(x,y,cw,ch);
     this.nm=nm;this.col=col;this.type=type;
-    this.spd=2.8;this.jf=-8.5;this.ctrl=false;
+    this.spd=3.0;this.jf=-9;this.ctrl=false;
     this.st='idle';this.atkT=0;this.atkCD=0;this.dashCD=0;this.dshT=0;
     this.atkDmg=24;this.skillCD=0;this.skillT=0;
+    // DOUBLE JUMP
+    this.jumps=0;this.maxJumps=2;
     // Animation
     this.sprite=new SpriteAnim(imgKey,metaKey,type==='knight'?'idle':'idle_A');
     this.sprite.speed=0.08;
-    // FX
-    this.skillFX=skillFX;
-    this.atkFX=atkFX;
-    // Frame dims for drawing offset
+    this.skillFX=skillFX;this.atkFX=atkFX;
     this.fw=type==='knight'?112:40;
     this.fh=type==='knight'?80:40;
   }
@@ -462,12 +375,15 @@ class Hero extends Ent{
     if(this.dashCD>0)this.dashCD-=dt;
     if(this.skillCD>0)this.skillCD-=dt;
 
+    // Gravity
     this.vy=Math.min(this.vy+GR,MF);
+
+    // Reset jumps on ground
+    if(this.gnd)this.jumps=0;
 
     if(!this.ctrl){
       this.vx=0;
-      const idleAnim=this.type==='knight'?'idle':'idle_A';
-      this.sprite.play(idleAnim);
+      this.sprite.play(this.type==='knight'?'idle':'idle_A');
       this.sprite.updateLoop(dt);
       this.mv(tm);
       return;
@@ -479,201 +395,114 @@ class Hero extends Ent{
       else if(I.down('ArrowRight')||I.down('KeyD')){this.vx=this.spd;this.rt=true;mov=true}
       else this.vx=0;
 
-      if((I.pr('ArrowUp')||I.pr('KeyW')||I.pr('Space'))&&this.gnd){this.vy=this.jf;this.gnd=false}
+      // DOUBLE JUMP: can jump up to maxJumps times
+      if((I.pr('ArrowUp')||I.pr('KeyW')||I.pr('Space'))&&this.jumps<this.maxJumps){
+        this.vy=this.jf;this.gnd=false;this.jumps++;
+        if(this.jumps>1)P.emit(this.x+this.w/2,this.y+this.h,6,this.col,2,0.2,1); // double jump particles
+      }
       if((I.pr('KeyZ')||I.pr('KeyJ'))&&this.atkCD<=0){
         this.st='attack';this.atkCD=0.4;this.atkT=0.3;
-        const atkAnim=this.type==='knight'?'attack_A':'punch_A';
-        this.sprite.play(atkAnim);this.sprite.speed=0.04;
-        // Play attack FX
-        if(this.atkFX){
-          const fx_x=this.rt?this.x+this.w+16:this.x-16;
-          this.atkFX.play(fx_x,this.y+this.h/2,!this.rt);
-        }
+        this.sprite.play(this.type==='knight'?'attack_A':'punch_A');this.sprite.speed=0.04;
+        if(this.atkFX){const fx_x=this.rt?this.x+this.w+16:this.x-16;this.atkFX.play(fx_x,this.y+this.h/2,!this.rt)}
       }
-      // SKILL: Q or L key
       if((I.pr('KeyQ')||I.pr('KeyL'))&&this.skillCD<=0){
         this.st='skill';this.skillCD=3.0;this.skillT=0.5;
-        const skAnim=this.type==='knight'?'attack_C':'dash_attack';
-        this.sprite.play(skAnim);this.sprite.speed=0.04;
-        if(this.skillFX){
-          const fx_x=this.rt?this.x+this.w+24:this.x-24;
-          this.skillFX.play(fx_x,this.y+this.h/2-10,!this.rt);
-        }
+        this.sprite.play(this.type==='knight'?'attack_C':'dash_attack');this.sprite.speed=0.04;
+        if(this.skillFX){const fx_x=this.rt?this.x+this.w+24:this.x-24;this.skillFX.play(fx_x,this.y+this.h/2-10,!this.rt)}
       }
       if((I.pr('KeyX')||I.pr('KeyK'))&&this.dashCD<=0){
         this.dshT=0.12;this.dashCD=0.6;this.vx=(this.rt?1:-1)*10;this.inv=0.15;
         P.emit(this.x+this.w/2,this.y+this.h/2,5,this.col,2,0.2,2);
-        const dashAnim=this.type==='knight'?'dash_loop':'dash_attack';
-        this.sprite.play(dashAnim);this.sprite.speed=0.04;
+        this.sprite.play(this.type==='knight'?'dash_loop':'dash_attack');this.sprite.speed=0.04;
       }
     }
     if(this.dshT>0)this.dshT-=dt;
 
     if(this.st==='attack'){this.atkT-=dt;if(this.atkT<=0){this.st='idle';this.sprite.speed=0.08}}
     else if(this.st==='skill'){this.skillT-=dt;if(this.skillT<=0){this.st='idle';this.sprite.speed=0.08}}
-    else if(!this.gnd&&this.vy<0){
-      this.st='jump';
-      const jAnim=this.type==='knight'?'jump_loop':'jump';
-      this.sprite.play(jAnim);
-    }
-    else if(!this.gnd){
-      this.st='fall';
-      this.sprite.play('fall');
-    }
-    else if(mov){
-      this.st='run';
-      this.sprite.play('run');
-    }
-    else{
-      this.st='idle';
-      const idleAnim=this.type==='knight'?'idle':'idle_A';
-      this.sprite.play(idleAnim);
-    }
+    else if(!this.gnd&&this.vy<0){this.st='jump';this.sprite.play(this.type==='knight'?'jump_loop':'jump')}
+    else if(!this.gnd){this.st='fall';this.sprite.play('fall')}
+    else if(mov){this.st='run';this.sprite.play('run')}
+    else{this.st='idle';this.sprite.play(this.type==='knight'?'idle':'idle_A')}
 
-    if(this.st==='attack'||this.st==='skill'){
-      this.sprite.update(dt);
-    }else{
-      this.sprite.updateLoop(dt);
-    }
+    if(this.st==='attack'||this.st==='skill')this.sprite.update(dt);
+    else this.sprite.updateLoop(dt);
 
     this.mv(tm);
 
-    // Camera follow
+    // Camera
     const tx=this.x+this.w/2-CW/2,ty=this.y+this.h/2-CH/2;
     R.cam.x+=(tx-R.cam.x)*0.08;R.cam.y+=(ty-R.cam.y)*0.08;
   }
   atkBox(){
     if(this.st!=='attack'&&this.st!=='skill')return null;
-    const r=this.st==='skill'?50:30;
-    const dmg=this.st==='skill'?this.atkDmg*2:this.atkDmg;
+    const r=this.st==='skill'?50:30;const dmg=this.st==='skill'?this.atkDmg*2:this.atkDmg;
     return this.rt?{x:this.x+this.w,y:this.y-4,w:r,h:this.h+8,dmg}:{x:this.x-r,y:this.y-4,w:r,h:this.h+8,dmg};
   }
   draw(){
-    if(!this.on)return;
-    if(this.inv>0&&((this.inv*12)|0)%2)return;
-    // Draw sprite centered on entity position
-    const drawX=this.x+this.w/2-this.fw/2;
-    const drawY=this.y+this.h-this.fh;
+    if(!this.on)return;if(this.inv>0&&((this.inv*12)|0)%2)return;
+    const drawX=this.x+this.w/2-this.fw/2,drawY=this.y+this.h-this.fh;
     this.sprite.draw(drawX,drawY,!this.rt);
-    // Name label
     if(this.ctrl)R.txt(this.nm,this.x+this.w/2-R.cam.x,this.y-8-R.cam.y,this.col,9,'center');
-    // Skill cooldown indicator
-    if(this.ctrl&&this.skillCD>0){
-      R.a(0.6);
-      R.txt(`Q:${this.skillCD.toFixed(1)}s`,this.x+this.w/2-R.cam.x,this.y-18-R.cam.y,'#aaa',8,'center');
-      R.ra();
-    }
+    if(this.ctrl&&this.skillCD>0){R.a(0.6);R.txt('Q:'+this.skillCD.toFixed(1)+'s',this.x+this.w/2-R.cam.x,this.y-18-R.cam.y,'#aaa',8,'center');R.ra()}
+    // Double jump indicator
+    if(this.ctrl&&!this.gnd&&this.jumps<this.maxJumps){R.a(0.5);R.txt('\u2191',this.x+this.w/2-R.cam.x,this.y-28-R.cam.y,'#8cf',10,'center');R.ra()}
   }
 }
 
-// ═══ COMPANION HERO FOLLOWER ═══
+// ═══ COMPANION ═══
 class Companion{
-  constructor(hero){
-    this.hero=hero;
-    this.targetDist=60; // start following if more than this far away
-    this.stopDist=30; // stop when within this distance
-    this.followSpeed=hero.spd*0.9;
-    this.inMotion=false;
-  }
-  update(dt,activeHero,tm){
+  constructor(hero){this.hero=hero;this.followSpeed=hero.spd*0.85}
+  update(dt,active,tm){
     if(!this.hero.on||this.hero.ctrl)return;
-    const dx=activeHero.x-this.hero.x;
-    const dy=activeHero.y-this.hero.y;
-    const dist=Math.sqrt(dx*dx+dy*dy);
-
-    if(dist>this.targetDist){
-      // Follow the active hero
-      this.inMotion=true;
-      const angle=Math.atan2(dy,dx);
-      this.hero.vx=Math.cos(angle)*this.followSpeed;
-      this.hero.rt=this.hero.vx>0;
-      // Use run animation
-      const runAnim=this.hero.type==='knight'?'run':'run';
-      this.hero.sprite.play(runAnim);
-      this.hero.sprite.updateLoop(dt);
-    }else if(dist>this.stopDist){
-      // Gradually slow down as we approach
-      this.inMotion=true;
-      const angle=Math.atan2(dy,dx);
-      const slowSpeed=this.followSpeed*(dist-this.stopDist)/(this.targetDist-this.stopDist)*0.5;
-      this.hero.vx=Math.cos(angle)*slowSpeed;
-      const runAnim=this.hero.type==='knight'?'run':'run';
-      this.hero.sprite.play(runAnim);
-      this.hero.sprite.updateLoop(dt);
+    const dx=active.x-this.hero.x,dist=Math.abs(dx);
+    if(dist>60){
+      this.hero.vx=(dx>0?1:-1)*this.followSpeed;
+      this.hero.rt=dx>0;
+      this.hero.sprite.play('run');
+    }else if(dist>25){
+      this.hero.vx=(dx>0?1:-1)*this.followSpeed*0.4;
+      this.hero.sprite.play('run');
     }else{
-      // Close enough - idle
-      this.inMotion=false;
       this.hero.vx=0;
-      const idleAnim=this.hero.type==='knight'?'idle':'idle_A';
-      this.hero.sprite.play(idleAnim);
-      this.hero.sprite.updateLoop(dt);
+      this.hero.sprite.play(this.hero.type==='knight'?'idle':'idle_A');
     }
-
-    // Apply gravity and collision
+    this.hero.sprite.updateLoop(dt);
     this.hero.vy=Math.min(this.hero.vy+GR,MF);
     this.hero.mv(tm);
   }
 }
 
-// ═══ ENEMY (SpriteAnim based) ═══
+// ═══ ENEMY (SpriteAnim: evil_eye, mimic, bakaris) ═══
 class Enem extends Ent{
   constructor(x,y,w,h,nm,col,hp,dmg,ai,imgKey,metaKey,animType){
     super(x,y,w,h);this.nm=nm;this.col=col;this.hp=hp;this.mhp=hp;this.dmg=dmg;this.ai=ai;
     this.dir=1;this.pt=0;this.akt=0;this.spd=1;this.ag=130;
-    this.animType=animType||'evil_eye'; // evil_eye, mimic, bat
-    if(imgKey&&metaKey){
-      this.sprite=new SpriteAnim(imgKey,metaKey,'idle');
-      this.sprite.speed=0.08;
-    }
+    this.animType=animType||'classic';
+    if(imgKey&&metaKey){this.sprite=new SpriteAnim(imgKey,metaKey,'idle');this.sprite.speed=0.08}
     this.fw=w;this.fh=h;
-    // Set frame dimensions based on type
     if(animType==='evil_eye'){this.fw=96;this.fh=96}
     else if(animType==='mimic'){this.fw=72;this.fh=48}
-    else if(animType==='bat'){this.fw=96;this.fh=96}// bat frames are in 384x96 strips = 4 frames of 96
   }
   update(dt,tm,heroes){
     if(!this.on)return;if(this.inv>0)this.inv-=dt;this.akt-=dt;
     const h=heroes.find(h=>h.ctrl&&h.on);if(!h)return;
     const d=Math.abs(this.x-h.x);
-    if(this.ai==='patrol'){
-      this.pt+=dt;if(this.pt>2.5){this.dir*=-1;this.pt=0}
-      this.vx=this.spd*this.dir;this.rt=this.dir>0;
-      if(d<this.ag)this.ai='chase';
-      if(this.sprite)this.sprite.play('idle');
-    }
-    else if(this.ai==='chase'){
-      if(d>240){this.ai='patrol';return}
-      this.vx=(h.x>this.x?1:-1)*this.spd*1.3;this.rt=this.vx>0;
-      if(this.sprite){
-        if(this.animType==='evil_eye')this.sprite.play('idle');
-        else if(this.animType==='mimic')this.sprite.play('move');
-      }
-      if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1;if(this.sprite)this.sprite.play('attack')}
-    }
-    else if(this.ai==='static'){
-      this.vx=0;
-      if(this.sprite){
-        if(d<60){this.sprite.play(this.animType==='mimic'?'attack_A':'attack')}
-        else this.sprite.play('idle');
-      }
-      if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1.2}
-    }
-    else if(this.ai==='boss'){
+    if(this.ai==='boss'){
       this.rt=h.x>this.x;
       if(d<160){this.vx=(h.x>this.x?1:-1)*this.spd*0.9;if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=0.9}}else this.vx=0;
+    }else if(this.ai==='static'){
+      this.vx=0;
+      if(this.sprite){if(d<60)this.sprite.play(this.animType==='mimic'?'attack_A':'attack');else this.sprite.play('idle')}
+      if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1.2}
     }
     this.vy=Math.min(this.vy+GR,MF);this.mv(tm);
     if(this.sprite)this.sprite.updateLoop(dt);
   }
   draw(){
     if(!this.on)return;if(this.inv>0&&((this.inv*12)|0)%2)return;
-    if(this.sprite){
-      const drawX=this.x+this.w/2-this.fw/2;
-      const drawY=this.y+this.h-this.fh;
-      this.sprite.draw(drawX,drawY,!this.rt);
-    }else{
-      R.rect(this.x,this.y,this.w,this.h,this.col);
-    }
+    if(this.sprite){this.sprite.draw(this.x+this.w/2-this.fw/2,this.y+this.h-this.fh,!this.rt)}
+    else R.rect(this.x,this.y,this.w,this.h,this.col);
     if(this.hp<this.mhp){R.rect(this.x,this.y-5,this.w,3,'#333');R.rect(this.x,this.y-5,this.w*(this.hp/this.mhp),3,this.hp/this.mhp>0.5?'#4a4':'#f44')}
     R.txt(this.nm,this.x+this.w/2-R.cam.x,this.y-9-R.cam.y,'#faa',8,'center');
   }
@@ -682,26 +511,16 @@ class Enem extends Ent{
 // ═══ NPC ═══
 class NPC{
   constructor(x,y,nm,imgKey,metaKey,type,dlgs){
-    this.x=x;this.y=y;this.w=type==='knight'?28:18;this.h=type==='knight'?40:30;
-    this.nm=nm;this.dlgs=dlgs;this.tk=false;this.b=Math.random()*6;
-    this.type=type;
-    this.fw=type==='knight'?112:40;
-    this.fh=type==='knight'?80:40;
-    if(imgKey&&metaKey){
-      this.sprite=new SpriteAnim(imgKey,metaKey,type==='knight'?'idle':'idle_A');
-      this.sprite.speed=0.1;
-    }
+    this.x=x;this.y=y;this.w=type==='knight'?26:16;this.h=type==='knight'?38:28;
+    this.nm=nm;this.dlgs=dlgs;this.tk=false;this.b=Math.random()*6;this.type=type;
+    this.fw=type==='knight'?112:40;this.fh=type==='knight'?80:40;
+    if(imgKey&&metaKey){this.sprite=new SpriteAnim(imgKey,metaKey,type==='knight'?'idle':'idle_A');this.sprite.speed=0.1}
   }
   up(dt){this.b+=dt*2;if(this.sprite)this.sprite.updateLoop(dt)}
   draw(){
     const by=this.y+Math.sin(this.b)*1.5;
-    if(this.sprite){
-      const drawX=this.x+this.w/2-this.fw/2;
-      const drawY=by+this.h-this.fh;
-      this.sprite.draw(drawX,drawY,false);
-    }else{
-      R.rect(this.x,by,this.w,this.h,'#888');
-    }
+    if(this.sprite)this.sprite.draw(this.x+this.w/2-this.fw/2,by+this.h-this.fh,false);
+    else R.rect(this.x,by,this.w,this.h,'#888');
     R.txt(this.nm,this.x+this.w/2-R.cam.x,by-8-R.cam.y,'#bbb',8,'center');
     if(!this.tk)R.txt('!',this.x+this.w/2-R.cam.x,by-18-R.cam.y,'#c8a84e',12,'center');
   }
@@ -719,12 +538,12 @@ const D={q:[],c:null,ci:0,ct:0,on:false,cb:null,
 };
 function d(s,t){return{s,t}}
 
-// ═══ GLOBAL FX POOL ═══
+// ═══ GLOBAL FX ═══
 const FXPool=[];
 
 // ═══ LEVEL 1 ═══
 class Lv1{
-  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tut=false;this.exit=null;this.scrl=null;this.fox=null;this.shk=0;this.shi=0}
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tut=false;this.exit=null;this.scrl=null;this.fox=null;this.shk=0;this.shi=0;this.tileset='tiles_castle'}
 
   enter(){this.showAct('Act 1','THE FINAL EXAM',()=>this.bAct1())}
 
@@ -735,185 +554,169 @@ class Lv1{
   }
 
   createHeroes(x,y,includeNesta){
-    // Attack FX
     const koteAtk=new FXSprite('kote_atk',64,64,7,0.05);
     const minervaAtk=new FXSprite('minerva_atk',64,64,7,0.05);
     const elberAtk=new FXSprite('elber_atk',64,64,7,0.05);
     const nestaAtk=new FXSprite('nesta_atk',64,64,7,0.05);
-    // Skill FX
     const koteSkill=new FXSprite('kote_skill',128,128,7,0.06);
     const minervaSkill=new FXSprite('minerva_skill',96,96,6,0.06);
     const elberSkill=new FXSprite('elber_skill',128,128,16,0.05);
     const nestaSkill=new FXSprite('nesta_skill',64,64,50,0.03);
-
     FXPool.length=0;
     FXPool.push(koteAtk,minervaAtk,elberAtk,nestaAtk,koteSkill,minervaSkill,elberSkill,nestaSkill);
-
     const heroes=[
       new Hero('Kote',x,y,'#40aa88','kote','kote_meta','classic',koteSkill,koteAtk),
-      new Hero('Minerva',x+28,y,'#cc4444','minerva','minerva_meta','knight',minervaSkill,minervaAtk),
-      new Hero('Elber',x+56,y,'#44aa44','elber','elber_meta','knight',elberSkill,elberAtk),
+      new Hero('Minerva',x+30,y,'#cc44cc','minerva','minerva_meta','knight',minervaSkill,minervaAtk),
+      new Hero('Elber',x+60,y,'#44aa44','elber','elber_meta','knight',elberSkill,elberAtk),
     ];
-    if(includeNesta){
-      heroes.push(new Hero('Nesta',x+84,y,'#aa44cc','nesta','nesta_meta','knight',nestaSkill,nestaAtk));
-    }
+    if(includeNesta)heroes.push(new Hero('Nesta',x+90,y,'#4488cc','nesta','nesta_meta','knight',nestaSkill,nestaAtk));
     return heroes;
   }
 
-  bAct1(){
-    this.act=1;const MW=65,MH=30;this.tm=new TM(MW,MH);
-    // === CASTLE ARENA: The Final Exam ===
-    // Thick floor (3 tiles deep)
-    for(let x=0;x<MW;x++)for(let r=0;r<3;r++)this.tm.set(x,MH-1-r,r===0?2:1);
-    // Walls (2 tiles wide on each side)
-    for(let y=0;y<MH;y++){this.tm.set(0,y,1);this.tm.set(1,y,2);this.tm.set(MW-1,y,1);this.tm.set(MW-2,y,2)}
-    // Ceiling (2 tiles)
-    for(let x=0;x<MW;x++){this.tm.set(x,0,2);this.tm.set(x,1,1)}
-    // Left raised platform (thick: 2 tiles tall)
-    for(let x=5;x<14;x++){this.tm.set(x,MH-6,1);this.tm.set(x,MH-7,2)}
-    // Center high platform (thick)
-    for(let x=22;x<38;x++){this.tm.set(x,MH-9,1);this.tm.set(x,MH-10,2)}
-    // Steps up to center platform from left
-    for(let x=16;x<22;x++){this.tm.set(x,MH-7,1);this.tm.set(x,MH-8,2)}
-    // Steps up from right
-    for(let x=38;x<44;x++){this.tm.set(x,MH-7,1);this.tm.set(x,MH-8,2)}
-    // Right raised platform (thick)
-    for(let x=46;x<56;x++){this.tm.set(x,MH-6,1);this.tm.set(x,MH-7,2)}
-    // Decorative gold pillars
-    for(let y=2;y<6;y++){this.tm.set(2,y,5);this.tm.set(MW-3,y,5)}
-    for(let y=2;y<6;y++){this.tm.set(20,y,5);this.tm.set(40,y,5)}
-
-    // Heroes spawn on the floor, left side (safe area)
-    this.heroes=this.createHeroes(60,(MH-4)*T,true);
-    this.heroes[0].ctrl=true;this.ai=0;
-
-    // Fox familiar following Nesta
-    this.fox={x:100,y:(MH-4)*T-8,alive:true,b:0};
-
-    // Enemies spawn on right side platforms — clear separation from heroes
-    this.enemies=[
-      new Enem(780,(MH-4)*T,18,30,'Bakaris','#aa5533',100,10,'boss','bakaris','bakaris_meta','classic'),
-      new PCEnemy(620,(MH-4)*T,18,30,'Ayik Ur','#887755',50,8,'chase','castle_knight'),
-      new PCEnemy(700,(MH-4)*T,18,30,'Hrigg','#668877',50,8,'chase','castle_archer'),
-      new PCEnemy(800,(MH-8)*T,18,30,'Iriad','#886688',45,8,'patrol','castle_soldier'),
-      new PCEnemy(900,(MH-4)*T,18,30,'Andrella','#886666',45,8,'patrol','castle_priest'),
-    ];
-    if(this.enemies[0].sprite){
-      this.enemies[0].sprite.speed=0.08;
-      this.enemies[0].fw=40;this.enemies[0].fh=40;
-    }
-
-    // Setup companions for non-active heroes
+  rebuildCompanions(){
     this.companions=[];
-    for(let i=1;i<this.heroes.length;i++){
-      this.companions.push(new Companion(this.heroes[i]));
+    for(let i=0;i<this.heroes.length;i++){
+      if(i!==this.ai&&this.heroes[i].on)this.companions.push(new Companion(this.heroes[i]));
     }
+  }
 
+  // ════════════════════════════════════════════
+  // ACT 1: Castle Arena — SIMPLE FLAT DESIGN
+  // Only horizontal floors and vertical walls
+  // ════════════════════════════════════════════
+  bAct1(){
+    this.act=1;this.tileset='tiles_castle';
+    const W=80,H=25;this.tm=new TM(W,H);
+
+    // FLOOR: solid 3-tile thick bottom
+    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    // CEILING: 2-tile thick top
+    for(let x=0;x<W;x++){this.tm.set(x,0,2);this.tm.set(x,1,2)}
+    // LEFT WALL: 2-tile thick
+    for(let y=0;y<H;y++){this.tm.set(0,y,2);this.tm.set(1,y,2)}
+    // RIGHT WALL: 2-tile thick
+    for(let y=0;y<H;y++){this.tm.set(W-1,y,2);this.tm.set(W-2,y,2)}
+
+    // PLATFORMS: simple horizontal shelves (all 2 tiles thick, wide)
+    // Left shelf
+    for(let x=4;x<18;x++){this.tm.set(x,H-8,3);this.tm.set(x,H-9,3)}
+    // Center high shelf
+    for(let x=26;x<46;x++){this.tm.set(x,H-12,3);this.tm.set(x,H-13,3)}
+    // Right shelf
+    for(let x=52;x<66;x++){this.tm.set(x,H-8,3);this.tm.set(x,H-9,3)}
+    // Small mid-steps (2 tiles thick, to help reach center)
+    for(let x=20;x<26;x++){this.tm.set(x,H-6,3);this.tm.set(x,H-7,3)}
+    for(let x=46;x<52;x++){this.tm.set(x,H-6,3);this.tm.set(x,H-7,3)}
+
+    // Gold deco pillars (non-blocking — in ceiling area)
+    for(let y=2;y<5;y++){this.tm.set(2,y,4);this.tm.set(W-3,y,4);this.tm.set(25,y,4);this.tm.set(46,y,4)}
+
+    // Heroes on the left side of the floor
+    this.heroes=this.createHeroes(50,(H-4)*T,true);
+    this.heroes[0].ctrl=true;this.ai=0;
+    this.fox={x:80,y:(H-4)*T-8,alive:true,b:0};
+
+    // 5 DISTINCT ENEMIES — each a different sprite type
+    this.enemies=[
+      new Enem(900,(H-4)*T,16,28,'Bakaris','#aa5533',100,10,'boss','bakaris','bakaris_meta','classic'),
+      new PCEnemy(560,(H-4)*T,20,32,'Knight','#4466aa',50,8,'chase','castle_knight',true),
+      new PCEnemy(700,(H-4)*T,20,32,'Archer','#668877',50,8,'patrol','castle_archer',true),
+      new PCEnemy(800,(H-9)*T,20,32,'Fighter','#8a7a5a',45,8,'chase','hideout_fighter',true),
+      new PCEnemy(480,(H-4)*T,20,32,'Skeleton','#c8b888',45,7,'patrol','skeleton',false),
+    ];
+    if(this.enemies[0].sprite){this.enemies[0].sprite.speed=0.08;this.enemies[0].fw=40;this.enemies[0].fh=40}
+
+    this.rebuildCompanions();
     this.hud();
     document.getElementById('hud').style.display='flex';
-    document.getElementById('hint').textContent='ARROWS/WASD: Move | Z/J: Attack | Q/L: Skill | X/K: Dash | TAB: Swap Hero | SPACE: Jump/Talk';
+    document.getElementById('hint').textContent='ARROWS/WASD: Move | SPACE/W/UP: Jump (x2!) | Z/J: Attack | Q/L: Skill | X/K: Dash | TAB: Swap';
 
     D.show([
-      d('Narrator','Under the indestructible dome of Azurerune, surrounded by marine life, years of training culminate today.'),
+      d('Narrator','Under the dome of Azurerune, years of training culminate today.'),
       d('Narrator','The Final Exam. The Tribunal watches: Ispin, Lohezet, Becklin, and Cudgel.'),
       d('Becklin','"Show us what you have learned. Work as a team!"'),
-      d('Tutorial','ARROWS/WASD to move. SPACE/W to jump. Z/J to attack. Q/L for special skill. X/K to dash. TAB to swap hero.'),
+      d('Tutorial','ARROWS/WASD to move. SPACE to jump (press again for DOUBLE JUMP!). Z/J attack. Q/L skill. TAB swap hero.'),
       d('Bakaris','"I don\'t have time for these foolish games."'),
     ],()=>{this.tut=true});
   }
 
+  // ════════════════════════════════════════════
+  // ACT 3: Hallway — Flat corridor, talk to NPCs
+  // ════════════════════════════════════════════
   bAct3(){
-    this.act=3;const MW=90,MH=18;this.tm=new TM(MW,MH);this.enemies=[];this.npcs=[];
-    // === HALLWAY CORRIDOR ===
-    // Thick floor (3 tiles)
-    for(let x=0;x<MW;x++)for(let r=0;r<3;r++)this.tm.set(x,MH-1-r,r===0?2:1);
-    // Ceiling (2 tiles)
-    for(let x=0;x<MW;x++){this.tm.set(x,0,2);this.tm.set(x,1,1)}
-    // Side walls
-    for(let y=0;y<MH;y++){this.tm.set(0,y,1);this.tm.set(1,y,2);this.tm.set(MW-1,y,1);this.tm.set(MW-2,y,2)}
-    // Gold pillars every 14 tiles for decoration (NOT blocking path)
-    for(let x=15;x<MW-5;x+=14){for(let y=2;y<5;y++)this.tm.set(x,y,5)}
-    // Bookshelf decorations on ceiling (non-solid since they're above head height)
-    for(let x=4;x<12;x++){this.tm.set(x,2,5);this.tm.set(x,3,5)}
-    for(let x=22;x<32;x++){this.tm.set(x,2,5);this.tm.set(x,3,5)}
-    for(let x=42;x<52;x++){this.tm.set(x,2,5);this.tm.set(x,3,5)}
+    this.act=3;this.tileset='tiles_castle';
+    const W=80,H=14;this.tm=new TM(W,H);this.enemies=[];this.npcs=[];
 
-    this.heroes.forEach((h,i)=>{h.x=50+i*28;h.y=(MH-4)*T;h.vx=0;h.vy=0;h.gnd=false});
+    // Floor (3 thick)
+    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    // Ceiling (2 thick)
+    for(let x=0;x<W;x++){this.tm.set(x,0,2);this.tm.set(x,1,2)}
+    // Walls
+    for(let y=0;y<H;y++){this.tm.set(0,y,2);this.tm.set(1,y,2);this.tm.set(W-1,y,2);this.tm.set(W-2,y,2)}
+    // Gold pillars (ceiling deco only)
+    for(let p=10;p<W-5;p+=12)for(let y=2;y<4;y++)this.tm.set(p,y,4);
+
+    this.heroes.forEach((h,i)=>{h.x=50+i*30;h.y=(H-4)*T;h.vx=0;h.vy=0;h.gnd=false});
     this.npcs=[
-      new NPC(200,(MH-4)*T,'Levna','nick','nick_meta','knight',[d('Levna Drakehorn','She reveals a lightning scar.'),d('Levna','"A Blue Dragon did this, in the Northern Wastes. Dragons are NOT myths."')]),
-      new NPC(380,(MH-4)*T,'Clystran','bakaris','bakaris_meta','classic',[d('Clystran','"My village Heart\'s Hollow may hold the key to finding metallic dragons."')]),
-      new NPC(560,(MH-4)*T,'Darrett','elber','elber_meta','knight',[d('Darrett Highwater','"I want to be Becklin\'s squire. She\'s the greatest knight alive."')]),
-      new NPC(740,(MH-4)*T,'Andir','minerva','minerva_meta','knight',[d('Andir Valmakos','"I still believe in the Old Gods — Paladine, Habbakuk. Faith is not weakness."')]),
-      new NPC(920,(MH-4)*T,'Bakaris','bakaris','bakaris_meta','classic',[d('Bakaris','"My father is gaining power in Kalaman. There are rumors of an invading force..."'),d('Narrator','The political threat is real.')]),
+      new NPC(180,(H-4)*T,'Levna','nick','nick_meta','knight',[d('Levna Drakehorn','She reveals a lightning scar.'),d('Levna','"A Blue Dragon did this. Dragons are NOT myths."')]),
+      new NPC(350,(H-4)*T,'Clystran','bakaris','bakaris_meta','classic',[d('Clystran','"My village Heart\'s Hollow may hold the key to finding metallic dragons."')]),
+      new NPC(520,(H-4)*T,'Darrett','elber','elber_meta','knight',[d('Darrett Highwater','"I want to be Becklin\'s squire. She\'s the greatest knight alive."')]),
+      new NPC(690,(H-4)*T,'Andir','minerva','minerva_meta','knight',[d('Andir Valmakos','"I still believe in the Old Gods. Faith is not weakness."')]),
+      new NPC(860,(H-4)*T,'Bakaris','bakaris','bakaris_meta','classic',[d('Bakaris','"My father is gaining power in Kalaman. There are rumors of an invading force..."')]),
     ];
-    this.exit={x:(MW-4)*T,y:(MH-4)*T,w:28,h:36};
-
-    // Setup companions for non-active heroes
-    this.companions=[];
-    for(let i=0;i<this.heroes.length;i++){
-      if(i!==this.ai&&this.heroes[i].on)this.companions.push(new Companion(this.heroes[i]));
-    }
+    this.exit={x:(W-5)*T,y:(H-4)*T,w:28,h:36};
+    this.rebuildCompanions();
   }
 
+  // ════════════════════════════════════════════
+  // ACT 4: Library — Platforms with double-jump
+  // Only horizontal platforms, vertical walls
+  // ════════════════════════════════════════════
   bAct4(){
-    this.act=4;const MW=70,MH=22;this.tm=new TM(MW,MH);this.enemies=[];this.npcs=[];this.exit=null;
-    // === LIBRARY: Night Infiltration ===
-    // Thick floor (3 tiles)
-    for(let x=0;x<MW;x++)for(let r=0;r<3;r++)this.tm.set(x,MH-1-r,r===0?2:1);
-    // Ceiling (2 tiles)
-    for(let x=0;x<MW;x++){this.tm.set(x,0,2);this.tm.set(x,1,1)}
-    // Side walls (2 tiles wide)
-    for(let y=0;y<MH;y++){this.tm.set(0,y,1);this.tm.set(1,y,6);this.tm.set(MW-1,y,1);this.tm.set(MW-2,y,6)}
+    this.act=4;this.tileset='tiles_library';
+    const W=80,H=28;this.tm=new TM(W,H);this.enemies=[];this.npcs=[];this.exit=null;
 
-    // === CLEAR STAIRCASE PATH (left to right, ascending with manageable jumps) ===
-    // Max jump: ~72px height, ~140px horizontal. Gaps must be <=8 tiles wide, <=4 tiles up
-    // Step 1: Ground-level platform (starting area, wide)
-    for(let x=3;x<14;x++){this.tm.set(x,MH-6,3);this.tm.set(x,MH-7,6)}
-    // Step 2: Jump right and up (gap=2 tiles, up=2 tiles)
-    for(let x=16;x<26;x++){this.tm.set(x,MH-8,3);this.tm.set(x,MH-9,6)}
-    // Step 3: Continue right and up (gap=2, up=2)
-    for(let x=28;x<38;x++){this.tm.set(x,MH-10,3);this.tm.set(x,MH-11,6)}
-    // Step 4: Zigzag back down-right (gap=2, down=2)
-    for(let x=40;x<50;x++){this.tm.set(x,MH-8,3);this.tm.set(x,MH-9,6)}
-    // Step 5: Final ascent (gap=2, up=3)
-    for(let x=52;x<62;x++){this.tm.set(x,MH-11,3);this.tm.set(x,MH-12,6)}
+    // Floor (3 thick)
+    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    // Ceiling (2 thick)
+    for(let x=0;x<W;x++){this.tm.set(x,0,5);this.tm.set(x,1,5)}
+    // Walls (bookshelves)
+    for(let y=0;y<H;y++){this.tm.set(0,y,5);this.tm.set(1,y,5);this.tm.set(W-1,y,5);this.tm.set(W-2,y,5)}
 
-    // Heroes spawn on the floor, left
-    this.heroes.forEach((h,i)=>{h.x=40+i*28;h.y=(MH-4)*T;h.vx=0;h.vy=0;h.gnd=false});
+    // STAIRCASE of wide horizontal platforms — all 2 tiles thick
+    // Platform 1: low-left
+    for(let x=4;x<20;x++){this.tm.set(x,H-7,3);this.tm.set(x,H-8,5)}
+    // Platform 2: mid
+    for(let x=22;x<38;x++){this.tm.set(x,H-11,3);this.tm.set(x,H-12,5)}
+    // Platform 3: mid-right (lower, zigzag)
+    for(let x=40;x<56;x++){this.tm.set(x,H-8,3);this.tm.set(x,H-9,5)}
+    // Platform 4: high-right (final)
+    for(let x=58;x<74;x++){this.tm.set(x,H-14,3);this.tm.set(x,H-15,5)}
 
-    // Enemies placed ON platforms or ground (not floating)
+    this.heroes.forEach((h,i)=>{h.x=40+i*30;h.y=(H-4)*T;h.vx=0;h.vy=0;h.gnd=false});
+
+    // Enemies: mimics on platforms, library scholars on ground
     this.enemies=[
-      new Enem(130,(MH-7)*T,30,24,'Mimic','#6a4a2a',40,12,'static','mimic_img','mimic_meta','mimic'),
-      new Enem(350,(MH-9)*T,30,24,'Mimic','#6a4a2a',40,12,'static','mimic_img','mimic_meta','mimic'),
-      new Enem(680,(MH-9)*T,30,24,'Mimic','#6a4a2a',40,12,'static','mimic_img','mimic_meta','mimic'),
-      new PCEnemy(250,(MH-4)*T,18,30,'Cataloguer','#7a5a3a',35,7,'patrol','lib_cataloguer'),
-      new PCEnemy(500,(MH-4)*T,18,30,'Censor','#8a4a4a',35,7,'chase','lib_censor'),
+      new Enem(120,(H-8)*T,30,24,'Mimic','#6a4a2a',40,12,'static','mimic_img','mimic_meta','mimic'),
+      new Enem(450,(H-9)*T,30,24,'Mimic','#6a4a2a',40,12,'static','mimic_img','mimic_meta','mimic'),
+      new PCEnemy(250,(H-4)*T,20,32,'Director','#7a5a3a',35,7,'patrol','lib_director',true),
+      new PCEnemy(500,(H-4)*T,20,32,'Researcher','#5a7a7a',35,7,'chase','lib_researcher',true),
+      new PCEnemy(350,(H-4)*T,20,32,'Censor','#8a4a4a',35,7,'chase','lib_censor',true),
     ];
-    // Scroll on the final high platform (step 5 surface is at MH-11)
-    this.scrl={x:57*T,y:(MH-12)*T,got:false};
-
-    // Setup companions for non-active heroes
-    this.companions=[];
-    for(let i=0;i<this.heroes.length;i++){
-      if(i!==this.ai&&this.heroes[i].on)this.companions.push(new Companion(this.heroes[i]));
-    }
+    // Scroll on the top-right platform
+    this.scrl={x:66*T,y:(H-15)*T,got:false};
+    this.rebuildCompanions();
   }
 
   swap(idx){
     if(idx===this.ai||!this.heroes[idx]||!this.heroes[idx].on)return;
-    const cur=this.heroes[this.ai];
-    const nxt=this.heroes[idx];
-    const tmpX=nxt.x,tmpY=nxt.y;
+    const cur=this.heroes[this.ai],nxt=this.heroes[idx];
+    const tx=nxt.x,ty=nxt.y;
     nxt.x=cur.x;nxt.y=cur.y;nxt.vx=0;nxt.vy=0;nxt.gnd=cur.gnd;
-    cur.x=tmpX;cur.y=tmpY;cur.vx=0;cur.vy=0;
-    cur.ctrl=false;cur.st='idle';
-    nxt.ctrl=true;
+    cur.x=tx;cur.y=ty;cur.vx=0;cur.vy=0;
+    cur.ctrl=false;cur.st='idle';nxt.ctrl=true;
     this.ai=idx;
-    // Rebuild companions: all non-active heroes get a companion follower
-    this.companions=[];
-    for(let i=0;i<this.heroes.length;i++){
-      if(i!==this.ai&&this.heroes[i].on)this.companions.push(new Companion(this.heroes[i]));
-    }
+    this.rebuildCompanions();
     P.emit(nxt.x+nxt.w/2,nxt.y+nxt.h/2,8,nxt.col,3,0.3,2);
     this.hud();
   }
@@ -921,8 +724,7 @@ class Lv1{
   hud(){
     let h='';
     this.heroes.forEach((hero,i)=>{
-      const a=i===this.ai?'act':'';
-      const pct=Math.max(0,hero.hp/hero.mhp*100);
+      const a=i===this.ai?'act':'';const pct=Math.max(0,hero.hp/hero.mhp*100);
       const col=pct>50?'#4a4':pct>25?'#aa4':'#a44';
       h+=`<div class="hs ${a}" onclick="G.sc.swap(${i})"><div style="width:28px;height:28px;background:${hero.col}33;border-radius:2px;display:flex;align-items:center;justify-content:center"><span style="color:${hero.col};font-size:13px;font-weight:bold">${hero.nm[0]}</span></div><div class="hp-bar"><div class="hp-fill" style="width:${pct}%;background:${col}"></div></div><div class="nm">${hero.nm}</div></div>`;
     });
@@ -938,30 +740,23 @@ class Lv1{
     if(this.shk>0){this.shk-=dt;R.cam.x+=(Math.random()-0.5)*this.shi;R.cam.y+=(Math.random()-0.5)*this.shi}
     if(!this.tm){P.up(dt);return}
 
-    // Tab swap
     if(I.pr('Tab')){
       let n=(this.ai+1)%this.heroes.length,c=0;
       while((!this.heroes[n]||!this.heroes[n].on)&&c<this.heroes.length){n=(n+1)%this.heroes.length;c++}
       this.swap(n);
     }
-    for(let i=0;i<this.heroes.length;i++)if(I.pr(`Digit${i+1}`))this.swap(i);
+    for(let i=0;i<this.heroes.length;i++)if(I.pr('Digit'+(i+1)))this.swap(i);
 
-    // Update active hero
     this.heroes[this.ai].update(dt,this.tm);
-    // Update companion heroes (Companion handles gravity+mv, no extra physics loop needed)
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm));
-
     this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
     FXPool.forEach(fx=>fx.update(dt));
 
-    // Hero attack hits
     this.heroes.forEach(hero=>{
       const ab=hero.atkBox();if(!ab)return;
-      const dmg=ab.dmg||hero.atkDmg;
-      this.enemies.forEach(e=>{if(e.on&&e.x<ab.x+ab.w&&e.x+e.w>ab.x&&e.y<ab.y+ab.h&&e.y+e.h>ab.y)e.hurt(dmg)});
+      this.enemies.forEach(e=>{if(e.on&&e.x<ab.x+ab.w&&e.x+e.w>ab.x&&e.y<ab.y+ab.h&&e.y+e.h>ab.y)e.hurt(ab.dmg||hero.atkDmg)});
     });
 
-    // NPCs
     this.npcs.forEach(npc=>{
       npc.up(dt);
       const h=this.heroes[this.ai];
@@ -972,7 +767,6 @@ class Lv1{
 
     P.up(dt);
 
-    // Fox familiar
     if(this.fox&&this.fox.alive&&this.act<=2){
       const n=this.heroes.find(h=>h.nm==='Nesta');
       if(n){this.fox.b+=dt*3;this.fox.x+=(n.x-20-this.fox.x)*0.05;this.fox.y+=(n.y+8-this.fox.y)*0.05}
@@ -986,7 +780,6 @@ class Lv1{
         this.act=2;
         this.showAct('Act 2','BLOOD AND GRUDGE',()=>{
           if(this.fox)this.fox.alive=false;
-          P.emit(this.fox?this.fox.x+6:CW/2,this.fox?this.fox.y+4:CH/2,12,'#1a1a1a',3,0.6,2);
           D.show([
             d('Narrator','Victory! But at a terrible cost...'),
             d('Narrator','Bakaris kills Nesta\'s black fox familiar in an act of spite.'),
@@ -995,7 +788,7 @@ class Lv1{
             d('Bakaris','"You will regret this, Saudothien."'),
           ],()=>{this.showAct('Act 3','HALLWAY RUMORS',()=>{
             this.bAct3();
-            D.show([d('Narrator','Explore the corridors. Talk to fellow students (!) before leaving through the EXIT.'),d('Tutorial','Walk near NPCs and press SPACE. Talk to at least 3, then find the exit door on the right.')]);
+            D.show([d('Narrator','Explore the corridors. Talk to fellow students (!) before the EXIT.'),d('Tutorial','Walk near NPCs and press SPACE. Talk to 3+, then find EXIT on the right.')]);
           })});
         });
       }
@@ -1011,26 +804,26 @@ class Lv1{
             this.bAct4();
             D.show([
               d('Narrator','Under cover of night, you infiltrate the Restricted Section of the Library.'),
-              d('Kote','"Watch for Mimic Books! Navigate the platforms to reach the golden scroll at the far end."'),
-              d('Tutorial','Jump across platforms going right. Watch for Mimics! Reach the SCROLL at the top-right.')
+              d('Kote','"Watch for Mimic Books! Use DOUBLE JUMP to reach the golden scroll!"'),
+              d('Tutorial','Jump across platforms (DOUBLE JUMP with SPACE x2). Reach the SCROLL at the top-right!')
             ]);
           });
         }
-        else if(I.pr('Space'))D.show([d('Tutorial',`Talk to more students! (${tk}/3)`)]);
+        else if(I.pr('Space'))D.show([d('Tutorial','Talk to more students! ('+tk+'/3)')]);
       }
     }
 
     if(this.act===4&&this.scrl&&!this.scrl.got){
       this.hud();
       const h=this.heroes[this.ai];
-      if(h&&Math.abs(h.x-this.scrl.x)<30&&Math.abs(h.y-this.scrl.y)<30){
+      if(h&&Math.abs(h.x-this.scrl.x)<30&&Math.abs(h.y-this.scrl.y)<40){
         this.scrl.got=true;P.emit(this.scrl.x+8,this.scrl.y+8,20,'#c8a84e',5,1,3);
         this.showAct('Act 5','DIVERGING PATHS',()=>{
           D.show([
-            d('Narrator','You found it! Clues to the "Lost Library of Istar" in the Northern Wastes!'),
+            d('Narrator','You found it! Clues to the "Lost Library of Istar"!'),
             d('Elber','"The technology of the floating cities... it\'s all connected."'),
             d('Ispin Greenshield','"Come to Vogler. The Kingfisher Festival awaits."'),
-            d('Narrator','The heroes leave Azurerune behind. Next stop: Vogler.'),
+            d('Narrator','The heroes leave Azurerune. Next stop: Vogler.'),
             d('','\u2014 LEVEL 1 COMPLETE \u2014\n\n"School Day at Azurerune"\n\nLevel 2: The Kingfisher Festival \u2014 Coming Soon!'),
           ],()=>G.title());
         });
@@ -1047,17 +840,8 @@ class Lv1{
     else{g.addColorStop(0,'#0d2847');g.addColorStop(1,'#1a3a5a')}
     R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
 
-    // Ambient effects
-    if(this.act!==4){
-      const t=Date.now()/1000;R.a(0.1);
-      for(let i=0;i<12;i++){const bx=(Math.sin(t*0.25+i*1.7)*0.5+0.5)*CW,by=CH-((t*16+i*50)%CH);
-        R.x.fillStyle='#6aa8c8';R.x.beginPath();R.x.arc(bx,by,1.5+Math.sin(t+i),0,Math.PI*2);R.x.fill()}
-      R.ra();
-    }else{
-      R.a(0.03);for(let i=0;i<4;i++)R.sr(150+i*180,0,1,CH,'#aaccff');R.ra();
-    }
-
-    if(this.tm)this.tm.draw(this.act===4);
+    // Draw tilemap with actual tileset
+    if(this.tm)this.tm.draw(this.tileset);
 
     // Exit door
     if(this.exit){
@@ -1071,7 +855,6 @@ class Lv1{
     // Scroll
     if(this.act===4&&this.scrl&&!this.scrl.got){
       const t=Date.now()/400;R.a(0.6+Math.sin(t)*0.3);
-      // Draw a glowing scroll
       const sx=this.scrl.x-R.cam.x,sy=this.scrl.y-R.cam.y;
       R.x.fillStyle='#c8a84e';R.x.fillRect(sx-6,sy-4,20,16);
       R.x.fillStyle='#fff8e0';R.x.fillRect(sx-4,sy-2,16,12);
@@ -1081,19 +864,16 @@ class Lv1{
 
     // Fox
     if(this.fox&&this.fox.alive){
-      const fy=this.fox.y+Math.sin(this.fox.b)*1;
-      const fx=this.fox.x-R.cam.x,fdy=fy-R.cam.y;
+      const fy=this.fox.y+Math.sin(this.fox.b)*1,fx=this.fox.x-R.cam.x,fdy=fy-R.cam.y;
       R.x.fillStyle='#1a1a1a';
-      R.x.fillRect(fx,fdy,10,6);R.x.fillRect(fx+2,fdy-3,6,3);// body+head
-      R.x.fillRect(fx-1,fdy-5,2,3);R.x.fillRect(fx+9,fdy-5,2,3);// ears
+      R.x.fillRect(fx,fdy,10,6);R.x.fillRect(fx+2,fdy-3,6,3);
+      R.x.fillRect(fx-1,fdy-5,2,3);R.x.fillRect(fx+9,fdy-5,2,3);
     }
 
     this.npcs.forEach(n=>n.draw());
     this.enemies.forEach(e=>e.draw());
-    // Draw non-controlled heroes behind controlled
     this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
-    // Draw FX on top
     FXPool.forEach(fx=>fx.draw());
     P.draw();
   }
@@ -1103,10 +883,8 @@ class Lv1{
 const G={sc:null,lt:0,
   async init(){
     R.init();I.init();
-
-    // Load all assets
     await Assets.load([
-      // Character spritesheets
+      // Heroes
       {type:'image',key:'kote',path:'assets/chars/kote.png'},
       {type:'meta',key:'kote_meta',path:'assets/chars/kote.txt'},
       {type:'image',key:'minerva',path:'assets/chars/minerva.png'},
@@ -1119,7 +897,7 @@ const G={sc:null,lt:0,
       {type:'meta',key:'nick_meta',path:'assets/chars/nick.txt'},
       {type:'image',key:'bakaris',path:'assets/chars/bakaris.png'},
       {type:'meta',key:'bakaris_meta',path:'assets/chars/bakaris.txt'},
-      // Pixel Crawler castle enemies
+      // Castle enemies (knight, archer = full 4-sheet set)
       {type:'image',key:'castle_knight_idle',path:'assets/enemies/castle_knight/idle.png'},
       {type:'image',key:'castle_knight_run',path:'assets/enemies/castle_knight/run.png'},
       {type:'image',key:'castle_knight_death',path:'assets/enemies/castle_knight/death.png'},
@@ -1128,15 +906,20 @@ const G={sc:null,lt:0,
       {type:'image',key:'castle_archer_run',path:'assets/enemies/castle_archer/run.png'},
       {type:'image',key:'castle_archer_death',path:'assets/enemies/castle_archer/death.png'},
       {type:'image',key:'castle_archer_hit',path:'assets/enemies/castle_archer/hit.png'},
-      {type:'image',key:'castle_soldier_idle',path:'assets/enemies/castle_soldier/idle.png'},
-      {type:'image',key:'castle_soldier_run',path:'assets/enemies/castle_soldier/run.png'},
-      {type:'image',key:'castle_soldier_death',path:'assets/enemies/castle_soldier/death.png'},
-      {type:'image',key:'castle_soldier_hit',path:'assets/enemies/castle_soldier/hit.png'},
-      {type:'image',key:'castle_priest_idle',path:'assets/enemies/castle_priest/idle.png'},
-      {type:'image',key:'castle_priest_run',path:'assets/enemies/castle_priest/run.png'},
-      {type:'image',key:'castle_priest_death',path:'assets/enemies/castle_priest/death.png'},
-      {type:'image',key:'castle_priest_hit',path:'assets/enemies/castle_priest/hit.png'},
-      // Pixel Crawler library enemies
+      // Hideout enemies (fighter, scout)
+      {type:'image',key:'hideout_fighter_idle',path:'assets/enemies/hideout_fighter/idle.png'},
+      {type:'image',key:'hideout_fighter_run',path:'assets/enemies/hideout_fighter/run.png'},
+      {type:'image',key:'hideout_fighter_death',path:'assets/enemies/hideout_fighter/death.png'},
+      {type:'image',key:'hideout_fighter_hit',path:'assets/enemies/hideout_fighter/hit.png'},
+      {type:'image',key:'hideout_scout_idle',path:'assets/enemies/hideout_scout/idle.png'},
+      {type:'image',key:'hideout_scout_run',path:'assets/enemies/hideout_scout/run.png'},
+      {type:'image',key:'hideout_scout_death',path:'assets/enemies/hideout_scout/death.png'},
+      {type:'image',key:'hideout_scout_hit',path:'assets/enemies/hideout_scout/hit.png'},
+      // Skeleton (no hit sheet)
+      {type:'image',key:'skeleton_idle',path:'assets/enemies/skeleton/idle.png'},
+      {type:'image',key:'skeleton_run',path:'assets/enemies/skeleton/run.png'},
+      {type:'image',key:'skeleton_death',path:'assets/enemies/skeleton/death.png'},
+      // Library enemies
       {type:'image',key:'lib_cataloguer_idle',path:'assets/enemies/lib_cataloguer/idle.png'},
       {type:'image',key:'lib_cataloguer_run',path:'assets/enemies/lib_cataloguer/run.png'},
       {type:'image',key:'lib_cataloguer_death',path:'assets/enemies/lib_cataloguer/death.png'},
@@ -1145,18 +928,18 @@ const G={sc:null,lt:0,
       {type:'image',key:'lib_censor_run',path:'assets/enemies/lib_censor/run.png'},
       {type:'image',key:'lib_censor_death',path:'assets/enemies/lib_censor/death.png'},
       {type:'image',key:'lib_censor_hit',path:'assets/enemies/lib_censor/hit.png'},
-      // Enemy spritesheets (SpriteAnim with .txt)
-      {type:'image',key:'evil_eye_red',path:'assets/enemies/evil_eye_red.png'},
-      {type:'meta',key:'evil_eye_meta',path:'assets/enemies/evil_eye_red.txt'},
-      {type:'image',key:'evil_eye_blue',path:'assets/enemies/evil_eye_blue.png'},
+      {type:'image',key:'lib_director_idle',path:'assets/enemies/lib_director/idle.png'},
+      {type:'image',key:'lib_director_run',path:'assets/enemies/lib_director/run.png'},
+      {type:'image',key:'lib_director_death',path:'assets/enemies/lib_director/death.png'},
+      {type:'image',key:'lib_director_hit',path:'assets/enemies/lib_director/hit.png'},
+      {type:'image',key:'lib_researcher_idle',path:'assets/enemies/lib_researcher/idle.png'},
+      {type:'image',key:'lib_researcher_run',path:'assets/enemies/lib_researcher/run.png'},
+      {type:'image',key:'lib_researcher_death',path:'assets/enemies/lib_researcher/death.png'},
+      {type:'image',key:'lib_researcher_hit',path:'assets/enemies/lib_researcher/hit.png'},
+      // Special enemies
       {type:'image',key:'mimic_img',path:'assets/enemies/mimic.png'},
       {type:'meta',key:'mimic_meta',path:'assets/enemies/mimic.txt'},
-      {type:'image',key:'bat_idle',path:'assets/enemies/bat_idle.png'},
-      {type:'image',key:'bat_move',path:'assets/enemies/bat_move.png'},
-      {type:'image',key:'bat_atk',path:'assets/enemies/bat_atk.png'},
-      {type:'image',key:'hell_hand_red',path:'assets/enemies/hell_hand_red.png'},
-      {type:'image',key:'hell_hand_violet',path:'assets/enemies/hell_hand_violet.png'},
-      // Effect spritesheets
+      // FX
       {type:'image',key:'kote_skill',path:'assets/fx/kote_skill.png'},
       {type:'image',key:'kote_atk',path:'assets/fx/kote_atk.png'},
       {type:'image',key:'minerva_skill',path:'assets/fx/minerva_skill.png'},
@@ -1168,39 +951,30 @@ const G={sc:null,lt:0,
       // Tilesets
       {type:'image',key:'tiles_castle',path:'assets/env/castle/tiles.png'},
       {type:'image',key:'tiles_library',path:'assets/env/library/tiles.png'},
-      // UI meters
-      {type:'image',key:'meter_l_red',path:'assets/ui/meter_left_red.png'},
-      {type:'image',key:'meter_c_red',path:'assets/ui/meter_center_red.png'},
-      {type:'image',key:'meter_r_red',path:'assets/ui/meter_right_red.png'},
-      {type:'image',key:'meter_l_green',path:'assets/ui/meter_left_green.png'},
-      {type:'image',key:'meter_c_green',path:'assets/ui/meter_center_green.png'},
-      {type:'image',key:'meter_r_green',path:'assets/ui/meter_right_green.png'},
-      {type:'image',key:'meter_l_blue',path:'assets/ui/meter_left_blue.png'},
-      {type:'image',key:'meter_c_blue',path:'assets/ui/meter_center_blue.png'},
-      {type:'image',key:'meter_r_blue',path:'assets/ui/meter_right_blue.png'},
-      {type:'image',key:'meter_l_violet',path:'assets/ui/meter_left_violet.png'},
-      {type:'image',key:'meter_c_violet',path:'assets/ui/meter_center_violet.png'},
-      {type:'image',key:'meter_r_violet',path:'assets/ui/meter_right_violet.png'},
     ]);
-
-    // Hide loading screen, show title
     document.getElementById('loadScr').style.display='none';
     document.getElementById('title').style.display='flex';
     document.getElementById('startBtn').addEventListener('click',()=>this.start());
     this.loop(performance.now());
   },
   start(){
-    document.activeElement.blur();
-    document.getElementById('c').focus();
+    document.activeElement.blur();document.getElementById('c').focus();
     document.getElementById('title').style.display='none';
     this.sc=new Lv1();this.sc.enter();
   },
   title(){this.sc=null;document.getElementById('title').style.display='flex';document.getElementById('hud').style.display='none';document.getElementById('dlg').style.display='none';document.getElementById('hint').textContent='';document.getElementById('ecount').textContent=''},
-  loop(ts){const dt=Math.min((ts-this.lt)/1000,0.05);this.lt=ts;
+  loop(ts){
+    const dt=Math.min((ts-this.lt)/1000,0.05);this.lt=ts;
     if(this.sc){this.sc.update(dt);this.sc.draw()}
-    else{const g=R.x.createLinearGradient(0,0,0,CH);g.addColorStop(0,'#0a1628');g.addColorStop(0.5,'#0d2847');g.addColorStop(1,'#1a4a6e');R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
-      const t=Date.now()/1000;R.a(0.06);for(let i=0;i<15;i++){const bx=(Math.sin(t*0.2+i*1.3)*0.5+0.5)*CW,by=CH-((t*10+i*35)%CH);R.x.fillStyle='#6a9ab8';R.x.beginPath();R.x.arc(bx,by,2+Math.sin(t*0.5+i),0,Math.PI*2);R.x.fill()}R.ra()}
-    I.flush();requestAnimationFrame(t=>this.loop(t))}
+    else{
+      const g=R.x.createLinearGradient(0,0,0,CH);g.addColorStop(0,'#0a1628');g.addColorStop(0.5,'#0d2847');g.addColorStop(1,'#1a4a6e');
+      R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
+      const t=Date.now()/1000;R.a(0.06);
+      for(let i=0;i<15;i++){const bx=(Math.sin(t*0.2+i*1.3)*0.5+0.5)*CW,by=CH-((t*10+i*35)%CH);R.x.fillStyle='#6a9ab8';R.x.beginPath();R.x.arc(bx,by,2+Math.sin(t*0.5+i),0,Math.PI*2);R.x.fill()}
+      R.ra();
+    }
+    I.flush();requestAnimationFrame(t=>this.loop(t));
+  }
 };
 G.init();
 </script>
