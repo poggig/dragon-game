@@ -1,0 +1,404 @@
+Platformer Dragonlance Campaign - "Chronicles of Azurerune"
+If you are Claude you can use this document to update with me the project plan. At the beginning this is a very simple concept idea but we will iterate. Keep it readable.
+
+******* CONCEPT *******
+A pixel-art platformer game covering Sessions 1-5 of the Dragonlance campaign set in the Azurerune Fortress universe.
+- Story-driven with narration between and during levels
+- Varied gameplay: combat, stealth, fishing minigame, boss fights, social/exploration
+- Party system with character swap (4 heroes, each with unique abilities)
+- Trilingual: English, Spanish, Italian
+- HTML5 browser prototype first, then Godot 4.6 port
+
+******* TECH STACK *******
+Phase 1: HTML5/JavaScript/Canvas (playable in browser, easy to iterate)
+Phase 2: Godot 4.6.1 port (Windows build, polished release)
+GitHub: https://github.com/poggig/dragon-game
+
+******* HEROES *******
+1. KOTE - The Rogue/Champion
+   - Role: Agility, precision, resourcefulness
+   - Motivation: Rescue his missing mother
+   - Abilities: Dash, ranged attack (bow/dagger throw), lockpick interaction
+   - Visual: Dark-haired young man with dual swords (see Session 1 silhouette)
+   - Sprite: classic_character.zip (closest match)
+   - Key moments: Arena victory, fishing champion, shoots Spectator's eye, sees mother in ritual, dock battles
+
+2. MINERVA DRAGONSOUL - The Warrior/Knight
+   - Role: Strength, combat, protection
+   - Motivation: Aspiring Knight of Solamnia, dragon seeker
+   - Abilities: Heavy melee (greataxe), shield block, charge attack, rage (grows giant in L5)
+   - Visual: Woman with red braided hair, dragon-wing motif, Solamnic armor (from L4)
+   - Sprite: Super Pixel Heroes - Knight.zip (warrior variant)
+   - Mentor choice: Debates between Becklin (sword) and Cudgel (tactics)
+   - Key moments: Arena coordination, MVP vs Darkmantles, stops boulder, saves villagers, fights Ogre
+
+3. ELBER - The Druid/Ranger
+   - Role: Magic, nature, intelligence, technology
+   - Motivation: Seeking technology of the floating cities
+   - Abilities: Speak with animals, ranged magic, entangle, stealth bonus
+   - Visual: Man with goggles, mechanical gauntlet, inventor aesthetic
+   - Sprite: Super Pixel Heroes - Knight (1).zip (ranger variant)
+   - Key moments: Arena teamwork, interrogates fauna, river jump escape, pins Goblin Chief
+
+4. NESTA SAUDOTHIEN - The Dark Mage/Drow
+   - Role: Dark magic, intimidation, arcane power
+   - Motivation: Family vengeance against an unknown general
+   - Abilities: Shadow bolt, fear aura, dark diplomacy, arcane assault
+   - Visual: Hooded woman with bow, ranger-like (L1), dark elegance later
+   - Sprite: Super Pixel Heroes - Knight (2).zip (dark variant)
+   - Availability: Present L1, ABSENT L2-L3 (punished for scarring Bakaris), returns L4-L5
+   - Key moments: Scars Bakaris (L1), fox familiar killed (L1), dark diplomacy for boats (L5), arcane assault (L5)
+   - Familiar: Black fox (killed by Bakaris in L1 - emotional catalyst)
+
+5. NICK OLEODON - Support NPC (not directly playable, provides buffs/healing)
+   - Role: Necromancer/Cleric, divine support, healing
+   - Motivation: Mission to liberate Balifor
+   - Visual: Dark robed figure with skulls, necromantic aesthetic
+   - Companion: Arturito (skeleton familiar, sacrifices himself in L5)
+   - Appears in cutscenes and provides party buffs during combat
+
+******* KEY NPCs *******
+- LORD BAKARIS THE YOUNG: Main rival. Arrogant noble with team (Ayik Ur, Hrigg, Iriad, Andrella).
+  Nesta scars his face in L1 after he kills her fox. His father gains power in Kalaman. Lifelong enemy.
+- ISPIN GREENSHIELD: Legendary explorer, Nature professor. Invites party to Vogler (Kingfisher Festival).
+- BECKLIN UTH VIHARIN: Fencing instructor, retired Solamnic Knight. Dies heroically in L5.
+- CUDGEL IRONSMILE: Tactics & teamwork expert. Co-awards Solamnic armor in L4.
+- LOHEZET: Enigmatic Arcane Master, Black Robe. Offers Nesta the dark pact in L4.
+- LEVNA DRAKEHORN: Fellow student, Knight of the Rose. Has lightning scar from Blue Dragon.
+- CLYSTRAN: Discusses dragon theories. His village Heart's Hollow may hold metallic dragon clues.
+- DARRETT HIGHWATER: Wants to be Becklin's squire. Follows path of the sword.
+- ANDIR VALMAKOS: Keeps faith in Old Gods (Paladine, Habbakuk) despite mockery.
+- KANSALDI FIRE EYES: Red Dragon Army commander. Unbeatable final boss in L5.
+
+******* LEVEL DESIGN *******
+
+--- LEVEL 1: School Day at Azurerune ---
+Session: 1 - "Día de Escuela: El Desafío de los Héroes en la Fortaleza Azurerune"
+Setting: Azurerune Fortress (underwater academy under indestructible dome)
+Available heroes: All 4 + Nick as NPC (Kote, Minerva, Elber, Nesta)
+Gameplay type: Tutorial + Arena combat + Stealth/exploration + Story
+
+Structure:
+  Act 1 - THE FINAL EXAM (Tutorial + Arena combat)
+    - Introduction: underwater fortress, marine life visible through crystal dome
+    - The Tribunal watches: Ispin, Lohezet, Becklin, Cudgel
+    - TUTORIAL: teaches movement, attacks, character swap
+    - ARENA BATTLE: Heroes vs Bakaris team (Bakaris, Ayik Ur, Hrigg, Iriad, Andrella)
+    - Team coordination wins over individual glory
+    - Earn respect of Levna Drakehorn and Darrett Highwater
+    - Environment: Pixel Crawler - Castle Environment (arena area)
+
+  Act 2 - BLOOD AND GRUDGE (Cutscene + Quick combat)
+    - Bakaris is a sore loser - kills Nesta's black fox familiar
+    - Nesta retaliates: SCARS Bakaris's face permanently
+    - Nick heals the physical wounds but the hatred remains
+    - "A lifelong enemy has been forged"
+    - This is the emotional core - establishes Nesta/Bakaris rivalry
+
+  Act 3 - HALLWAY RUMORS (Exploration/social)
+    - Explore Azurerune corridors between classes
+    - Talk to NPCs: Levna (Blue Dragon scar story), Clystran (dragon theories, Heart's Hollow),
+      Darrett (wants to be Becklin's squire), Andir (faith in Old Gods)
+    - Bakaris drops political intel: his father gaining power in Kalaman, unknown invading force
+    - Minerva's mentor choice: Becklin (sword) vs Cudgel (tactics) - dialogue choice
+    - Environment: Castle Environment (corridors, classrooms)
+
+  Act 4 - NIGHT INFILTRATION (Stealth)
+    - Sneak into the Restricted Section of the Library at night
+    - Obstacles: magical traps, surveillance mechanisms
+    - MIMIC BOOKS attack! (Use Mimic Chest.zip - reskinned as books)
+    - Key discovery: Azurerune's Secret Library has clues to the "Lost Library of Istar"
+      in the Northern Wastes (Eriales del Norte)
+    - Environment: Pixel Crawler - Library (dark, nighttime palette)
+
+  Act 5 - DIVERGING PATHS (Story cutscene)
+    - Students choose mentors and loyalties near graduation
+    - Mages of High Sorcery path vs Path of the Sword
+    - Ispin Greenshield invites the party to Vogler for the Kingfisher Festival
+    - "Next stop: Vogler" - map shows route from Azurerune to the village
+    - Sets up Level 2
+
+Boss: Bakaris team (arena fight - tutorial boss, not too hard)
+Key moments: Arena victory, fox familiar death, Nesta scars Bakaris, library infiltration
+Key items: Intel about Library of Istar
+Environment assets: Castle Environment (fortress, arena, corridors), Library (night infiltration)
+
+--- LEVEL 2: The Kingfisher Festival ---
+Session: 2 - "El Festival del Martin Pescador"
+Setting: River journey to Vogler + Vogler fishing village
+Available heroes: Kote, Minerva, Elber (Nesta absent - punished)
+
+Structure:
+  Act 1 - RIVER AMBUSH (Side-scrolling combat on boat)
+    - Party travels by river to Vogler
+    - 3 Darkmantles attack (squid-manta hybrids)
+    - They cast magical DARKNESS (screen goes dark, limited visibility)
+    - Minerva is MVP - melee focus
+    - Environment: Pixel Crawler - Sewer or Cave (dark water theme)
+    - Enemies: Use Bat_Fur.zip or alien monster sprites for Darkmantles
+
+  Act 2 - FESTIVAL SABOTAGE (Exploration/social)
+    - Arrive at Vogler village (Garden environment)
+    - Talk to NPCs, meet Mayor Raven Uth Vogler
+    - Elber talks to seagulls (reveals best fishing spots)
+    - Elber talks to fish (reveals they love Salted Algae)
+    - Buy 15kg of Salted Algae
+    - Sabotage rival Aurel: get him drunk + steal his fishing rod
+    - Sign up for Battle of High Hill reenactment
+
+  Act 3 - THE FISHING COMPETITION (Minigame)
+    - Fishing minigame: timing-based mechanic
+    - Nick casts Blessing (buff), Minerva intimidates crowd, Elber handles bait
+    - Must catch Benebog the Linebreaker (2.5m legendary fish)
+    - Reward: 3 Pearls (Red, White, Black) from Benebog's belly
+
+  Act 4 - SHADOW ON THE ROAD (Combat cliffhanger)
+    - Returning from festival at dusk
+    - Draconian Kapak ambushes from the bushes (glowing eyes, dagger)
+    - Mini-boss fight, ends with acid explosion on death
+    - Loot: Poisoned Kukri
+    - Leads into Level 3
+
+Boss: Draconian Kapak (acid death explosion)
+Environment assets: Garden (village), Sewer/Cave (river), Free Pack (roads)
+
+--- LEVEL 3: Library of Secrets ---
+Session: 3 - "Infiltracion en la Biblioteca de Azurerune"
+Setting: Azurerune Fortress Library (forbidden section)
+Available heroes: Kote, Minerva, Elber (Nesta still absent)
+
+Structure:
+  Act 1 - THE SILENCE THRESHOLD (Stealth/puzzle)
+    - Silence Zone: no verbal communication (visual-only hints)
+    - Threat: Lord Ramses the familiar cat (170dB sonic meow = alarm)
+    - Kote picks the lock
+    - Move Professor Fazzir's candle without waking him or the cat
+    - Environment: Pixel Crawler - Library
+
+  Act 2 - DESCENT TO THE FORBIDDEN (Platformer with traps)
+    - Transition from library shelves to damp underground corridors
+    - Find the Candle of the Depths (burns underwater) in a fishbowl
+    - Nick triggers pressure plate - caught in hanging net (must free him)
+    - ROLLING BOULDER TRAP: Kote drinks Giant Strength Potion + Minerva = stop boulder
+    - Environment: Pixel Crawler - Cave / Hideout
+
+  Act 3 - ECHOES OF THE PAST (Combat)
+    - Animated sword controlled by cursed gauntlet (Ispin Greenshield's first sword)
+    - Minerva pins gauntlet, Elber & Kote dismantle
+    - Reward: Espada +1 de Ispin (green magic glow)
+
+  Act 4 - DECEPTIONS AND DEPTHS (Puzzle + Boss)
+    - Mimic chest! (identify correctly to avoid combat) - Use Mimic Chest.zip asset!
+    - Dark circular pool blocks the path
+    - Use Candle of the Depths to find submerged hatch
+    - BOSS: The Spectator (Beholder-kin) - floating eye monster
+      * Confusion rays cause friendly fire (Elber hits Minerva!)
+      * Out of melee range - must use ranged attacks
+      * Kote's arrow to central eye = killing blow
+    - Environment: Pixel Crawler - Cave
+
+  Act 5 - THE ESCAPE (Stealth)
+    - Books collected: Dragons, Horrors, Golden Vault Secrets, Bones
+    - Artifacts: Mechanical Amulet of Istar, Ispin's Sword, Kukri, Depth Candle
+    - Becklin guards the exit corridor
+    - Convince him with flattery (dialogue choice) OR sneak past
+    - Escape to dormitories
+
+Boss: The Spectator (floating eye with confusion rays)
+Key items: Candle of Depths, Espada +1 de Ispin, Amulet of Istar
+Environment assets: Library, Cave, Hideout
+
+--- LEVEL 4: The Yurthgreen Masquerade ---
+Session: 4 - "El Baile de Yurthgreen"
+Setting: Underwater ballroom of Azurerune Fortress
+Available heroes: All 4 (NESTA RETURNS!)
+Gameplay type: Social/exploration/story-heavy + ritual climax
+
+Structure:
+  Act 1 - THE BALLROOM (Exploration/social)
+    - Stunning underwater ballroom: crystal ceiling, three moons visible
+    - History floor made of sunken ship wood
+    - Heroes in masquerade outfits (special sprites)
+    - Nesta: dark elegance | Minerva: golden dragon | Elber: cape & mystery | Kote: noble simplicity
+    - Talk to NPCs: Bakaris (rival, boasting), Levna (Knight of the Rose, tense)
+    - Minerva & Clystran dance together
+    - Tem Temble worried about Kendermore
+    - Becklin & Cudgel dance (teachers having fun)
+
+  Act 2 - THE LEGACY (Story/cutscene)
+    - Minerva receives Solamnic armor from Becklin & Cudgel (gameplay upgrade!)
+    - "The torch has been passed"
+
+  Act 3 - THE SHADOW OF SORCERY (Story choice)
+    - Lohezet approaches Nesta
+    - Rite of the Golden Vault: ancient relics needed to defeat the enemy
+    - The Promise: power & information in exchange for Black Robes initiation
+    - Player choice: Accept? Refuse? (affects Nesta's abilities going forward)
+
+  Act 4 - ISPIN'S RITUAL (Climax)
+    - Ispin performs the ritual using the 3 pearls
+    - Kote sees his mother briefly (emotional cutscene)
+    - Three moons align through the crystal ceiling
+    - Magic pulses - the student phase is officially over
+
+  Act 5 - LIBRARY DISCOVERIES (Story)
+    - The Golden Museum: contacting spirits is the key
+    - Lost Gods: connection between relics and possible return of gods (good AND evil)
+    - "The music fades, but the adventure has just begun"
+
+Boss: None (story level - tension is social/emotional)
+Key moments: Nesta's return, Solamnic armor, Kote sees his mother, moon alignment
+Environment assets: Castle Environment (ballroom), custom underwater overlay
+
+--- LEVEL 5: When the Home Burns (Fall of Vogler) ---
+Session: 5 - "Cuando Arde el Hogar"
+Setting: Vogler village - under siege
+Available heroes: All 4
+Gameplay type: Multi-phase battle, boss rush, escape sequence
+
+Structure:
+  Act 1 - CALM BEFORE THE STORM (Exploration/shop)
+    - Vogler armory: 50% discount on weapons/armor
+    - Festival of the Kingfisher at High Hill
+    - Battle of High Hill reenactment begins...
+
+  Act 2 - THE BROKEN ILLUSION (Twist + combat)
+    - The "Iron Regiment" actors reveal real steel weapons
+    - Red Dragon Army mercenaries in disguise!
+    - Elber & Kote spot the trap first
+    - Full combat begins on the hilltop
+    - Minerva saves 2 villagers (carries them to safety)
+    - Elber's desperate jump across the river
+    - Environment: Garden (festival) → Desert (burning fields)
+
+  Act 3 - LA RUINA ROJA (Escalation)
+    - Kansaldi Fire Eyes' ultimatum echoes magically:
+      "People of Vogler: By order of Kansaldi Fire Eyes, the wrath of Takhisis..."
+    - Full-scale invasion, not a skirmish
+    - SURVIVAL LOGISTICS: 400 villagers, boats for 200
+    - Nesta threatens fishermen for extra boats (Dark Diplomacy)
+    - Kote, Minerva & Nick convert Ferry Tavern into evacuation raft
+
+  Act 4 - FIRST WAVE (Boss: Sivak Draconian)
+    - A guard reveals true form: massive Sivak Draconian
+    - Minerva enters rage (grows giant!)
+    - Supported by Elber's arrows and Nick's magic
+    - The beast falls, revealing the murdered guard's face
+
+  Act 5 - IRON AND FIRE (Boss: Boilerdrak)
+    - Mechanical fire-breathing dragon arrives at the docks
+    - Flanked by Baaz and Bozak Draconians
+    - Multi-phase boss: avoid fire breath, attack weak points
+    - Becklin delivers the killing blow (NPC assist)
+    - Nesta's arcane assault decimates draconian ranks
+    - Nick provides covering fire from rooftops
+    - Environment: Forge (burning docks) + fire overlay effects
+
+  Act 6 - LAST STAND (Boss: Goblin Chief on Ogre)
+    - Magical webs trap Nick and Nesta
+    - Minerva vs Ogre (melee duel)
+    - Elber pins Goblin Chief against wall
+    - Nick heals wounded, Arturito (skeleton companion) sacrifices himself
+
+  Act 7 - SIN ESPERANZA (Cutscene/Escape)
+    - Kansaldi Fire Eyes arrives personally
+    - Impossibly powerful - sinks a refugee boat with divine power
+    - Kills Becklin with her pike ("Run, children!")
+    - This is NOT a winnable fight - the heroes must FLEE
+    - Escape sequence: run to the boats while dodging Kansaldi's attacks
+    - Final shot: survivors float toward Kalaman, Vogler burns behind them
+
+Final Boss: Kansaldi Fire Eyes (unwinnable - escape sequence)
+Key items: Upgraded weapons from armory
+Environment assets: Castle (village), Forge (burning docks), Desert (battlefield)
+Effects: Super Pixel Effects Gigapack (fire, explosions), Explosion FX Pack
+
+******* ASSET MAPPING *******
+Environments:
+  - Azurerune Fortress (dome, corridors, arena) → Castle Environment + underwater overlay
+  - Azurerune Library (night infiltration) → Library tileset (dark palette)
+  - River/boats → Sewer + Cave
+  - Vogler village → Garden Environment
+  - Forbidden library tunnels → Cave + Hideout
+  - Ballroom → Castle + custom water ceiling
+  - Burning Vogler → Forge + Desert + fire effects
+  - Roads/paths → Free Pack
+
+Enemies:
+  - Bakaris team (L1 arena) → Knight sprites (reskinned as rival students)
+  - Mimic Books (L1 library) → Mimic Chest.zip (reskinned as books!)
+  - Darkmantles (L2) → Bat_Fur.zip + Alien Monster Pack (tentacle creatures)
+  - Draconians (Kapak, Baaz, Bozak, Sivak) → Castle Royal Crew (reskinned)
+  - Spectator/Beholder (L3) → Alien Monster Pack (eye creature)
+  - Animated Sword (L3) → Custom or Objects pack
+  - Mimic Chest (L3) → Mimic Chest.zip (PERFECT match!)
+  - Ogre (L5) → Monster Pack 2 (large creature)
+  - Goblin Chief (L5) → Monster Pack 2 (small creature)
+  - Boilerdrak (L5) → Custom composite (mechanical dragon)
+  - Kansaldi Fire Eyes (L5) → Custom boss sprite (Knight + fire effects)
+
+UI: Super Pixel Fantasy UI - Royal Crown (fits the Solamnic/knightly theme)
+Effects: Gigapack + Fantasy FX + Explosion FX
+Items: Super Pixel Objects And Items 1 & 2
+Icons: Skill Icons Pack 1 & 2
+
+******* QUESTIONS FOR GABRI (TODOs) *******
+1. [RESOLVED] Session 1 powerpoint received - Level 1 designed!
+2. [QUESTION] Nick (necromancer) - should he be a 5th playable character or stay as NPC support?
+3. [QUESTION] Kote's appearance: Session 1 shows dual-sword silhouette. Earlier sessions show
+   red hair + green beret. Which is the canonical look for the game sprite?
+4. [QUESTION] For the Masquerade level (L4) - should the Lohezet/Nesta dark pact choice
+   actually affect gameplay? (e.g., Nesta gets stronger dark spells but at a story cost)
+5. [QUESTION] Should Arturito (Nick's skeleton companion) appear as a small NPC in battles?
+6. [QUESTION] Music/sound - do you have any music files or preferences? (chiptune, orchestral, etc.)
+7. [QUESTION] The Boilerdrak is a unique mechanical dragon - should I design it as a
+   multi-phase boss or a single tough fight?
+8. [DECISION] For the Kansaldi escape in L5 - should it be a timed auto-scrolling escape
+   sequence or a "survive X seconds" defense?
+9. [QUESTION] Elber's look: Session 1 shows him with goggles and a mechanical gauntlet
+   (inventor/tinker style). Should we keep this steampunk-ish look or go more classic druid?
+10. [QUESTION] Nesta's fox familiar - should it appear as a small companion sprite in L1
+    before Bakaris kills it? Would add emotional weight to that scene.
+
+******* DEVELOPMENT PHASES *******
+Phase 1 - HTML5 Prototype (CURRENT)
+  [x] Explore all source material and understand story
+  [x] Create project plan
+  [x] Session 1 PDF received and Level 1 designed
+  [ ] Extract and organize assets
+  [ ] Build game engine core (canvas rendering, sprite system, input, scenes)
+  [ ] Character system with party swap
+  [ ] Level 1: School Day (tutorial + arena + stealth - good intro level)
+  [ ] Level 2: Kingfisher Festival (most varied gameplay)
+  [ ] Level 3: Library of Secrets (stealth + boss)
+  [ ] Level 4: Yurthgreen Masquerade (social/story)
+  [ ] Level 5: Fall of Vogler (boss rush + escape)
+  [ ] Trilingual text system (EN/ES/IT)
+  [ ] Push to GitHub
+
+Phase 2 - Godot Port
+  [ ] Set up Godot 4.6 project structure
+  [ ] Port game engine to GDScript
+  [ ] Port all 5 levels
+  [ ] Add polish: particles, screen shake, transitions
+  [ ] Export for Windows/Web
+  [ ] Push to GitHub
+
+******* CHANGELOG *******
+2026-03-17 (update 2): Session 1 PDF received! Level 1 fully designed.
+  - Session 1 = "School Day" (Academy Chronicle: arena fight, Bakaris rivalry, library infiltration)
+  - Added full Level 1 design with 5 acts (tutorial, arena, social, stealth, story)
+  - Updated all hero profiles with motivations from Session 1 character cards
+  - Added KEY NPCs section (Bakaris, Ispin, Becklin, Cudgel, Lohezet, Levna, Clystran, etc.)
+  - Corrected Nick from "Cleric" to "Necromancer" (liberating Balifor, has skeleton Arturito)
+  - Added Nesta's black fox familiar (killed by Bakaris - major emotional beat)
+  - Corrected Elber's visual: goggles + mechanical gauntlet (inventor, not classic druid)
+  - Updated enemy list with Bakaris team and Mimic Books
+  - Added 2 new questions (#9 Elber's look, #10 fox familiar sprite)
+  - Removed blocking TODO (Session 1 received!)
+
+2026-03-17: Initial plan created after reviewing sessions 2-5 presentations
+  - Decided on HTML5 first → Godot port
+  - Party swap system with 4 heroes + Nick as NPC
+  - 5 levels mapped to 5 sessions
+  - Asset mapping complete

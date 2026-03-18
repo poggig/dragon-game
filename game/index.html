@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chronicles of Azurerune</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a1a;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Courier New',monospace}
+canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+#gameContainer{position:relative}
+#ui{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+#dlg{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);width:88%;max-width:680px;background:rgba(8,8,30,0.95);border:2px solid #c8a84e;border-radius:6px;padding:14px 18px;color:#f0e6c0;font-size:14px;line-height:1.5;display:none;pointer-events:auto;z-index:10}
+#dlg .sp{color:#c8a84e;font-weight:bold;margin-bottom:3px;font-size:12px}
+#dlg .tx{min-height:36px}
+#dlg .pr{color:#555;font-size:10px;margin-top:6px;text-align:right}
+#title{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;pointer-events:auto;z-index:20}
+#title h1{color:#c8a84e;font-size:30px;text-shadow:0 0 18px rgba(200,168,78,0.4);margin-bottom:4px;text-align:center}
+#title h2{color:#8ab4d4;font-size:15px;margin-bottom:28px;font-weight:normal;text-align:center}
+#title .sub{color:#5a84a4;font-size:11px;margin-bottom:20px}
+.btn{pointer-events:auto;background:rgba(200,168,78,0.1);border:1px solid #c8a84e;color:#c8a84e;padding:9px 32px;font-family:inherit;font-size:13px;cursor:pointer;margin:4px;border-radius:3px;outline:none}
+.btn:hover{background:rgba(200,168,78,0.22)}
+.btn:focus{outline:none}
+#hud{position:absolute;top:0;left:0;width:100%;padding:5px 8px;display:none;pointer-events:none;z-index:5;display:flex;gap:5px;align-items:flex-start}
+.hs{display:flex;flex-direction:column;align-items:center;pointer-events:auto;cursor:pointer;padding:2px 3px;border-radius:3px;border:2px solid transparent}
+.hs.act{border-color:#c8a84e;background:rgba(200,168,78,0.08)}
+.hp-bar{width:32px;height:3px;background:#222;border-radius:1px;margin-top:2px}
+.hp-fill{height:100%;border-radius:1px;transition:width 0.3s}
+.hs .nm{color:#888;font-size:8px;margin-top:1px}
+#ecount{color:#f88;font-size:10px;margin-left:10px;margin-top:6px;pointer-events:none}
+#actT{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;display:none;z-index:8;pointer-events:none}
+#actT .an{color:#c8a84e;font-size:12px;letter-spacing:3px;text-transform:uppercase}
+#actT .at{color:#f0e6c0;font-size:24px;margin-top:3px;text-shadow:0 0 12px rgba(200,168,78,0.3)}
+#hint{position:absolute;bottom:5px;right:8px;color:#3a3a3a;font-size:9px;pointer-events:none}
+#loadScr{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;background:#0a0a1a;z-index:30}
+#loadScr .lt{color:#c8a84e;font-size:14px;margin-bottom:12px}
+#loadScr .bar{width:200px;height:6px;background:#1a1a2a;border:1px solid #333;border-radius:3px}
+#loadScr .fill{height:100%;background:#c8a84e;border-radius:2px;width:0%;transition:width 0.2s}
+#loadScr .info{color:#555;font-size:10px;margin-top:8px}
+</style>
+</head>
+<body>
+<div id="gameContainer">
+<canvas id="c" tabindex="0"></canvas>
+<div id="ui">
+<div id="loadScr"><div class="lt">Loading Assets...</div><div class="bar"><div class="fill" id="loadBar"></div></div><div class="info" id="loadInfo"></div></div>
+<div id="title" style="display:none">
+<h1>Chronicles of Azurerune</h1>
+<h2>El Desafio de los Heroes</h2>
+<div class="sub">Session 1 — School Day</div>
+<button class="btn" id="startBtn">Start Game</button>
+</div>
+<div id="hud"></div>
+<span id="ecount"></span>
+<div id="actT"><div class="an"></div><div class="at"></div></div>
+<div id="dlg"><div class="sp"></div><div class="tx"></div><div class="pr">[SPACE or CLICK]</div></div>
+<div id="hint"></div>
+</div>
+</div>
+<script>
+const CW=800,CH=480,T=16,GR=0.55,MF=9;
+
+// ═══ ASSET LOADER ═══
+const Assets={
+  images:{},
+  meta:{},
+  total:0,
+  loaded:0,
+
+  // Parse a .txt sprite atlas metadata file
+  parseMeta(txt){
+    const anims={};
+    for(const line of txt.split('\n')){
+      const m=line.match(/^(.+?)\s*=\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/);
+      if(!m)continue;
+      const path=m[1].trim();
+      const x=+m[2],y=+m[3],w=+m[4],h=+m[5];
+      // Extract animation name: everything before /frameNNNN or the whole name
+      let anim=path,frame=0;
+      const fm=path.match(/^(.+?)(?:\/frame(\d+)(?:\.png)?|\.png)?$/);
+      if(fm){
+        anim=fm[1];
+        frame=fm[2]?+fm[2]:0;
+      }
+      // Strip the prefix (e.g. sph_knight_red/)
+      const parts=anim.split('/');
+      if(parts.length>1)anim=parts.slice(1).join('/');
+      if(!anims[anim])anims[anim]=[];
+      anims[anim].push({x,y,w,h,frame});
+    }
+    // Sort each anim by frame
+    for(const k in anims)anims[k].sort((a,b)=>a.frame-b.frame);
+    return anims;
+  },
+
+  async load(manifest){
+    this.total=manifest.length;this.loaded=0;
+    const bar=document.getElementById('loadBar');
+    const info=document.getElementById('loadInfo');
+
+    const promises=manifest.map(item=>{
+      if(item.type==='image'){
+        return new Promise((res,rej)=>{
+          const img=new Image();
+          img.onload=()=>{this.images[item.key]=img;this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%';info.textContent=item.path;res()};
+          img.onerror=()=>{console.warn('Failed to load:',item.path);this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%';res()};
+          img.src=item.path;
+        });
+      }else if(item.type==='meta'){
+        return fetch(item.path).then(r=>r.text()).then(txt=>{
+          this.meta[item.key]=this.parseMeta(txt);
+          this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%';info.textContent=item.path;
+        }).catch(()=>{console.warn('Failed to load meta:',item.path);this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%'});
+      }
+    });
+    await Promise.all(promises);
+  }
+};
+
+// ═══ SPRITESHEET ANIMATION ═══
+class SpriteAnim{
+  constructor(imgKey,metaKey,defaultAnim){
+    this.imgKey=imgKey;
+    this.metaKey=metaKey;
+    this.anim=defaultAnim||'idle';
+    this.frame=0;
+    this.timer=0;
+    this.speed=0.08; // seconds per frame
+    this.done=false;
+  }
+  play(anim,speed){
+    if(this.anim===anim)return;
+    this.anim=anim;this.frame=0;this.timer=0;this.done=false;
+    if(speed)this.speed=speed;
+  }
+  update(dt){
+    this.timer+=dt;
+    const frames=this.getFrames();
+    if(!frames||!frames.length)return;
+    if(this.timer>=this.speed){
+      this.timer-=this.speed;
+      this.frame++;
+      if(this.frame>=frames.length){this.frame=frames.length-1;this.done=true}
+    }
+  }
+  updateLoop(dt){
+    this.timer+=dt;
+    const frames=this.getFrames();
+    if(!frames||!frames.length)return;
+    if(this.timer>=this.speed){this.timer-=this.speed;this.frame=(this.frame+1)%frames.length}
+  }
+  getFrames(){
+    const meta=Assets.meta[this.metaKey];
+    if(!meta)return null;
+    return meta[this.anim]||null;
+  }
+  getCurrent(){
+    const frames=this.getFrames();
+    if(!frames||!frames.length)return null;
+    return frames[Math.min(this.frame,frames.length-1)];
+  }
+  draw(x,y,flip,scale){
+    const img=Assets.images[this.imgKey];
+    const f=this.getCurrent();
+    if(!img||!f)return;
+    const sc=scale||1;
+    const dx=x-R.cam.x,dy=y-R.cam.y;
+    const dw=f.w*sc,dh=f.h*sc;
+    if(flip){
+      R.x.save();R.x.translate(dx+dw,dy);R.x.scale(-1,1);
+      R.x.drawImage(img,f.x,f.y,f.w,f.h,0,0,dw,dh);
+      R.x.restore();
+    }else{
+      R.x.drawImage(img,f.x,f.y,f.w,f.h,dx,dy,dw,dh);
+    }
+  }
+}
+
+// ═══ PIXEL CRAWLER ENEMY (horizontal strip format) ═══
+class PCEnemy{
+  constructor(x,y,w,h,nm,col,hp,dmg,ai,baseDir){
+    this.x=x;this.y=y;this.w=w;this.h=h;this.nm=nm;this.col=col;
+    this.hp=hp;this.mhp=hp;this.dmg=dmg;this.ai=ai;
+    this.vx=0;this.vy=0;this.gnd=false;this.rt=true;
+    this.dir=1;this.pt=0;this.akt=0;this.spd=1;this.ag=130;
+    this.inv=0;this.on=true;
+    this.baseDir=baseDir||'enemies';
+    // Load 4 separate images for Pixel Crawler enemies
+    this.idle=Assets.images[baseDir+'_idle'];
+    this.run=Assets.images[baseDir+'_run'];
+    this.death=Assets.images[baseDir+'_death'];
+    this.hit=Assets.images[baseDir+'_hit'];
+    // Animation state
+    this.anim='idle';this.frame=0;this.timer=0;this.speed=0.08;
+  }
+  hits(o){return this.x<o.x+o.w&&this.x+this.w>o.x&&this.y<o.y+o.h&&this.y+this.h>o.y}
+  blk(tm,dx,dy){
+    const nx=this.x+dx,ny=this.y+dy;
+    return tm.sol((nx+2)/T|0,(ny+2)/T|0)||tm.sol((nx+this.w-3)/T|0,(ny+2)/T|0)||
+           tm.sol((nx+2)/T|0,(ny+this.h-1)/T|0)||tm.sol((nx+this.w-3)/T|0,(ny+this.h-1)/T|0);
+  }
+  mv(tm){
+    if(!this.blk(tm,this.vx,0))this.x+=this.vx;
+    else{const s=Math.sign(this.vx);let c=0;while(!this.blk(tm,s,0)&&c<20){this.x+=s;c++}this.vx=0}
+    if(!this.blk(tm,0,this.vy)){this.y+=this.vy;this.gnd=false}
+    else{if(this.vy>0)this.gnd=true;const s=Math.sign(this.vy);let c=0;while(!this.blk(tm,0,s)&&c<20){this.y+=s;c++}this.vy=0}
+  }
+  hurt(n){if(this.inv>0)return;this.hp-=n;this.inv=0.4;P.emit(this.x+this.w/2,this.y+this.h/2,8,'#f44',4,0.4,2);if(this.hp<=0){this.hp=0;this.die()}}
+  die(){this.on=false;this.anim='death';this.frame=0;this.timer=0;P.emit(this.x+this.w/2,this.y+this.h/2,15,'#f44',5,0.6,3)}
+  update(dt,tm,heroes){
+    if(!this.on)return;if(this.inv>0)this.inv-=dt;this.akt-=dt;
+    const h=heroes.find(h=>h.ctrl&&h.on);if(!h)return;
+    const d=Math.abs(this.x-h.x);
+    if(this.ai==='patrol'){
+      this.pt+=dt;if(this.pt>2.5){this.dir*=-1;this.pt=0}
+      this.vx=this.spd*this.dir;this.rt=this.dir>0;
+      if(d<this.ag)this.ai='chase';
+      this.anim='idle';
+    }
+    else if(this.ai==='chase'){
+      if(d>240){this.ai='patrol';return}
+      this.vx=(h.x>this.x?1:-1)*this.spd*1.3;this.rt=this.vx>0;
+      this.anim='run';
+      if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1;this.anim='hit'}
+    }
+    else if(this.ai==='static'){
+      this.vx=0;
+      if(d<60)this.anim='hit';
+      else this.anim='idle';
+      if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1.2}
+    }
+    this.vy=Math.min(this.vy+GR,MF);this.mv(tm);
+    // Update animation
+    this.timer+=dt;
+    const img=this.anim==='idle'?this.idle:this.anim==='run'?this.run:this.anim==='hit'?this.hit:this.death;
+    if(img){
+      let frames=0;
+      if(this.anim==='idle')frames=4;
+      else if(this.anim==='run')frames=6;
+      else if(this.anim==='hit')frames=4;
+      else if(this.anim==='death')frames=6;
+      if(this.timer>=this.speed){this.timer-=this.speed;this.frame++;if(this.frame>=frames)this.frame=this.anim==='death'?frames-1:0}
+    }
+  }
+  draw(){
+    if(!this.on)return;if(this.inv>0&&((this.inv*12)|0)%2)return;
+    const img=this.anim==='idle'?this.idle:this.anim==='run'?this.run:this.anim==='hit'?this.hit:this.death;
+    if(!img)return;
+    let frames=0;
+    if(this.anim==='idle')frames=4;
+    else if(this.anim==='run')frames=6;
+    else if(this.anim==='hit')frames=4;
+    else if(this.anim==='death')frames=6;
+    const fw=64,fh=64;
+    const sx=this.frame*fw;
+    const dx=this.x+this.w/2-fw/2-R.cam.x,dy=this.y+this.h-fh-R.cam.y;
+    if(this.rt){
+      R.x.drawImage(img,sx,0,fw,fh,dx,dy,fw,fh);
+    }else{
+      R.x.save();R.x.translate(dx+fw,dy);R.x.scale(-1,1);
+      R.x.drawImage(img,sx,0,fw,fh,0,0,fw,fh);
+      R.x.restore();
+    }
+    if(this.hp<this.mhp){R.rect(this.x,this.y-5,this.w,3,'#333');R.rect(this.x,this.y-5,this.w*(this.hp/this.mhp),3,this.hp/this.mhp>0.5?'#4a4':'#f44')}
+    R.txt(this.nm,this.x+this.w/2-R.cam.x,this.y-9-R.cam.y,'#faa',8,'center');
+  }
+}
+
+// ═══ EFFECT SPRITE (horizontal strip) ═══
+class FXSprite{
+  constructor(imgKey,frameW,frameH,totalFrames,speed){
+    this.imgKey=imgKey;this.fw=frameW;this.fh=frameH;
+    this.total=totalFrames;this.speed=speed||0.06;
+    this.frame=0;this.timer=0;this.active=false;
+    this.x=0;this.y=0;this.flip=false;
+  }
+  play(x,y,flip){this.x=x;this.y=y;this.flip=flip||false;this.frame=0;this.timer=0;this.active=true}
+  update(dt){
+    if(!this.active)return;
+    this.timer+=dt;if(this.timer>=this.speed){this.timer-=this.speed;this.frame++;if(this.frame>=this.total)this.active=false}
+  }
+  draw(){
+    if(!this.active)return;
+    const img=Assets.images[this.imgKey];if(!img)return;
+    const sx=this.frame*this.fw,sy=0;
+    const dx=this.x-this.fw/2-R.cam.x,dy=this.y-this.fh/2-R.cam.y;
+    if(this.flip){R.x.save();R.x.translate(dx+this.fw,dy);R.x.scale(-1,1);R.x.drawImage(img,sx,sy,this.fw,this.fh,0,0,this.fw,this.fh);R.x.restore()}
+    else R.x.drawImage(img,sx,sy,this.fw,this.fh,dx,dy,this.fw,this.fh);
+  }
+}
+
+// ═══ INPUT ═══
+const I={k:{},j:{},
+  init(){
+    addEventListener('keydown',e=>{
+      if(!this.k[e.code])this.j[e.code]=true;this.k[e.code]=true;
+      if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.code))e.preventDefault();
+    });
+    addEventListener('keyup',e=>{this.k[e.code]=false});
+    document.getElementById('dlg').addEventListener('click',e=>{this.j['Space']=true;e.stopPropagation()});
+    document.getElementById('c').addEventListener('click',e=>{if(D.on)this.j['Space']=true});
+  },
+  flush(){this.j={}},down(c){return!!this.k[c]},pr(c){return!!this.j[c]}
+};
+
+// ═══ RENDERER ═══
+const R={c:null,x:null,cam:{x:0,y:0},
+  init(){this.c=document.getElementById('c');this.c.width=CW;this.c.height=CH;this.x=this.c.getContext('2d');this.x.imageSmoothingEnabled=false},
+  cls(col){this.x.fillStyle=col;this.x.fillRect(0,0,CW,CH)},
+  rect(x,y,w,h,col){this.x.fillStyle=col;this.x.fillRect(x-this.cam.x,y-this.cam.y,w,h)},
+  sr(x,y,w,h,col){this.x.fillStyle=col;this.x.fillRect(x,y,w,h)},
+  tile(img,sx,sy,sw,sh,dx,dy){this.x.drawImage(img,sx,sy,sw,sh,dx-this.cam.x,dy-this.cam.y,sw,sh)},
+  txt(t,x,y,c,s,a){this.x.fillStyle=c||'#fff';this.x.font=(s||11)+'px "Courier New",monospace';this.x.textAlign=a||'left';this.x.fillText(t,x,y)},
+  a(v){this.x.globalAlpha=v},ra(){this.x.globalAlpha=1}
+};
+
+// ═══ PARTICLES ═══
+const P={ps:[],
+  emit(x,y,n,col,sp,lf,sz){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=Math.random()*sp;this.ps.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1,l:lf,ml:lf,c:col,s:sz||2})}},
+  up(dt){this.ps=this.ps.filter(p=>{p.x+=p.vx*dt*60;p.y+=p.vy*dt*60;p.vy+=0.08*dt*60;p.l-=dt;return p.l>0})},
+  draw(){this.ps.forEach(p=>{R.a(Math.max(0,p.l/p.ml));R.rect(p.x,p.y,p.s,p.s,p.c)});R.ra()}
+};
+
+// ═══ TILEMAP (using tileset images) ═══
+class TM{
+  constructor(w,h){
+    this.w=w;this.h=h;this.d=new Uint8Array(w*h);
+    // Tile types: 0=air, 1=stone_wall, 2=dark_wall, 3=wood_plat, 5=gold_deco, 6=bookshelf, 7=water, 8=moss, 9=sand
+  }
+  set(x,y,v){if(x>=0&&x<this.w&&y>=0&&y<this.h)this.d[y*this.w+x]=v}
+  get(x,y){if(x<0||x>=this.w||y<0||y>=this.h)return 1;return this.d[y*this.w+x]}
+  sol(x,y){const v=this.get(x,y);return v===1||v===2||v===3||v===6||v===8}
+  draw(){
+    const castleImg=Assets.images['tiles_castle'];
+    const libImg=Assets.images['tiles_library'];
+    const sx=Math.max(0,(R.cam.x/T)|0),sy=Math.max(0,(R.cam.y/T)|0);
+    const ex=Math.min(this.w,sx+((CW/T)|0)+2),ey=Math.min(this.h,sy+((CH/T)|0)+2);
+    // Castle tileset is 416x400 => 26x25 tiles of 16x16
+    // Library tileset is 400x400 => 25x25 tiles of 16x16
+    const tileColors={1:'#4a4a6a',2:'#2a2a4a',3:'#5a4a3a',5:'#c8a84e',6:'#6a4a3a',7:'#1a3a5a',8:'#3a5a3a',9:'#7a6a5a'};
+    for(let y=sy;y<ey;y++)for(let x=sx;x<ex;x++){
+      const v=this.get(x,y);if(!v)continue;
+      const dx=x*T-R.cam.x,dy=y*T-R.cam.y;
+      // Use tileset sub-images for variety
+      if(castleImg&&(v===1||v===2||v===5)){
+        // Pick tiles from castle tileset
+        let tx,ty;
+        if(v===1){tx=((x*7+y*13)%10)*16;ty=0} // stone wall variety
+        else if(v===2){tx=((x*3+y*7)%10)*16;ty=16} // dark wall
+        else{tx=0;ty=64} // gold deco
+        R.x.drawImage(castleImg,tx,ty,16,16,dx,dy,16,16);
+      }else if(libImg&&(v===6||v===3)){
+        let tx,ty;
+        if(v===6){tx=((x*5+y*11)%8)*16;ty=128} // bookshelf
+        else{tx=((x*3+y*5)%8)*16;ty=48} // wood platform
+        R.x.drawImage(libImg,tx,ty,16,16,dx,dy,16,16);
+      }else{
+        R.x.fillStyle=tileColors[v]||'#444';R.x.fillRect(dx,dy,T,T);
+        // Add subtle noise
+        if(v===7){R.x.fillStyle='#2a5a7a';R.x.fillRect(dx+((x*5+y*3)%12),dy+((x*7+y)%12),4,2)}
+        if(v===9){R.x.fillStyle='#8a7a6a';R.x.fillRect(dx+((x*3+y*7)%10),dy+((x+y*5)%10),3,2)}
+        if(v===8){R.x.fillStyle='#2a4a2a';R.x.fillRect(dx+((x+y*3)%10),dy+((x*5+y)%10),4,3)}
+      }
+    }
+  }
+}
+
+// ═══ ENTITY ═══
+class Ent{
+  constructor(x,y,w,h){this.x=x;this.y=y;this.w=w;this.h=h;this.vx=0;this.vy=0;this.gnd=false;this.rt=true;this.hp=100;this.mhp=100;this.on=true;this.inv=0}
+  hits(o){return this.x<o.x+o.w&&this.x+this.w>o.x&&this.y<o.y+o.h&&this.y+this.h>o.y}
+  blk(tm,dx,dy){
+    const nx=this.x+dx,ny=this.y+dy;
+    return tm.sol((nx+2)/T|0,(ny+2)/T|0)||tm.sol((nx+this.w-3)/T|0,(ny+2)/T|0)||
+           tm.sol((nx+2)/T|0,(ny+this.h-1)/T|0)||tm.sol((nx+this.w-3)/T|0,(ny+this.h-1)/T|0);
+  }
+  mv(tm){
+    if(!this.blk(tm,this.vx,0))this.x+=this.vx;
+    else{const s=Math.sign(this.vx);let c=0;while(!this.blk(tm,s,0)&&c<20){this.x+=s;c++}this.vx=0}
+    if(!this.blk(tm,0,this.vy)){this.y+=this.vy;this.gnd=false}
+    else{if(this.vy>0)this.gnd=true;const s=Math.sign(this.vy);let c=0;while(!this.blk(tm,0,s)&&c<20){this.y+=s;c++}this.vy=0}
+  }
+  hurt(n){if(this.inv>0)return;this.hp-=n;this.inv=0.4;P.emit(this.x+this.w/2,this.y+this.h/2,8,'#f44',4,0.4,2);if(this.hp<=0){this.hp=0;this.die()}}
+  die(){this.on=false;P.emit(this.x+this.w/2,this.y+this.h/2,15,'#f44',5,0.6,3)}
+}
+
+// ═══ HERO ═══
+class Hero extends Ent{
+  constructor(nm,x,y,col,imgKey,metaKey,type,skillFX,atkFX){
+    // type: 'knight' (112x80) or 'classic' (40x40)
+    const cw=type==='knight'?28:18;
+    const ch=type==='knight'?40:30;
+    super(x,y,cw,ch);
+    this.nm=nm;this.col=col;this.type=type;
+    this.spd=2.8;this.jf=-8.5;this.ctrl=false;
+    this.st='idle';this.atkT=0;this.atkCD=0;this.dashCD=0;this.dshT=0;
+    this.atkDmg=24;this.skillCD=0;this.skillT=0;
+    // Animation
+    this.sprite=new SpriteAnim(imgKey,metaKey,type==='knight'?'idle':'idle_A');
+    this.sprite.speed=0.08;
+    // FX
+    this.skillFX=skillFX;
+    this.atkFX=atkFX;
+    // Frame dims for drawing offset
+    this.fw=type==='knight'?112:40;
+    this.fh=type==='knight'?80:40;
+  }
+  update(dt,tm){
+    if(!this.on)return;
+    if(this.inv>0)this.inv-=dt;
+    if(this.atkCD>0)this.atkCD-=dt;
+    if(this.dashCD>0)this.dashCD-=dt;
+    if(this.skillCD>0)this.skillCD-=dt;
+
+    this.vy=Math.min(this.vy+GR,MF);
+
+    if(!this.ctrl){
+      this.vx=0;
+      const idleAnim=this.type==='knight'?'idle':'idle_A';
+      this.sprite.play(idleAnim);
+      this.sprite.updateLoop(dt);
+      this.mv(tm);
+      return;
+    }
+
+    let mov=false;
+    if(this.st!=='attack'&&this.st!=='skill'){
+      if(I.down('ArrowLeft')||I.down('KeyA')){this.vx=-this.spd;this.rt=false;mov=true}
+      else if(I.down('ArrowRight')||I.down('KeyD')){this.vx=this.spd;this.rt=true;mov=true}
+      else this.vx=0;
+
+      if((I.pr('ArrowUp')||I.pr('KeyW')||I.pr('Space'))&&this.gnd){this.vy=this.jf;this.gnd=false}
+      if((I.pr('KeyZ')||I.pr('KeyJ'))&&this.atkCD<=0){
+        this.st='attack';this.atkCD=0.4;this.atkT=0.3;
+        const atkAnim=this.type==='knight'?'attack_A':'punch_A';
+        this.sprite.play(atkAnim);this.sprite.speed=0.04;
+        // Play attack FX
+        if(this.atkFX){
+          const fx_x=this.rt?this.x+this.w+16:this.x-16;
+          this.atkFX.play(fx_x,this.y+this.h/2,!this.rt);
+        }
+      }
+      // SKILL: Q or L key
+      if((I.pr('KeyQ')||I.pr('KeyL'))&&this.skillCD<=0){
+        this.st='skill';this.skillCD=3.0;this.skillT=0.5;
+        const skAnim=this.type==='knight'?'attack_C':'dash_attack';
+        this.sprite.play(skAnim);this.sprite.speed=0.04;
+        if(this.skillFX){
+          const fx_x=this.rt?this.x+this.w+24:this.x-24;
+          this.skillFX.play(fx_x,this.y+this.h/2-10,!this.rt);
+        }
+      }
+      if((I.pr('KeyX')||I.pr('KeyK'))&&this.dashCD<=0){
+        this.dshT=0.12;this.dashCD=0.6;this.vx=(this.rt?1:-1)*10;this.inv=0.15;
+        P.emit(this.x+this.w/2,this.y+this.h/2,5,this.col,2,0.2,2);
+        const dashAnim=this.type==='knight'?'dash_loop':'dash_attack';
+        this.sprite.play(dashAnim);this.sprite.speed=0.04;
+      }
+    }
+    if(this.dshT>0)this.dshT-=dt;
+
+    if(this.st==='attack'){this.atkT-=dt;if(this.atkT<=0){this.st='idle';this.sprite.speed=0.08}}
+    else if(this.st==='skill'){this.skillT-=dt;if(this.skillT<=0){this.st='idle';this.sprite.speed=0.08}}
+    else if(!this.gnd&&this.vy<0){
+      this.st='jump';
+      const jAnim=this.type==='knight'?'jump_loop':'jump';
+      this.sprite.play(jAnim);
+    }
+    else if(!this.gnd){
+      this.st='fall';
+      this.sprite.play('fall');
+    }
+    else if(mov){
+      this.st='run';
+      this.sprite.play('run');
+    }
+    else{
+      this.st='idle';
+      const idleAnim=this.type==='knight'?'idle':'idle_A';
+      this.sprite.play(idleAnim);
+    }
+
+    if(this.st==='attack'||this.st==='skill'){
+      this.sprite.update(dt);
+    }else{
+      this.sprite.updateLoop(dt);
+    }
+
+    this.mv(tm);
+
+    // Camera follow
+    const tx=this.x+this.w/2-CW/2,ty=this.y+this.h/2-CH/2;
+    R.cam.x+=(tx-R.cam.x)*0.08;R.cam.y+=(ty-R.cam.y)*0.08;
+  }
+  atkBox(){
+    if(this.st!=='attack'&&this.st!=='skill')return null;
+    const r=this.st==='skill'?50:30;
+    const dmg=this.st==='skill'?this.atkDmg*2:this.atkDmg;
+    return this.rt?{x:this.x+this.w,y:this.y-4,w:r,h:this.h+8,dmg}:{x:this.x-r,y:this.y-4,w:r,h:this.h+8,dmg};
+  }
+  draw(){
+    if(!this.on)return;
+    if(this.inv>0&&((this.inv*12)|0)%2)return;
+    // Draw sprite centered on entity position
+    const drawX=this.x+this.w/2-this.fw/2;
+    const drawY=this.y+this.h-this.fh;
+    this.sprite.draw(drawX,drawY,!this.rt);
+    // Name label
+    if(this.ctrl)R.txt(this.nm,this.x+this.w/2-R.cam.x,this.y-8-R.cam.y,this.col,9,'center');
+    // Skill cooldown indicator
+    if(this.ctrl&&this.skillCD>0){
+      R.a(0.6);
+      R.txt(`Q:${this.skillCD.toFixed(1)}s`,this.x+this.w/2-R.cam.x,this.y-18-R.cam.y,'#aaa',8,'center');
+      R.ra();
+    }
+  }
+}
+
+// ═══ COMPANION HERO FOLLOWER ═══
+class Companion{
+  constructor(hero){
+    this.hero=hero;
+    this.targetDist=60; // start following if more than this far away
+    this.stopDist=30; // stop when within this distance
+    this.followSpeed=hero.spd*0.9;
+    this.inMotion=false;
+  }
+  update(dt,activeHero,tm){
+    if(!this.hero.on||this.hero.ctrl)return;
+    const dx=activeHero.x-this.hero.x;
+    const dy=activeHero.y-this.hero.y;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+
+    if(dist>this.targetDist){
+      // Follow the active hero
+      this.inMotion=true;
+      const angle=Math.atan2(dy,dx);
+      this.hero.vx=Math.cos(angle)*this.followSpeed;
+      this.hero.rt=this.hero.vx>0;
+      // Use run animation
+      const runAnim=this.hero.type==='knight'?'run':'run';
+      this.hero.sprite.play(runAnim);
+      this.hero.sprite.updateLoop(dt);
+    }else if(dist>this.stopDist){
+      // Gradually slow down as we approach
+      this.inMotion=true;
+      const angle=Math.atan2(dy,dx);
+      const slowSpeed=this.followSpeed*(dist-this.stopDist)/(this.targetDist-this.stopDist)*0.5;
+      this.hero.vx=Math.cos(angle)*slowSpeed;
+      const runAnim=this.hero.type==='knight'?'run':'run';
+      this.hero.sprite.play(runAnim);
+      this.hero.sprite.updateLoop(dt);
+    }else{
+      // Close enough - idle
+      this.inMotion=false;
+      this.hero.vx=0;
+      const idleAnim=this.hero.type==='knight'?'idle':'idle_A';
+      this.hero.sprite.play(idleAnim);
+      this.hero.sprite.updateLoop(dt);
+    }
+
+    // Apply gravity and collision
+    this.hero.vy=Math.min(this.hero.vy+GR,MF);
+    this.hero.mv(tm);
+  }
+}
+
+// ═══ ENEMY (SpriteAnim based) ═══
+class Enem extends Ent{
+  constructor(x,y,w,h,nm,col,hp,dmg,ai,imgKey,metaKey,animType){
+    super(x,y,w,h);this.nm=nm;this.col=col;this.hp=hp;this.mhp=hp;this.dmg=dmg;this.ai=ai;
+    this.dir=1;this.pt=0;this.akt=0;this.spd=1;this.ag=130;
+    this.animType=animType||'evil_eye'; // evil_eye, mimic, bat
+    if(imgKey&&metaKey){
+      this.sprite=new SpriteAnim(imgKey,metaKey,'idle');
+      this.sprite.speed=0.08;
+    }
+    this.fw=w;this.fh=h;
+    // Set frame dimensions based on type
+    if(animType==='evil_eye'){this.fw=96;this.fh=96}
+    else if(animType==='mimic'){this.fw=72;this.fh=48}
+    else if(animType==='bat'){this.fw=96;this.fh=96}// bat frames are in 384x96 strips = 4 frames of 96
+  }
+  update(dt,tm,heroes){
+    if(!this.on)return;if(this.inv>0)this.inv-=dt;this.akt-=dt;
+    const h=heroes.find(h=>h.ctrl&&h.on);if(!h)return;
+    const d=Math.abs(this.x-h.x);
+    if(this.ai==='patrol'){
+      this.pt+=dt;if(this.pt>2.5){this.dir*=-1;this.pt=0}
+      this.vx=this.spd*this.dir;this.rt=this.dir>0;
+      if(d<this.ag)this.ai='chase';
+      if(this.sprite)this.sprite.play('idle');
+    }
+    else if(this.ai==='chase'){
+      if(d>240){this.ai='patrol';return}
+      this.vx=(h.x>this.x?1:-1)*this.spd*1.3;this.rt=this.vx>0;
+      if(this.sprite){
+        if(this.animType==='evil_eye')this.sprite.play('idle');
+        else if(this.animType==='mimic')this.sprite.play('move');
+      }
+      if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1;if(this.sprite)this.sprite.play('attack')}
+    }
+    else if(this.ai==='static'){
+      this.vx=0;
+      if(this.sprite){
+        if(d<60){this.sprite.play(this.animType==='mimic'?'attack_A':'attack')}
+        else this.sprite.play('idle');
+      }
+      if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1.2}
+    }
+    else if(this.ai==='boss'){
+      this.rt=h.x>this.x;
+      if(d<160){this.vx=(h.x>this.x?1:-1)*this.spd*0.9;if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=0.9}}else this.vx=0;
+    }
+    this.vy=Math.min(this.vy+GR,MF);this.mv(tm);
+    if(this.sprite)this.sprite.updateLoop(dt);
+  }
+  draw(){
+    if(!this.on)return;if(this.inv>0&&((this.inv*12)|0)%2)return;
+    if(this.sprite){
+      const drawX=this.x+this.w/2-this.fw/2;
+      const drawY=this.y+this.h-this.fh;
+      this.sprite.draw(drawX,drawY,!this.rt);
+    }else{
+      R.rect(this.x,this.y,this.w,this.h,this.col);
+    }
+    if(this.hp<this.mhp){R.rect(this.x,this.y-5,this.w,3,'#333');R.rect(this.x,this.y-5,this.w*(this.hp/this.mhp),3,this.hp/this.mhp>0.5?'#4a4':'#f44')}
+    R.txt(this.nm,this.x+this.w/2-R.cam.x,this.y-9-R.cam.y,'#faa',8,'center');
+  }
+}
+
+// ═══ NPC ═══
+class NPC{
+  constructor(x,y,nm,imgKey,metaKey,type,dlgs){
+    this.x=x;this.y=y;this.w=type==='knight'?28:18;this.h=type==='knight'?40:30;
+    this.nm=nm;this.dlgs=dlgs;this.tk=false;this.b=Math.random()*6;
+    this.type=type;
+    this.fw=type==='knight'?112:40;
+    this.fh=type==='knight'?80:40;
+    if(imgKey&&metaKey){
+      this.sprite=new SpriteAnim(imgKey,metaKey,type==='knight'?'idle':'idle_A');
+      this.sprite.speed=0.1;
+    }
+  }
+  up(dt){this.b+=dt*2;if(this.sprite)this.sprite.updateLoop(dt)}
+  draw(){
+    const by=this.y+Math.sin(this.b)*1.5;
+    if(this.sprite){
+      const drawX=this.x+this.w/2-this.fw/2;
+      const drawY=by+this.h-this.fh;
+      this.sprite.draw(drawX,drawY,false);
+    }else{
+      R.rect(this.x,by,this.w,this.h,'#888');
+    }
+    R.txt(this.nm,this.x+this.w/2-R.cam.x,by-8-R.cam.y,'#bbb',8,'center');
+    if(!this.tk)R.txt('!',this.x+this.w/2-R.cam.x,by-18-R.cam.y,'#c8a84e',12,'center');
+  }
+}
+
+// ═══ DIALOGUE ═══
+const D={q:[],c:null,ci:0,ct:0,on:false,cb:null,
+  show(a,cb){this.q=[...a];this.cb=cb;this.nxt()},
+  nxt(){if(!this.q.length){this.on=false;document.getElementById('dlg').style.display='none';if(this.cb)this.cb();return}
+    this.c=this.q.shift();this.ci=0;this.ct=0;this.on=true;
+    const b=document.getElementById('dlg');b.style.display='block';b.querySelector('.sp').textContent=this.c.s||'';b.querySelector('.tx').textContent=''},
+  up(dt){if(!this.on||!this.c)return;this.ct+=dt;
+    if(this.ct>=0.022){this.ct=0;if(this.ci<this.c.t.length){this.ci++;document.querySelector('#dlg .tx').textContent=this.c.t.substring(0,this.ci)}}
+    if(I.pr('Space')||I.pr('Enter')){if(this.ci<this.c.t.length){this.ci=this.c.t.length;document.querySelector('#dlg .tx').textContent=this.c.t}else this.nxt()}}
+};
+function d(s,t){return{s,t}}
+
+// ═══ GLOBAL FX POOL ═══
+const FXPool=[];
+
+// ═══ LEVEL 1 ═══
+class Lv1{
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tut=false;this.exit=null;this.scrl=null;this.fox=null;this.shk=0;this.shi=0}
+
+  enter(){this.showAct('Act 1','THE FINAL EXAM',()=>this.bAct1())}
+
+  showAct(n,nm,cb){
+    const e=document.getElementById('actT');e.querySelector('.an').textContent=n;e.querySelector('.at').textContent=nm;
+    e.style.display='block';e.style.opacity='0';let t=0;
+    const iv=setInterval(()=>{t+=0.025;if(t<0.6)e.style.opacity=Math.min(1,t*3);else if(t<1.8)e.style.opacity='1';else if(t<2.5)e.style.opacity=Math.max(0,1-(t-1.8)*2.5);else{clearInterval(iv);e.style.display='none';if(cb)cb()}},25);
+  }
+
+  createHeroes(x,y,includeNesta){
+    // Attack FX
+    const koteAtk=new FXSprite('kote_atk',64,64,7,0.05);
+    const minervaAtk=new FXSprite('minerva_atk',64,64,7,0.05);
+    const elberAtk=new FXSprite('elber_atk',64,64,7,0.05);
+    const nestaAtk=new FXSprite('nesta_atk',64,64,7,0.05);
+    // Skill FX
+    const koteSkill=new FXSprite('kote_skill',128,128,7,0.06);
+    const minervaSkill=new FXSprite('minerva_skill',96,96,6,0.06);
+    const elberSkill=new FXSprite('elber_skill',128,128,16,0.05);
+    const nestaSkill=new FXSprite('nesta_skill',64,64,50,0.03);
+
+    FXPool.length=0;
+    FXPool.push(koteAtk,minervaAtk,elberAtk,nestaAtk,koteSkill,minervaSkill,elberSkill,nestaSkill);
+
+    const heroes=[
+      new Hero('Kote',x,y,'#40aa88','kote','kote_meta','classic',koteSkill,koteAtk),
+      new Hero('Minerva',x+28,y,'#cc4444','minerva','minerva_meta','knight',minervaSkill,minervaAtk),
+      new Hero('Elber',x+56,y,'#44aa44','elber','elber_meta','knight',elberSkill,elberAtk),
+    ];
+    if(includeNesta){
+      heroes.push(new Hero('Nesta',x+84,y,'#aa44cc','nesta','nesta_meta','knight',nestaSkill,nestaAtk));
+    }
+    return heroes;
+  }
+
+  bAct1(){
+    this.act=1;const MW=65,MH=30;this.tm=new TM(MW,MH);
+    // Floor
+    for(let x=0;x<MW;x++){this.tm.set(x,MH-1,1);this.tm.set(x,MH-2,2);this.tm.set(x,MH-3,9)}
+    // Walls
+    for(let y=0;y<MH;y++){this.tm.set(0,y,1);this.tm.set(MW-1,y,1)}
+    // Ceiling
+    for(let x=0;x<MW;x++){this.tm.set(x,0,2);this.tm.set(x,1,1)}
+    // Platforms
+    for(let x=6;x<13;x++)this.tm.set(x,MH-7,1);
+    for(let x=24;x<38;x++)this.tm.set(x,MH-9,1);
+    for(let x=46;x<53;x++)this.tm.set(x,MH-7,1);
+    for(let x=16;x<19;x++)this.tm.set(x,MH-5,8);
+    for(let x=41;x<44;x++)this.tm.set(x,MH-5,8);
+    // Decorative pillars
+    for(let y=2;y<6;y++){this.tm.set(1,y,5);this.tm.set(MW-2,y,5)}
+
+    this.heroes=this.createHeroes(60,(MH-5)*T,true);
+    this.heroes[0].ctrl=true;this.ai=0;
+
+    // Fox familiar following Nesta
+    this.fox={x:140,y:(MH-4)*T-8,alive:true,b:0};
+
+    // Enemies: Bakaris (classic sprite with .txt) + Pixel Crawler castle enemies
+    this.enemies=[
+      new Enem(620,(MH-6)*T,18,30,'Bakaris','#aa5533',100,10,'boss','bakaris','bakaris_meta','classic'),
+      new PCEnemy(680,(MH-4)*T,18,30,'Ayik Ur','#887755',50,8,'chase','castle_knight_idle'),
+      new PCEnemy(730,(MH-4)*T,18,30,'Hrigg','#668877',50,8,'chase','castle_archer_idle'),
+      new PCEnemy(790,(MH-4)*T,18,30,'Iriad','#886688',45,8,'patrol','castle_soldier_idle'),
+      new PCEnemy(840,(MH-4)*T,18,30,'Andrella','#886666',45,8,'patrol','castle_priest_idle'),
+    ];
+    // Setup Bakaris with classic sprite anims
+    if(this.enemies[0].sprite){
+      this.enemies[0].sprite.speed=0.08;
+      this.enemies[0].fw=40;this.enemies[0].fh=40;
+    }
+
+    // Setup companions for non-active heroes
+    this.companions=[];
+    for(let i=1;i<this.heroes.length;i++){
+      this.companions.push(new Companion(this.heroes[i]));
+    }
+
+    this.hud();
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('hint').textContent='ARROWS/WASD: Move | Z/J: Attack | Q/L: Skill | X/K: Dash | TAB: Swap Hero | SPACE: Jump/Talk';
+
+    D.show([
+      d('Narrator','Under the indestructible dome of Azurerune, surrounded by marine life, years of training culminate today.'),
+      d('Narrator','The Final Exam. The Tribunal watches: Ispin, Lohezet, Becklin, and Cudgel.'),
+      d('Becklin','"Show us what you have learned. Work as a team!"'),
+      d('Tutorial','ARROWS/WASD to move. SPACE/W to jump. Z/J to attack. Q/L for special skill. X/K to dash. TAB to swap hero.'),
+      d('Bakaris','"I don\'t have time for these foolish games."'),
+    ],()=>{this.tut=true});
+  }
+
+  bAct3(){
+    this.act=3;const MW=90,MH=18;this.tm=new TM(MW,MH);this.enemies=[];this.npcs=[];
+    for(let x=0;x<MW;x++){this.tm.set(x,MH-1,1);this.tm.set(x,MH-2,2);this.tm.set(x,0,2);this.tm.set(x,1,1)}
+    for(let y=0;y<MH;y++){this.tm.set(0,y,1);this.tm.set(MW-1,y,1)}
+    // Gold pillars
+    for(let x=15;x<MW-5;x+=14){for(let y=MH-5;y>=MH-7;y--)this.tm.set(x,y,5)}
+    // Bookshelf decorations on ceiling
+    for(let x=4;x<12;x++){this.tm.set(x,2,6);this.tm.set(x,3,6)}
+    for(let x=20;x<30;x++){this.tm.set(x,2,6);this.tm.set(x,3,6)}
+    for(let x=40;x<50;x++){this.tm.set(x,2,6);this.tm.set(x,3,6)}
+    this.heroes.forEach((h,i)=>{h.x=40+i*28;h.y=(MH-4)*T;h.vx=0;h.vy=0});
+    this.npcs=[
+      new NPC(200,(MH-4)*T,'Levna','nick','nick_meta','knight',[d('Levna Drakehorn','She reveals a lightning scar.'),d('Levna','"A Blue Dragon did this, in the Northern Wastes. Dragons are NOT myths."')]),
+      new NPC(400,(MH-4)*T,'Clystran','bakaris','bakaris_meta','classic',[d('Clystran','"My village Heart\'s Hollow may hold the key to finding metallic dragons."')]),
+      new NPC(600,(MH-4)*T,'Darrett','elber','elber_meta','knight',[d('Darrett Highwater','"I want to be Becklin\'s squire. She\'s the greatest knight alive."')]),
+      new NPC(800,(MH-4)*T,'Andir','minerva','minerva_meta','knight',[d('Andir Valmakos','"I still believe in the Old Gods — Paladine, Habbakuk. Faith is not weakness."')]),
+      new NPC(1000,(MH-4)*T,'Bakaris','bakaris','bakaris_meta','classic',[d('Bakaris','"My father is gaining power in Kalaman. There are rumors of an invading force..."'),d('Narrator','The political threat is real.')]),
+    ];
+    this.exit={x:(MW-4)*T,y:(MH-5)*T,w:28,h:36};
+
+    // Setup companions for non-active heroes
+    this.companions=[];
+    for(let i=1;i<this.heroes.length;i++){
+      this.companions.push(new Companion(this.heroes[i]));
+    }
+  }
+
+  bAct4(){
+    this.act=4;const MW=60,MH=20;this.tm=new TM(MW,MH);this.enemies=[];this.npcs=[];this.exit=null;
+    // Floor and ceiling
+    for(let x=0;x<MW;x++){this.tm.set(x,MH-1,2);this.tm.set(x,MH-2,1);this.tm.set(x,0,2);this.tm.set(x,1,1)}
+    for(let y=0;y<MH;y++){this.tm.set(0,y,1);this.tm.set(MW-1,y,1)}
+
+    // FIXED LIBRARY LAYOUT: clear path with stepping platforms
+    // Bookshelf columns (with gaps for passage)
+    for(let s=0;s<3;s++){
+      const sx=12+s*16;
+      for(let y=3;y<MH-4;y++){
+        if(y!==8&&y!==12)this.tm.set(sx,y,6); // gaps at y=8 and y=12
+      }
+    }
+    // Stepping platforms - staircase going right and up
+    // Ground level platforms
+    for(let x=3;x<8;x++)this.tm.set(x,MH-5,3);
+    for(let x=8;x<12;x++)this.tm.set(x,MH-7,3);
+    // Mid-level platforms crossing over bookshelves
+    for(let x=13;x<18;x++)this.tm.set(x,MH-9,3);
+    for(let x=20;x<26;x++)this.tm.set(x,MH-7,3);
+    // Upper platforms
+    for(let x=28;x<34;x++)this.tm.set(x,MH-9,3);
+    for(let x=36;x<42;x++)this.tm.set(x,MH-7,3);
+    // Final platforms leading to scroll
+    for(let x=44;x<50;x++)this.tm.set(x,MH-9,3);
+    for(let x=52;x<57;x++)this.tm.set(x,MH-11,3);
+
+    this.heroes.forEach((h,i)=>{h.x=30+i*28;h.y=(MH-4)*T;h.vx=0;h.vy=0});
+
+    // Mimic enemies (SpriteAnim with .txt) + Pixel Crawler library enemies
+    this.enemies=[
+      new Enem(200,(MH-4)*T,30,24,'Mimic','#6a4a2a',40,12,'static','mimic_img','mimic_meta','mimic'),
+      new Enem(400,(MH-8)*T,30,24,'Mimic','#6a4a2a',40,12,'static','mimic_img','mimic_meta','mimic'),
+      new Enem(700,(MH-10)*T,30,24,'Mimic','#6a4a2a',40,12,'static','mimic_img','mimic_meta','mimic'),
+      new PCEnemy(150,(MH-6)*T,18,30,'Cataloguer','#7a5a3a',35,7,'patrol','lib_cataloguer_idle'),
+      new PCEnemy(550,(MH-8)*T,18,30,'Censor','#8a4a4a',35,7,'chase','lib_censor_idle'),
+    ];
+    // Scroll at the far end, on the highest platform - REACHABLE now
+    this.scrl={x:(MW-4)*T,y:(MH-12)*T,got:false};
+
+    // Setup companions for non-active heroes
+    this.companions=[];
+    for(let i=1;i<this.heroes.length;i++){
+      this.companions.push(new Companion(this.heroes[i]));
+    }
+  }
+
+  swap(idx){
+    if(idx===this.ai||!this.heroes[idx]||!this.heroes[idx].on)return;
+    const cur=this.heroes[this.ai];
+    const nxt=this.heroes[idx];
+    const tmpX=nxt.x,tmpY=nxt.y;
+    nxt.x=cur.x;nxt.y=cur.y;nxt.vx=0;nxt.vy=0;nxt.gnd=cur.gnd;
+    cur.x=tmpX;cur.y=tmpY;cur.vx=0;cur.vy=0;
+    cur.ctrl=false;cur.st='idle';
+    nxt.ctrl=true;
+    this.ai=idx;
+    P.emit(nxt.x+nxt.w/2,nxt.y+nxt.h/2,8,nxt.col,3,0.3,2);
+    this.hud();
+  }
+
+  hud(){
+    let h='';
+    this.heroes.forEach((hero,i)=>{
+      const a=i===this.ai?'act':'';
+      const pct=Math.max(0,hero.hp/hero.mhp*100);
+      const col=pct>50?'#4a4':pct>25?'#aa4':'#a44';
+      h+=`<div class="hs ${a}" onclick="G.sc.swap(${i})"><div style="width:28px;height:28px;background:${hero.col}33;border-radius:2px;display:flex;align-items:center;justify-content:center"><span style="color:${hero.col};font-size:13px;font-weight:bold">${hero.nm[0]}</span></div><div class="hp-bar"><div class="hp-fill" style="width:${pct}%;background:${col}"></div></div><div class="nm">${hero.nm}</div></div>`;
+    });
+    document.getElementById('hud').innerHTML=h;
+    const al=this.enemies.filter(e=>e.on).length;
+    const el=document.getElementById('ecount');
+    if((this.act===1||this.act===4)&&this.enemies.length)el.textContent=`Enemies: ${al}/${this.enemies.length}`;
+    else el.textContent='';
+  }
+
+  update(dt){
+    if(D.on){D.up(dt);return}
+    if(this.shk>0){this.shk-=dt;R.cam.x+=(Math.random()-0.5)*this.shi;R.cam.y+=(Math.random()-0.5)*this.shi}
+    if(!this.tm){P.up(dt);return}
+
+    // Tab swap
+    if(I.pr('Tab')){
+      let n=(this.ai+1)%this.heroes.length,c=0;
+      while((!this.heroes[n]||!this.heroes[n].on)&&c<this.heroes.length){n=(n+1)%this.heroes.length;c++}
+      this.swap(n);
+    }
+    for(let i=0;i<this.heroes.length;i++)if(I.pr(`Digit${i+1}`))this.swap(i);
+
+    // Update active hero
+    this.heroes[this.ai].update(dt,this.tm);
+    // Update companion heroes
+    this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm));
+    // Update other heroes (for animation consistency)
+    for(let i=0;i<this.heroes.length;i++){
+      if(i!==this.ai&&this.heroes[i].on){
+        // Gravity and collision for passive animation
+        this.heroes[i].vy=Math.min(this.heroes[i].vy+GR,MF);
+        this.heroes[i].mv(this.tm);
+      }
+    }
+
+    this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
+    FXPool.forEach(fx=>fx.update(dt));
+
+    // Hero attack hits
+    this.heroes.forEach(hero=>{
+      const ab=hero.atkBox();if(!ab)return;
+      const dmg=ab.dmg||hero.atkDmg;
+      this.enemies.forEach(e=>{if(e.on&&e.x<ab.x+ab.w&&e.x+e.w>ab.x&&e.y<ab.y+ab.h&&e.y+e.h>ab.y)e.hurt(dmg)});
+    });
+
+    // NPCs
+    this.npcs.forEach(npc=>{
+      npc.up(dt);
+      const h=this.heroes[this.ai];
+      if(h&&(I.pr('Space')||I.pr('Enter'))&&!D.on&&!npc.tk){
+        if(Math.abs(h.x-npc.x)+Math.abs(h.y-npc.y)<50){npc.tk=true;D.show(npc.dlgs)}
+      }
+    });
+
+    P.up(dt);
+
+    // Fox familiar
+    if(this.fox&&this.fox.alive&&this.act<=2){
+      const n=this.heroes.find(h=>h.nm==='Nesta');
+      if(n){this.fox.b+=dt*3;this.fox.x+=(n.x-20-this.fox.x)*0.05;this.fox.y+=(n.y+8-this.fox.y)*0.05}
+    }
+
+    // === TRANSITIONS ===
+    if(this.act===1&&this.tut){
+      this.hud();
+      if(this.enemies.every(e=>!e.on)){
+        this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#c8a84e',6,0.8,3);
+        this.act=2;
+        this.showAct('Act 2','BLOOD AND GRUDGE',()=>{
+          if(this.fox)this.fox.alive=false;
+          P.emit(this.fox?this.fox.x+6:CW/2,this.fox?this.fox.y+4:CH/2,12,'#1a1a1a',3,0.6,2);
+          D.show([
+            d('Narrator','Victory! But at a terrible cost...'),
+            d('Narrator','Bakaris kills Nesta\'s black fox familiar in an act of spite.'),
+            d('Nesta','"NO! You will PAY for this, Bakaris!"'),
+            d('Narrator','Nesta scars Bakaris\'s face permanently. A lifelong enemy is forged.'),
+            d('Bakaris','"You will regret this, Saudothien."'),
+          ],()=>{this.showAct('Act 3','HALLWAY RUMORS',()=>{
+            this.bAct3();
+            D.show([d('Narrator','Explore the corridors. Talk to fellow students (!) before leaving through the EXIT.'),d('Tutorial','Walk near NPCs and press SPACE. Talk to at least 3, then find the exit door on the right.')]);
+          })});
+        });
+      }
+    }
+
+    if(this.act===3&&this.exit){
+      const h=this.heroes[this.ai];
+      if(h&&Math.abs(h.x-this.exit.x)<40&&Math.abs(h.y-this.exit.y)<40){
+        const tk=this.npcs.filter(n=>n.tk).length;
+        if(tk>=3){
+          this.exit=null;
+          this.showAct('Act 4','NIGHT INFILTRATION',()=>{
+            this.bAct4();
+            D.show([
+              d('Narrator','Under cover of night, you infiltrate the Restricted Section of the Library.'),
+              d('Kote','"Watch for Mimic Books! Navigate the platforms to reach the golden scroll at the far end."'),
+              d('Tutorial','Jump across platforms going right. Watch for Mimics! Reach the SCROLL at the top-right.')
+            ]);
+          });
+        }
+        else if(I.pr('Space'))D.show([d('Tutorial',`Talk to more students! (${tk}/3)`)]);
+      }
+    }
+
+    if(this.act===4&&this.scrl&&!this.scrl.got){
+      this.hud();
+      const h=this.heroes[this.ai];
+      if(h&&Math.abs(h.x-this.scrl.x)<30&&Math.abs(h.y-this.scrl.y)<30){
+        this.scrl.got=true;P.emit(this.scrl.x+8,this.scrl.y+8,20,'#c8a84e',5,1,3);
+        this.showAct('Act 5','DIVERGING PATHS',()=>{
+          D.show([
+            d('Narrator','You found it! Clues to the "Lost Library of Istar" in the Northern Wastes!'),
+            d('Elber','"The technology of the floating cities... it\'s all connected."'),
+            d('Ispin Greenshield','"Come to Vogler. The Kingfisher Festival awaits."'),
+            d('Narrator','The heroes leave Azurerune behind. Next stop: Vogler.'),
+            d('','\u2014 LEVEL 1 COMPLETE \u2014\n\n"School Day at Azurerune"\n\nLevel 2: The Kingfisher Festival \u2014 Coming Soon!'),
+          ],()=>G.title());
+        });
+      }
+    }
+
+    if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
+  }
+
+  draw(){
+    // BG gradient
+    const g=R.x.createLinearGradient(0,0,0,CH);
+    if(this.act===4){g.addColorStop(0,'#050510');g.addColorStop(1,'#080818')}
+    else{g.addColorStop(0,'#0d2847');g.addColorStop(1,'#1a3a5a')}
+    R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
+
+    // Ambient effects
+    if(this.act!==4){
+      const t=Date.now()/1000;R.a(0.1);
+      for(let i=0;i<12;i++){const bx=(Math.sin(t*0.25+i*1.7)*0.5+0.5)*CW,by=CH-((t*16+i*50)%CH);
+        R.x.fillStyle='#6aa8c8';R.x.beginPath();R.x.arc(bx,by,1.5+Math.sin(t+i),0,Math.PI*2);R.x.fill()}
+      R.ra();
+    }else{
+      R.a(0.03);for(let i=0;i<4;i++)R.sr(150+i*180,0,1,CH,'#aaccff');R.ra();
+    }
+
+    if(this.tm)this.tm.draw();
+
+    // Exit door
+    if(this.exit){
+      R.rect(this.exit.x,this.exit.y,this.exit.w,this.exit.h,'#5a4a3a');
+      R.rect(this.exit.x+4,this.exit.y+4,20,28,'#3a2a1a');
+      R.rect(this.exit.x+20,this.exit.y+16,3,3,'#c8a84e');
+      const t=Date.now()/600;R.a(0.5+Math.sin(t)*0.3);
+      R.txt('EXIT \u25B6',this.exit.x+14-R.cam.x,this.exit.y-6-R.cam.y,'#c8a84e',9,'center');R.ra();
+    }
+
+    // Scroll
+    if(this.act===4&&this.scrl&&!this.scrl.got){
+      const t=Date.now()/400;R.a(0.6+Math.sin(t)*0.3);
+      // Draw a glowing scroll
+      const sx=this.scrl.x-R.cam.x,sy=this.scrl.y-R.cam.y;
+      R.x.fillStyle='#c8a84e';R.x.fillRect(sx-6,sy-4,20,16);
+      R.x.fillStyle='#fff8e0';R.x.fillRect(sx-4,sy-2,16,12);
+      R.ra();
+      R.txt('SCROLL',this.scrl.x+4-R.cam.x,this.scrl.y-12-R.cam.y,'#c8a84e',8,'center');
+    }
+
+    // Fox
+    if(this.fox&&this.fox.alive){
+      const fy=this.fox.y+Math.sin(this.fox.b)*1;
+      const fx=this.fox.x-R.cam.x,fdy=fy-R.cam.y;
+      R.x.fillStyle='#1a1a1a';
+      R.x.fillRect(fx,fdy,10,6);R.x.fillRect(fx+2,fdy-3,6,3);// body+head
+      R.x.fillRect(fx-1,fdy-5,2,3);R.x.fillRect(fx+9,fdy-5,2,3);// ears
+    }
+
+    this.npcs.forEach(n=>n.draw());
+    this.enemies.forEach(e=>e.draw());
+    // Draw non-controlled heroes behind controlled
+    this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
+    this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
+    // Draw FX on top
+    FXPool.forEach(fx=>fx.draw());
+    P.draw();
+  }
+}
+
+// ═══ GAME ═══
+const G={sc:null,lt:0,
+  async init(){
+    R.init();I.init();
+
+    // Load all assets
+    await Assets.load([
+      // Character spritesheets
+      {type:'image',key:'kote',path:'assets/chars/kote.png'},
+      {type:'meta',key:'kote_meta',path:'assets/chars/kote.txt'},
+      {type:'image',key:'minerva',path:'assets/chars/minerva.png'},
+      {type:'meta',key:'minerva_meta',path:'assets/chars/minerva.txt'},
+      {type:'image',key:'elber',path:'assets/chars/elber.png'},
+      {type:'meta',key:'elber_meta',path:'assets/chars/elber.txt'},
+      {type:'image',key:'nesta',path:'assets/chars/nesta.png'},
+      {type:'meta',key:'nesta_meta',path:'assets/chars/nesta.txt'},
+      {type:'image',key:'nick',path:'assets/chars/nick.png'},
+      {type:'meta',key:'nick_meta',path:'assets/chars/nick.txt'},
+      {type:'image',key:'bakaris',path:'assets/chars/bakaris.png'},
+      {type:'meta',key:'bakaris_meta',path:'assets/chars/bakaris.txt'},
+      // Pixel Crawler castle enemies
+      {type:'image',key:'castle_knight_idle',path:'assets/enemies/castle_knight/idle.png'},
+      {type:'image',key:'castle_knight_run',path:'assets/enemies/castle_knight/run.png'},
+      {type:'image',key:'castle_knight_death',path:'assets/enemies/castle_knight/death.png'},
+      {type:'image',key:'castle_knight_hit',path:'assets/enemies/castle_knight/hit.png'},
+      {type:'image',key:'castle_archer_idle',path:'assets/enemies/castle_archer/idle.png'},
+      {type:'image',key:'castle_archer_run',path:'assets/enemies/castle_archer/run.png'},
+      {type:'image',key:'castle_archer_death',path:'assets/enemies/castle_archer/death.png'},
+      {type:'image',key:'castle_archer_hit',path:'assets/enemies/castle_archer/hit.png'},
+      {type:'image',key:'castle_soldier_idle',path:'assets/enemies/castle_soldier/idle.png'},
+      {type:'image',key:'castle_soldier_run',path:'assets/enemies/castle_soldier/run.png'},
+      {type:'image',key:'castle_soldier_death',path:'assets/enemies/castle_soldier/death.png'},
+      {type:'image',key:'castle_soldier_hit',path:'assets/enemies/castle_soldier/hit.png'},
+      {type:'image',key:'castle_priest_idle',path:'assets/enemies/castle_priest/idle.png'},
+      {type:'image',key:'castle_priest_run',path:'assets/enemies/castle_priest/run.png'},
+      {type:'image',key:'castle_priest_death',path:'assets/enemies/castle_priest/death.png'},
+      {type:'image',key:'castle_priest_hit',path:'assets/enemies/castle_priest/hit.png'},
+      // Pixel Crawler library enemies
+      {type:'image',key:'lib_cataloguer_idle',path:'assets/enemies/lib_cataloguer/idle.png'},
+      {type:'image',key:'lib_cataloguer_run',path:'assets/enemies/lib_cataloguer/run.png'},
+      {type:'image',key:'lib_cataloguer_death',path:'assets/enemies/lib_cataloguer/death.png'},
+      {type:'image',key:'lib_cataloguer_hit',path:'assets/enemies/lib_cataloguer/hit.png'},
+      {type:'image',key:'lib_censor_idle',path:'assets/enemies/lib_censor/idle.png'},
+      {type:'image',key:'lib_censor_run',path:'assets/enemies/lib_censor/run.png'},
+      {type:'image',key:'lib_censor_death',path:'assets/enemies/lib_censor/death.png'},
+      {type:'image',key:'lib_censor_hit',path:'assets/enemies/lib_censor/hit.png'},
+      // Enemy spritesheets (SpriteAnim with .txt)
+      {type:'image',key:'evil_eye_red',path:'assets/enemies/evil_eye_red.png'},
+      {type:'meta',key:'evil_eye_meta',path:'assets/enemies/evil_eye_red.txt'},
+      {type:'image',key:'evil_eye_blue',path:'assets/enemies/evil_eye_blue.png'},
+      {type:'image',key:'mimic_img',path:'assets/enemies/mimic.png'},
+      {type:'meta',key:'mimic_meta',path:'assets/enemies/mimic.txt'},
+      {type:'image',key:'bat_idle',path:'assets/enemies/bat_idle.png'},
+      {type:'image',key:'bat_move',path:'assets/enemies/bat_move.png'},
+      {type:'image',key:'bat_atk',path:'assets/enemies/bat_atk.png'},
+      {type:'image',key:'hell_hand_red',path:'assets/enemies/hell_hand_red.png'},
+      {type:'image',key:'hell_hand_violet',path:'assets/enemies/hell_hand_violet.png'},
+      // Effect spritesheets
+      {type:'image',key:'kote_skill',path:'assets/fx/kote_skill.png'},
+      {type:'image',key:'kote_atk',path:'assets/fx/kote_atk.png'},
+      {type:'image',key:'minerva_skill',path:'assets/fx/minerva_skill.png'},
+      {type:'image',key:'minerva_atk',path:'assets/fx/minerva_atk.png'},
+      {type:'image',key:'elber_skill',path:'assets/fx/elber_skill.png'},
+      {type:'image',key:'elber_atk',path:'assets/fx/elber_atk.png'},
+      {type:'image',key:'nesta_skill',path:'assets/fx/nesta_skill.png'},
+      {type:'image',key:'nesta_atk',path:'assets/fx/nesta_atk.png'},
+      // Tilesets
+      {type:'image',key:'tiles_castle',path:'assets/env/castle/tiles.png'},
+      {type:'image',key:'tiles_library',path:'assets/env/library/tiles.png'},
+      // UI meters
+      {type:'image',key:'meter_l_red',path:'assets/ui/meter_left_red.png'},
+      {type:'image',key:'meter_c_red',path:'assets/ui/meter_center_red.png'},
+      {type:'image',key:'meter_r_red',path:'assets/ui/meter_right_red.png'},
+      {type:'image',key:'meter_l_green',path:'assets/ui/meter_left_green.png'},
+      {type:'image',key:'meter_c_green',path:'assets/ui/meter_center_green.png'},
+      {type:'image',key:'meter_r_green',path:'assets/ui/meter_right_green.png'},
+      {type:'image',key:'meter_l_blue',path:'assets/ui/meter_left_blue.png'},
+      {type:'image',key:'meter_c_blue',path:'assets/ui/meter_center_blue.png'},
+      {type:'image',key:'meter_r_blue',path:'assets/ui/meter_right_blue.png'},
+      {type:'image',key:'meter_l_violet',path:'assets/ui/meter_left_violet.png'},
+      {type:'image',key:'meter_c_violet',path:'assets/ui/meter_center_violet.png'},
+      {type:'image',key:'meter_r_violet',path:'assets/ui/meter_right_violet.png'},
+    ]);
+
+    // Hide loading screen, show title
+    document.getElementById('loadScr').style.display='none';
+    document.getElementById('title').style.display='flex';
+    document.getElementById('startBtn').addEventListener('click',()=>this.start());
+    this.loop(performance.now());
+  },
+  start(){
+    document.activeElement.blur();
+    document.getElementById('c').focus();
+    document.getElementById('title').style.display='none';
+    this.sc=new Lv1();this.sc.enter();
+  },
+  title(){this.sc=null;document.getElementById('title').style.display='flex';document.getElementById('hud').style.display='none';document.getElementById('dlg').style.display='none';document.getElementById('hint').textContent='';document.getElementById('ecount').textContent=''},
+  loop(ts){const dt=Math.min((ts-this.lt)/1000,0.05);this.lt=ts;
+    if(this.sc){this.sc.update(dt);this.sc.draw()}
+    else{const g=R.x.createLinearGradient(0,0,0,CH);g.addColorStop(0,'#0a1628');g.addColorStop(0.5,'#0d2847');g.addColorStop(1,'#1a4a6e');R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
+      const t=Date.now()/1000;R.a(0.06);for(let i=0;i<15;i++){const bx=(Math.sin(t*0.2+i*1.3)*0.5+0.5)*CW,by=CH-((t*10+i*35)%CH);R.x.fillStyle='#6a9ab8';R.x.beginPath();R.x.arc(bx,by,2+Math.sin(t*0.5+i),0,Math.PI*2);R.x.fill()}R.ra()}
+    I.flush();requestAnimationFrame(t=>this.loop(t))}
+};
+G.init();
+</script>
+</body>
+</html>
