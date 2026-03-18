@@ -196,14 +196,20 @@ class PCEnemy{
   hits(o){return this.x<o.x+o.w&&this.x+this.w>o.x&&this.y<o.y+o.h&&this.y+this.h>o.y}
   blk(tm,dx,dy){
     const nx=this.x+dx,ny=this.y+dy;
-    return tm.sol((nx+2)/T|0,(ny+2)/T|0)||tm.sol((nx+this.w-3)/T|0,(ny+2)/T|0)||
-           tm.sol((nx+2)/T|0,(ny+this.h-1)/T|0)||tm.sol((nx+this.w-3)/T|0,(ny+this.h-1)/T|0);
+    const m=3;
+    return tm.sol((nx+m)/T|0,(ny+m)/T|0)||tm.sol((nx+this.w-m-1)/T|0,(ny+m)/T|0)||
+           tm.sol((nx+m)/T|0,(ny+this.h-1)/T|0)||tm.sol((nx+this.w-m-1)/T|0,(ny+this.h-1)/T|0);
   }
   mv(tm){
-    if(!this.blk(tm,this.vx,0))this.x+=this.vx;
-    else{const s=Math.sign(this.vx);let c=0;while(!this.blk(tm,s,0)&&c<20){this.x+=s;c++}this.vx=0}
-    if(!this.blk(tm,0,this.vy)){this.y+=this.vy;this.gnd=false}
-    else{if(this.vy>0)this.gnd=true;const s=Math.sign(this.vy);let c=0;while(!this.blk(tm,0,s)&&c<20){this.y+=s;c++}this.vy=0}
+    if(this.vx!==0){
+      if(!this.blk(tm,this.vx,0))this.x+=this.vx;
+      else{const s=Math.sign(this.vx);let c=0;while(!this.blk(tm,s,0)&&c<Math.abs(this.vx)+1){this.x+=s;c++}this.vx=0}
+    }
+    if(this.vy!==0){
+      if(!this.blk(tm,0,this.vy)){this.y+=this.vy;this.gnd=false}
+      else{if(this.vy>0)this.gnd=true;const s=Math.sign(this.vy);let c=0;while(!this.blk(tm,0,s)&&c<Math.abs(this.vy)+1){this.y+=s;c++}this.vy=0}
+    }
+    if(this.blk(tm,0,0)){for(let i=1;i<=6;i++){if(!this.blk(tm,0,-i)){this.y-=i;break}}}
   }
   hurt(n){if(this.inv>0)return;this.hp-=n;this.inv=0.4;P.emit(this.x+this.w/2,this.y+this.h/2,8,'#f44',4,0.4,2);if(this.hp<=0){this.hp=0;this.die()}}
   die(){this.on=false;this.anim='death';this.frame=0;this.timer=0;P.emit(this.x+this.w/2,this.y+this.h/2,15,'#f44',5,0.6,3)}
@@ -344,38 +350,36 @@ class TM{
       // Fill background (air tiles) with wall texture so no empty space shows
       if(v===0){
         if(useLibBG&&libImg){
-          // Library background: dark bookshelf walls
-          const tx=((x*3+y*7)%6)*16;const ty=((x*5+y*2)%4)*16+192;
+          // Library background: dark wooden walls from top-left of library tileset
+          // Library tileset rows 0-2 (y=0-48) have solid dark wood tiles
+          const tx=((x*3+y*7)%5)*16;const ty=((x*5+y*2)%3)*16;
           R.x.drawImage(libImg,tx,ty,16,16,dx,dy,16,16);
-          // Darken to differentiate from solid tiles
-          R.x.fillStyle='rgba(5,5,16,0.55)';R.x.fillRect(dx,dy,T,T);
+          R.x.fillStyle='rgba(5,5,16,0.6)';R.x.fillRect(dx,dy,T,T);
         }else if(castleImg){
-          // Castle background: dark stone walls
-          const tx=((x*7+y*13)%12)*16;const ty=((x*3+y*5)%6)*16+48;
+          // Castle background: stone wall tiles from rows 0-2 of castle tileset
+          // Castle tileset rows 0-1 (y=0-32) have solid stone wall tiles, cols 0-7
+          const tx=((x*7+y*13)%8)*16;const ty=((x*3+y*5)%2)*16;
           R.x.drawImage(castleImg,tx,ty,16,16,dx,dy,16,16);
-          // Darken to differentiate from solid tiles
           R.x.fillStyle='rgba(10,10,30,0.5)';R.x.fillRect(dx,dy,T,T);
         }
         continue;
       }
-      // Use tileset sub-images for variety
-      if(castleImg&&(v===1||v===2||v===5)){
-        // Pick tiles from castle tileset
+      // Use tileset sub-images for solid tiles
+      if(castleImg&&(v===1||v===2||v===5||v===9)){
         let tx,ty;
-        if(v===1){tx=((x*7+y*13)%10)*16;ty=0} // stone wall variety
-        else if(v===2){tx=((x*3+y*7)%10)*16;ty=16} // dark wall
-        else{tx=0;ty=64} // gold deco
+        if(v===1){tx=((x*7+y*13)%8)*16;ty=0}  // stone wall (row 0, cols 0-7)
+        else if(v===2){tx=((x*3+y*7)%8)*16;ty=16}  // dark wall (row 1)
+        else if(v===9){tx=((x*5+y*3)%8)*16;ty=32}  // sand/floor (row 2)
+        else{tx=((x*3)%4)*16;ty=64}  // gold deco (row 4)
         R.x.drawImage(castleImg,tx,ty,16,16,dx,dy,16,16);
       }else if(libImg&&(v===6||v===3)){
         let tx,ty;
-        if(v===6){tx=((x*5+y*11)%8)*16;ty=128} // bookshelf
-        else{tx=((x*3+y*5)%8)*16;ty=48} // wood platform
+        if(v===6){tx=((x*5+y*11)%5)*16;ty=48}  // bookshelf (row 3)
+        else{tx=((x*3+y*5)%5)*16+80;ty=0}  // wood platform (row 0, cols 5+)
         R.x.drawImage(libImg,tx,ty,16,16,dx,dy,16,16);
       }else{
         R.x.fillStyle=tileColors[v]||'#444';R.x.fillRect(dx,dy,T,T);
-        // Add subtle noise
         if(v===7){R.x.fillStyle='#2a5a7a';R.x.fillRect(dx+((x*5+y*3)%12),dy+((x*7+y)%12),4,2)}
-        if(v===9){R.x.fillStyle='#8a7a6a';R.x.fillRect(dx+((x*3+y*7)%10),dy+((x+y*5)%10),3,2)}
         if(v===8){R.x.fillStyle='#2a4a2a';R.x.fillRect(dx+((x+y*3)%10),dy+((x*5+y)%10),4,3)}
       }
     }
@@ -388,14 +392,43 @@ class Ent{
   hits(o){return this.x<o.x+o.w&&this.x+this.w>o.x&&this.y<o.y+o.h&&this.y+this.h>o.y}
   blk(tm,dx,dy){
     const nx=this.x+dx,ny=this.y+dy;
-    return tm.sol((nx+2)/T|0,(ny+2)/T|0)||tm.sol((nx+this.w-3)/T|0,(ny+2)/T|0)||
-           tm.sol((nx+2)/T|0,(ny+this.h-1)/T|0)||tm.sol((nx+this.w-3)/T|0,(ny+this.h-1)/T|0);
+    const m=4; // collision margin from edges
+    return tm.sol((nx+m)/T|0,(ny+m)/T|0)||tm.sol((nx+this.w-m-1)/T|0,(ny+m)/T|0)||
+           tm.sol((nx+m)/T|0,(ny+this.h-1)/T|0)||tm.sol((nx+this.w-m-1)/T|0,(ny+this.h-1)/T|0);
   }
   mv(tm){
-    if(!this.blk(tm,this.vx,0))this.x+=this.vx;
-    else{const s=Math.sign(this.vx);let c=0;while(!this.blk(tm,s,0)&&c<20){this.x+=s;c++}this.vx=0}
-    if(!this.blk(tm,0,this.vy)){this.y+=this.vy;this.gnd=false}
-    else{if(this.vy>0)this.gnd=true;const s=Math.sign(this.vy);let c=0;while(!this.blk(tm,0,s)&&c<20){this.y+=s;c++}this.vy=0}
+    // Horizontal
+    if(this.vx!==0){
+      if(!this.blk(tm,this.vx,0))this.x+=this.vx;
+      else{
+        const s=Math.sign(this.vx);
+        let c=0;
+        while(!this.blk(tm,s,0)&&c<Math.abs(this.vx)+1){this.x+=s;c++}
+        this.vx=0;
+      }
+    }
+    // Vertical
+    if(this.vy!==0){
+      if(!this.blk(tm,0,this.vy)){this.y+=this.vy;this.gnd=false}
+      else{
+        if(this.vy>0)this.gnd=true;
+        const s=Math.sign(this.vy);
+        let c=0;
+        while(!this.blk(tm,0,s)&&c<Math.abs(this.vy)+1){this.y+=s;c++}
+        this.vy=0;
+      }
+    }
+    // Anti-stuck: if embedded in a solid tile, push up
+    if(this.blk(tm,0,0)){
+      let pushed=false;
+      for(let i=1;i<=8;i++){
+        if(!this.blk(tm,0,-i)){this.y-=i;pushed=true;break}
+      }
+      if(!pushed)for(let i=1;i<=4;i++){
+        if(!this.blk(tm,i,0)){this.x+=i;break}
+        if(!this.blk(tm,-i,0)){this.x-=i;break}
+      }
+    }
   }
   hurt(n){if(this.inv>0)return;this.hp-=n;this.inv=0.4;P.emit(this.x+this.w/2,this.y+this.h/2,8,'#f44',4,0.4,2);if(this.hp<=0){this.hp=0;this.die()}}
   die(){this.on=false;P.emit(this.x+this.w/2,this.y+this.h/2,15,'#f44',5,0.6,3)}
@@ -729,36 +762,42 @@ class Lv1{
 
   bAct1(){
     this.act=1;const MW=65,MH=30;this.tm=new TM(MW,MH);
-    // Floor
-    for(let x=0;x<MW;x++){this.tm.set(x,MH-1,1);this.tm.set(x,MH-2,2);this.tm.set(x,MH-3,9)}
-    // Walls
-    for(let y=0;y<MH;y++){this.tm.set(0,y,1);this.tm.set(MW-1,y,1)}
-    // Ceiling
+    // === CASTLE ARENA: The Final Exam ===
+    // Thick floor (3 tiles deep)
+    for(let x=0;x<MW;x++)for(let r=0;r<3;r++)this.tm.set(x,MH-1-r,r===0?2:1);
+    // Walls (2 tiles wide on each side)
+    for(let y=0;y<MH;y++){this.tm.set(0,y,1);this.tm.set(1,y,2);this.tm.set(MW-1,y,1);this.tm.set(MW-2,y,2)}
+    // Ceiling (2 tiles)
     for(let x=0;x<MW;x++){this.tm.set(x,0,2);this.tm.set(x,1,1)}
-    // Platforms
-    for(let x=6;x<13;x++)this.tm.set(x,MH-7,1);
-    for(let x=24;x<38;x++)this.tm.set(x,MH-9,1);
-    for(let x=46;x<53;x++)this.tm.set(x,MH-7,1);
-    for(let x=16;x<19;x++)this.tm.set(x,MH-5,8);
-    for(let x=41;x<44;x++)this.tm.set(x,MH-5,8);
-    // Decorative pillars
-    for(let y=2;y<6;y++){this.tm.set(1,y,5);this.tm.set(MW-2,y,5)}
+    // Left raised platform (thick: 2 tiles tall)
+    for(let x=5;x<14;x++){this.tm.set(x,MH-6,1);this.tm.set(x,MH-7,2)}
+    // Center high platform (thick)
+    for(let x=22;x<38;x++){this.tm.set(x,MH-9,1);this.tm.set(x,MH-10,2)}
+    // Steps up to center platform from left
+    for(let x=16;x<22;x++){this.tm.set(x,MH-7,1);this.tm.set(x,MH-8,2)}
+    // Steps up from right
+    for(let x=38;x<44;x++){this.tm.set(x,MH-7,1);this.tm.set(x,MH-8,2)}
+    // Right raised platform (thick)
+    for(let x=46;x<56;x++){this.tm.set(x,MH-6,1);this.tm.set(x,MH-7,2)}
+    // Decorative gold pillars
+    for(let y=2;y<6;y++){this.tm.set(2,y,5);this.tm.set(MW-3,y,5)}
+    for(let y=2;y<6;y++){this.tm.set(20,y,5);this.tm.set(40,y,5)}
 
-    this.heroes=this.createHeroes(60,(MH-5)*T,true);
+    // Heroes spawn on the floor, left side (safe area)
+    this.heroes=this.createHeroes(60,(MH-4)*T,true);
     this.heroes[0].ctrl=true;this.ai=0;
 
     // Fox familiar following Nesta
-    this.fox={x:140,y:(MH-4)*T-8,alive:true,b:0};
+    this.fox={x:100,y:(MH-4)*T-8,alive:true,b:0};
 
-    // Enemies: Bakaris (classic sprite with .txt) + Pixel Crawler castle enemies
+    // Enemies spawn on right side platforms — clear separation from heroes
     this.enemies=[
-      new Enem(620,(MH-6)*T,18,30,'Bakaris','#aa5533',100,10,'boss','bakaris','bakaris_meta','classic'),
-      new PCEnemy(680,(MH-4)*T,18,30,'Ayik Ur','#887755',50,8,'chase','castle_knight'),
-      new PCEnemy(730,(MH-4)*T,18,30,'Hrigg','#668877',50,8,'chase','castle_archer'),
-      new PCEnemy(790,(MH-4)*T,18,30,'Iriad','#886688',45,8,'patrol','castle_soldier'),
-      new PCEnemy(840,(MH-4)*T,18,30,'Andrella','#886666',45,8,'patrol','castle_priest'),
+      new Enem(780,(MH-4)*T,18,30,'Bakaris','#aa5533',100,10,'boss','bakaris','bakaris_meta','classic'),
+      new PCEnemy(620,(MH-4)*T,18,30,'Ayik Ur','#887755',50,8,'chase','castle_knight'),
+      new PCEnemy(700,(MH-4)*T,18,30,'Hrigg','#668877',50,8,'chase','castle_archer'),
+      new PCEnemy(800,(MH-8)*T,18,30,'Iriad','#886688',45,8,'patrol','castle_soldier'),
+      new PCEnemy(900,(MH-4)*T,18,30,'Andrella','#886666',45,8,'patrol','castle_priest'),
     ];
-    // Setup Bakaris with classic sprite anims
     if(this.enemies[0].sprite){
       this.enemies[0].sprite.speed=0.08;
       this.enemies[0].fw=40;this.enemies[0].fh=40;
@@ -785,76 +824,78 @@ class Lv1{
 
   bAct3(){
     this.act=3;const MW=90,MH=18;this.tm=new TM(MW,MH);this.enemies=[];this.npcs=[];
-    for(let x=0;x<MW;x++){this.tm.set(x,MH-1,1);this.tm.set(x,MH-2,2);this.tm.set(x,0,2);this.tm.set(x,1,1)}
-    for(let y=0;y<MH;y++){this.tm.set(0,y,1);this.tm.set(MW-1,y,1)}
-    // Gold pillars
-    for(let x=15;x<MW-5;x+=14){for(let y=MH-5;y>=MH-7;y--)this.tm.set(x,y,5)}
-    // Bookshelf decorations on ceiling
-    for(let x=4;x<12;x++){this.tm.set(x,2,6);this.tm.set(x,3,6)}
-    for(let x=20;x<30;x++){this.tm.set(x,2,6);this.tm.set(x,3,6)}
-    for(let x=40;x<50;x++){this.tm.set(x,2,6);this.tm.set(x,3,6)}
-    this.heroes.forEach((h,i)=>{h.x=40+i*28;h.y=(MH-4)*T;h.vx=0;h.vy=0});
+    // === HALLWAY CORRIDOR ===
+    // Thick floor (3 tiles)
+    for(let x=0;x<MW;x++)for(let r=0;r<3;r++)this.tm.set(x,MH-1-r,r===0?2:1);
+    // Ceiling (2 tiles)
+    for(let x=0;x<MW;x++){this.tm.set(x,0,2);this.tm.set(x,1,1)}
+    // Side walls
+    for(let y=0;y<MH;y++){this.tm.set(0,y,1);this.tm.set(1,y,2);this.tm.set(MW-1,y,1);this.tm.set(MW-2,y,2)}
+    // Gold pillars every 14 tiles for decoration (NOT blocking path)
+    for(let x=15;x<MW-5;x+=14){for(let y=2;y<5;y++)this.tm.set(x,y,5)}
+    // Bookshelf decorations on ceiling (non-solid since they're above head height)
+    for(let x=4;x<12;x++){this.tm.set(x,2,5);this.tm.set(x,3,5)}
+    for(let x=22;x<32;x++){this.tm.set(x,2,5);this.tm.set(x,3,5)}
+    for(let x=42;x<52;x++){this.tm.set(x,2,5);this.tm.set(x,3,5)}
+
+    this.heroes.forEach((h,i)=>{h.x=50+i*28;h.y=(MH-4)*T;h.vx=0;h.vy=0;h.gnd=false});
     this.npcs=[
       new NPC(200,(MH-4)*T,'Levna','nick','nick_meta','knight',[d('Levna Drakehorn','She reveals a lightning scar.'),d('Levna','"A Blue Dragon did this, in the Northern Wastes. Dragons are NOT myths."')]),
-      new NPC(400,(MH-4)*T,'Clystran','bakaris','bakaris_meta','classic',[d('Clystran','"My village Heart\'s Hollow may hold the key to finding metallic dragons."')]),
-      new NPC(600,(MH-4)*T,'Darrett','elber','elber_meta','knight',[d('Darrett Highwater','"I want to be Becklin\'s squire. She\'s the greatest knight alive."')]),
-      new NPC(800,(MH-4)*T,'Andir','minerva','minerva_meta','knight',[d('Andir Valmakos','"I still believe in the Old Gods — Paladine, Habbakuk. Faith is not weakness."')]),
-      new NPC(1000,(MH-4)*T,'Bakaris','bakaris','bakaris_meta','classic',[d('Bakaris','"My father is gaining power in Kalaman. There are rumors of an invading force..."'),d('Narrator','The political threat is real.')]),
+      new NPC(380,(MH-4)*T,'Clystran','bakaris','bakaris_meta','classic',[d('Clystran','"My village Heart\'s Hollow may hold the key to finding metallic dragons."')]),
+      new NPC(560,(MH-4)*T,'Darrett','elber','elber_meta','knight',[d('Darrett Highwater','"I want to be Becklin\'s squire. She\'s the greatest knight alive."')]),
+      new NPC(740,(MH-4)*T,'Andir','minerva','minerva_meta','knight',[d('Andir Valmakos','"I still believe in the Old Gods — Paladine, Habbakuk. Faith is not weakness."')]),
+      new NPC(920,(MH-4)*T,'Bakaris','bakaris','bakaris_meta','classic',[d('Bakaris','"My father is gaining power in Kalaman. There are rumors of an invading force..."'),d('Narrator','The political threat is real.')]),
     ];
-    this.exit={x:(MW-4)*T,y:(MH-5)*T,w:28,h:36};
+    this.exit={x:(MW-4)*T,y:(MH-4)*T,w:28,h:36};
 
     // Setup companions for non-active heroes
     this.companions=[];
-    for(let i=1;i<this.heroes.length;i++){
-      this.companions.push(new Companion(this.heroes[i]));
+    for(let i=0;i<this.heroes.length;i++){
+      if(i!==this.ai&&this.heroes[i].on)this.companions.push(new Companion(this.heroes[i]));
     }
   }
 
   bAct4(){
-    this.act=4;const MW=60,MH=20;this.tm=new TM(MW,MH);this.enemies=[];this.npcs=[];this.exit=null;
-    // Floor and ceiling
-    for(let x=0;x<MW;x++){this.tm.set(x,MH-1,2);this.tm.set(x,MH-2,1);this.tm.set(x,0,2);this.tm.set(x,1,1)}
-    for(let y=0;y<MH;y++){this.tm.set(0,y,1);this.tm.set(MW-1,y,1)}
+    this.act=4;const MW=70,MH=22;this.tm=new TM(MW,MH);this.enemies=[];this.npcs=[];this.exit=null;
+    // === LIBRARY: Night Infiltration ===
+    // Thick floor (3 tiles)
+    for(let x=0;x<MW;x++)for(let r=0;r<3;r++)this.tm.set(x,MH-1-r,r===0?2:1);
+    // Ceiling (2 tiles)
+    for(let x=0;x<MW;x++){this.tm.set(x,0,2);this.tm.set(x,1,1)}
+    // Side walls (2 tiles wide)
+    for(let y=0;y<MH;y++){this.tm.set(0,y,1);this.tm.set(1,y,6);this.tm.set(MW-1,y,1);this.tm.set(MW-2,y,6)}
 
-    // FIXED LIBRARY LAYOUT: clear path with stepping platforms
-    // Bookshelf columns (with gaps for passage)
-    for(let s=0;s<3;s++){
-      const sx=12+s*16;
-      for(let y=3;y<MH-4;y++){
-        if(y!==8&&y!==12)this.tm.set(sx,y,6); // gaps at y=8 and y=12
-      }
-    }
-    // Stepping platforms - staircase going right and up
-    // Ground level platforms
-    for(let x=3;x<8;x++)this.tm.set(x,MH-5,3);
-    for(let x=8;x<12;x++)this.tm.set(x,MH-7,3);
-    // Mid-level platforms crossing over bookshelves
-    for(let x=13;x<18;x++)this.tm.set(x,MH-9,3);
-    for(let x=20;x<26;x++)this.tm.set(x,MH-7,3);
-    // Upper platforms
-    for(let x=28;x<34;x++)this.tm.set(x,MH-9,3);
-    for(let x=36;x<42;x++)this.tm.set(x,MH-7,3);
-    // Final platforms leading to scroll
-    for(let x=44;x<50;x++)this.tm.set(x,MH-9,3);
-    for(let x=52;x<57;x++)this.tm.set(x,MH-11,3);
+    // === CLEAR STAIRCASE PATH (left to right, ascending with manageable jumps) ===
+    // Max jump: ~72px height, ~140px horizontal. Gaps must be <=8 tiles wide, <=4 tiles up
+    // Step 1: Ground-level platform (starting area, wide)
+    for(let x=3;x<14;x++){this.tm.set(x,MH-6,3);this.tm.set(x,MH-7,6)}
+    // Step 2: Jump right and up (gap=2 tiles, up=2 tiles)
+    for(let x=16;x<26;x++){this.tm.set(x,MH-8,3);this.tm.set(x,MH-9,6)}
+    // Step 3: Continue right and up (gap=2, up=2)
+    for(let x=28;x<38;x++){this.tm.set(x,MH-10,3);this.tm.set(x,MH-11,6)}
+    // Step 4: Zigzag back down-right (gap=2, down=2)
+    for(let x=40;x<50;x++){this.tm.set(x,MH-8,3);this.tm.set(x,MH-9,6)}
+    // Step 5: Final ascent (gap=2, up=3)
+    for(let x=52;x<62;x++){this.tm.set(x,MH-11,3);this.tm.set(x,MH-12,6)}
 
-    this.heroes.forEach((h,i)=>{h.x=30+i*28;h.y=(MH-4)*T;h.vx=0;h.vy=0});
+    // Heroes spawn on the floor, left
+    this.heroes.forEach((h,i)=>{h.x=40+i*28;h.y=(MH-4)*T;h.vx=0;h.vy=0;h.gnd=false});
 
-    // Mimic enemies (SpriteAnim with .txt) + Pixel Crawler library enemies
+    // Enemies placed ON platforms or ground (not floating)
     this.enemies=[
-      new Enem(200,(MH-4)*T,30,24,'Mimic','#6a4a2a',40,12,'static','mimic_img','mimic_meta','mimic'),
-      new Enem(400,(MH-8)*T,30,24,'Mimic','#6a4a2a',40,12,'static','mimic_img','mimic_meta','mimic'),
-      new Enem(700,(MH-10)*T,30,24,'Mimic','#6a4a2a',40,12,'static','mimic_img','mimic_meta','mimic'),
-      new PCEnemy(150,(MH-6)*T,18,30,'Cataloguer','#7a5a3a',35,7,'patrol','lib_cataloguer'),
-      new PCEnemy(550,(MH-8)*T,18,30,'Censor','#8a4a4a',35,7,'chase','lib_censor'),
+      new Enem(130,(MH-7)*T,30,24,'Mimic','#6a4a2a',40,12,'static','mimic_img','mimic_meta','mimic'),
+      new Enem(350,(MH-9)*T,30,24,'Mimic','#6a4a2a',40,12,'static','mimic_img','mimic_meta','mimic'),
+      new Enem(680,(MH-9)*T,30,24,'Mimic','#6a4a2a',40,12,'static','mimic_img','mimic_meta','mimic'),
+      new PCEnemy(250,(MH-4)*T,18,30,'Cataloguer','#7a5a3a',35,7,'patrol','lib_cataloguer'),
+      new PCEnemy(500,(MH-4)*T,18,30,'Censor','#8a4a4a',35,7,'chase','lib_censor'),
     ];
-    // Scroll at the far end, on the highest platform - REACHABLE now
-    this.scrl={x:(MW-4)*T,y:(MH-12)*T,got:false};
+    // Scroll on the final high platform (step 5 surface is at MH-11)
+    this.scrl={x:57*T,y:(MH-12)*T,got:false};
 
     // Setup companions for non-active heroes
     this.companions=[];
-    for(let i=1;i<this.heroes.length;i++){
-      this.companions.push(new Companion(this.heroes[i]));
+    for(let i=0;i<this.heroes.length;i++){
+      if(i!==this.ai&&this.heroes[i].on)this.companions.push(new Companion(this.heroes[i]));
     }
   }
 
