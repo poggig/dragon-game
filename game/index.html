@@ -330,7 +330,7 @@ class TM{
   set(x,y,v){if(x>=0&&x<this.w&&y>=0&&y<this.h)this.d[y*this.w+x]=v}
   get(x,y){if(x<0||x>=this.w||y<0||y>=this.h)return 1;return this.d[y*this.w+x]}
   sol(x,y){const v=this.get(x,y);return v===1||v===2||v===3||v===6||v===8}
-  draw(){
+  draw(useLibBG){
     const castleImg=Assets.images['tiles_castle'];
     const libImg=Assets.images['tiles_library'];
     const sx=Math.max(0,(R.cam.x/T)|0),sy=Math.max(0,(R.cam.y/T)|0);
@@ -339,8 +339,25 @@ class TM{
     // Library tileset is 400x400 => 25x25 tiles of 16x16
     const tileColors={1:'#4a4a6a',2:'#2a2a4a',3:'#5a4a3a',5:'#c8a84e',6:'#6a4a3a',7:'#1a3a5a',8:'#3a5a3a',9:'#7a6a5a'};
     for(let y=sy;y<ey;y++)for(let x=sx;x<ex;x++){
-      const v=this.get(x,y);if(!v)continue;
+      const v=this.get(x,y);
       const dx=x*T-R.cam.x,dy=y*T-R.cam.y;
+      // Fill background (air tiles) with wall texture so no empty space shows
+      if(v===0){
+        if(useLibBG&&libImg){
+          // Library background: dark bookshelf walls
+          const tx=((x*3+y*7)%6)*16;const ty=((x*5+y*2)%4)*16+192;
+          R.x.drawImage(libImg,tx,ty,16,16,dx,dy,16,16);
+          // Darken to differentiate from solid tiles
+          R.x.fillStyle='rgba(5,5,16,0.55)';R.x.fillRect(dx,dy,T,T);
+        }else if(castleImg){
+          // Castle background: dark stone walls
+          const tx=((x*7+y*13)%12)*16;const ty=((x*3+y*5)%6)*16+48;
+          R.x.drawImage(castleImg,tx,ty,16,16,dx,dy,16,16);
+          // Darken to differentiate from solid tiles
+          R.x.fillStyle='rgba(10,10,30,0.5)';R.x.fillRect(dx,dy,T,T);
+        }
+        continue;
+      }
       // Use tileset sub-images for variety
       if(castleImg&&(v===1||v===2||v===5)){
         // Pick tiles from castle tileset
@@ -736,10 +753,10 @@ class Lv1{
     // Enemies: Bakaris (classic sprite with .txt) + Pixel Crawler castle enemies
     this.enemies=[
       new Enem(620,(MH-6)*T,18,30,'Bakaris','#aa5533',100,10,'boss','bakaris','bakaris_meta','classic'),
-      new PCEnemy(680,(MH-4)*T,18,30,'Ayik Ur','#887755',50,8,'chase','castle_knight_idle'),
-      new PCEnemy(730,(MH-4)*T,18,30,'Hrigg','#668877',50,8,'chase','castle_archer_idle'),
-      new PCEnemy(790,(MH-4)*T,18,30,'Iriad','#886688',45,8,'patrol','castle_soldier_idle'),
-      new PCEnemy(840,(MH-4)*T,18,30,'Andrella','#886666',45,8,'patrol','castle_priest_idle'),
+      new PCEnemy(680,(MH-4)*T,18,30,'Ayik Ur','#887755',50,8,'chase','castle_knight'),
+      new PCEnemy(730,(MH-4)*T,18,30,'Hrigg','#668877',50,8,'chase','castle_archer'),
+      new PCEnemy(790,(MH-4)*T,18,30,'Iriad','#886688',45,8,'patrol','castle_soldier'),
+      new PCEnemy(840,(MH-4)*T,18,30,'Andrella','#886666',45,8,'patrol','castle_priest'),
     ];
     // Setup Bakaris with classic sprite anims
     if(this.enemies[0].sprite){
@@ -828,8 +845,8 @@ class Lv1{
       new Enem(200,(MH-4)*T,30,24,'Mimic','#6a4a2a',40,12,'static','mimic_img','mimic_meta','mimic'),
       new Enem(400,(MH-8)*T,30,24,'Mimic','#6a4a2a',40,12,'static','mimic_img','mimic_meta','mimic'),
       new Enem(700,(MH-10)*T,30,24,'Mimic','#6a4a2a',40,12,'static','mimic_img','mimic_meta','mimic'),
-      new PCEnemy(150,(MH-6)*T,18,30,'Cataloguer','#7a5a3a',35,7,'patrol','lib_cataloguer_idle'),
-      new PCEnemy(550,(MH-8)*T,18,30,'Censor','#8a4a4a',35,7,'chase','lib_censor_idle'),
+      new PCEnemy(150,(MH-6)*T,18,30,'Cataloguer','#7a5a3a',35,7,'patrol','lib_cataloguer'),
+      new PCEnemy(550,(MH-8)*T,18,30,'Censor','#8a4a4a',35,7,'chase','lib_censor'),
     ];
     // Scroll at the far end, on the highest platform - REACHABLE now
     this.scrl={x:(MW-4)*T,y:(MH-12)*T,got:false};
@@ -851,6 +868,11 @@ class Lv1{
     cur.ctrl=false;cur.st='idle';
     nxt.ctrl=true;
     this.ai=idx;
+    // Rebuild companions: all non-active heroes get a companion follower
+    this.companions=[];
+    for(let i=0;i<this.heroes.length;i++){
+      if(i!==this.ai&&this.heroes[i].on)this.companions.push(new Companion(this.heroes[i]));
+    }
     P.emit(nxt.x+nxt.w/2,nxt.y+nxt.h/2,8,nxt.col,3,0.3,2);
     this.hud();
   }
@@ -885,16 +907,8 @@ class Lv1{
 
     // Update active hero
     this.heroes[this.ai].update(dt,this.tm);
-    // Update companion heroes
+    // Update companion heroes (Companion handles gravity+mv, no extra physics loop needed)
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm));
-    // Update other heroes (for animation consistency)
-    for(let i=0;i<this.heroes.length;i++){
-      if(i!==this.ai&&this.heroes[i].on){
-        // Gravity and collision for passive animation
-        this.heroes[i].vy=Math.min(this.heroes[i].vy+GR,MF);
-        this.heroes[i].mv(this.tm);
-      }
-    }
 
     this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
     FXPool.forEach(fx=>fx.update(dt));
@@ -1002,7 +1016,7 @@ class Lv1{
       R.a(0.03);for(let i=0;i<4;i++)R.sr(150+i*180,0,1,CH,'#aaccff');R.ra();
     }
 
-    if(this.tm)this.tm.draw();
+    if(this.tm)this.tm.draw(this.act===4);
 
     // Exit door
     if(this.exit){
