@@ -366,13 +366,13 @@ Phase 1 - HTML5 Prototype (CURRENT)
   [x] Create project plan
   [x] Session 1 PDF received and Level 1 designed
   [ ] Extract and organize assets
-  [ ] Build game engine core (canvas rendering, sprite system, input, scenes)
-  [ ] Character system with party swap
-  [ ] Level 1: School Day (tutorial + arena + stealth - good intro level)
-  [ ] Level 2: Kingfisher Festival (most varied gameplay)
-  [ ] Level 3: Library of Secrets (stealth + boss)
-  [ ] Level 4: Yurthgreen Masquerade (social/story)
-  [ ] Level 5: Fall of Vogler (boss rush + escape)
+  [x] Build game engine core (canvas rendering, sprite system, input, scenes)
+  [x] Character system with party swap
+  [x] Level 1: School Day (tutorial + arena + stealth - good intro level)
+  [x] Level 2: Kingfisher Festival (most varied gameplay)
+  [x] Level 3: Library of Secrets (stealth + Spectator boss)
+  [x] Level 4: Yurthgreen Masquerade (social/story, Nesta returns)
+  [x] Level 5: Fall of Vogler (multi-boss rush + Kansaldi escape)
   [ ] Trilingual text system (EN/ES/IT)
   [ ] Push to GitHub
 
@@ -385,6 +385,58 @@ Phase 2 - Godot Port
   [ ] Push to GitHub
 
 ******* CHANGELOG *******
+2026-03-19: COMPLETE SPRITE OVERHAUL — 100% custom pixel art
+  - Removed ALL external PNG sprite dependencies (heroes + enemies)
+  - Every hero drawn programmatically with canvas primitives:
+    * Kote: dark-haired rogue, teal outfit, dual daggers
+    * Minerva: red-haired warrior, golden armor, greataxe
+    * Elber: inventor druid, goggles, mechanical gauntlet, green cape
+    * Nesta: silver-haired dark mage, purple robes, shadow energy
+    * Nick: golden Aasimar necromancer, halo, spectral wings, Arturito skeleton companion
+  - Every enemy drawn programmatically:
+    * Bakaris: arrogant blond noble with rapier and scar
+    * Students: blue-grey uniformed rival students
+    * Darkmantles: purple squid-manta with tentacles and glowing eyes
+    * Draconians: bipedal reptilian humanoids with wings and tail
+    * Spectator: floating eyeball with eye stalks
+    * Mimics: treasure chests with teeth when attacking
+    * Ogre: massive grey-green brute with club
+    * Boilerdrak: metallic mechanical dragon with gears and steam
+    * Kansaldi: black-armored commander with flaming eyes
+    * Goblin Chief: small green-skinned goblin with spear
+  - NICK IS NOW 5TH PLAYABLE HERO (was NPC):
+    * Attack: necrotic bolt, Skill: healing wave (heals all party)
+    * Present in all 5 levels, has Arturito companion
+  - Animation states: idle, run, jump, fall, attack, skill, dash
+  - Only tileset PNGs remain as external assets
+
+2026-03-18 (update 3): ALL 5 LEVELS COMPLETE!
+  - Custom programmatic sprite rendering: Darkmantles (squid), Draconians (humanoid dragon),
+    Spectator (beholder), Ogre, Boilerdrak (mech dragon) — drawn with canvas primitives
+  - Nick the Necromancer added as NPC support in L2+
+  - Level 3: Library of Secrets (stealth, platforming, Spectator boss)
+  - Level 4: Yurthgreen Masquerade (story-only, Nesta returns, Solamnic armor, dark pact)
+  - Level 5: Fall of Vogler (6 acts! Sivak boss, Boilerdrak boss, Goblin+Ogre boss,
+    Kansaldi unwinnable escape, Becklin dies, Arturito sacrifices)
+  - Full level select on title (all 5 levels)
+  - Complete game flow L1→L2→L3→L4→L5→title
+
+2026-03-18: Level 2 implemented!
+  - River Ambush (Act 1): Darkmantle combat with pulsing darkness effect
+  - Festival Sabotage (Act 2): Vogler village exploration, NPC conversations
+  - Fishing Competition (Act 3): Timing-based fishing minigame, catch Benebog
+  - Shadow on the Road (Act 4): Kapak Draconian boss fight with acid death
+  - Level select on title screen (can start L1 or L2 directly)
+  - Nesta correctly absent from L2 (punished for scarring Bakaris)
+  - New assets loaded: garden tiles, dungeon tiles, orc/orc_warrior enemies
+  - L1 completion now transitions directly to L2
+
+2026-03-18: Level 1 engine rewrite
+  - Complete rewrite: double jump, flat tile geometry, tileset backgrounds
+  - Distinct enemy types per act (castle knights, archers, hideout fighters, skeletons)
+  - Companion AI follows active hero
+  - Proper spritesheet animation system
+
 2026-03-17 (update 2): Session 1 PDF received! Level 1 fully designed.
   - Session 1 = "School Day" (Academy Chronicle: arena fight, Bakaris rivalry, library infiltration)
   - Added full Level 1 design with 5 acts (tutorial, arena, social, stealth, story)
