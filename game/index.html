@@ -92,16 +92,17 @@ const Assets={
   async load(manifest){
     this.total=manifest.length;this.loaded=0;
     const bar=document.getElementById('loadBar'),info=document.getElementById('loadInfo');
+    const bust='?v='+Date.now(); // Cache bust to force reload of updated sprites
     const promises=manifest.map(item=>{
       if(item.type==='image'){
         return new Promise(res=>{
           const img=new Image();
           img.onload=()=>{this.images[item.key]=img;this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%';info.textContent=item.path;res()};
           img.onerror=()=>{console.warn('Failed:',item.path);this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%';res()};
-          img.src=item.path;
+          img.src=item.path+bust;
         });
       }else if(item.type==='meta'){
-        return fetch(item.path).then(r=>r.text()).then(txt=>{
+        return fetch(item.path+bust).then(r=>r.text()).then(txt=>{
           this.meta[item.key]=this.parseMeta(txt);this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%';info.textContent=item.path;
         }).catch(()=>{console.warn('Failed meta:',item.path);this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%'});
       }
@@ -279,7 +280,7 @@ const R={c:null,x:null,cam:{x:0,y:0},
   txt(t,x,y,c,s,a){this.x.fillStyle=c||'#fff';this.x.font=(s||11)+'px "Courier New",monospace';this.x.textAlign=a||'left';this.x.fillText(t,x,y)},
   a(v){this.x.globalAlpha=v},ra(){this.x.globalAlpha=1},
 
-  // SPRITE-BASED HERO DRAWING
+  // SPRITE-BASED HERO DRAWING (aspect-ratio preserving)
   drawHero(type,state,frame,x,y,w,h,flip){
     const cfg=SpriteConfig.heroes[type];
     if(!cfg){this._drawHeroFallback(type,state,frame,x,y,w,h,flip);return;}
@@ -293,16 +294,20 @@ const R={c:null,x:null,cam:{x:0,y:0},
     if(!frames||frames.length===0){this._drawHeroFallback(type,state,frame,x,y,w,h,flip);return;}
 
     const f=frames[frame%frames.length];
-    const px=x-this.cam.x,py=y-this.cam.y;
+    // Preserve aspect ratio: scale sprite to fill entity height, center horizontally
+    const ratio=f.w/f.h;
+    const dh=h+8;const dw=dh*ratio;
+    const ox=(w-dw)/2; // Center on entity
+    const px=x-this.cam.x+ox,py=y-this.cam.y-4;
 
     const ctx=this.x;
     ctx.save();
     if(flip){
-      ctx.translate(px+w,py);
+      ctx.translate(x-this.cam.x+w-ox,py);
       ctx.scale(-1,1);
-      ctx.drawImage(img,f.x,f.y,f.w,f.h,0,0,w,h);
+      ctx.drawImage(img,f.x,f.y,f.w,f.h,0,0,dw,dh);
     }else{
-      ctx.drawImage(img,f.x,f.y,f.w,f.h,px,py,w,h);
+      ctx.drawImage(img,f.x,f.y,f.w,f.h,px,py,dw,dh);
     }
     ctx.restore();
   },
@@ -341,9 +346,10 @@ const R={c:null,x:null,cam:{x:0,y:0},
       const img=Assets.images[stripKey];
       if(!img){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
 
-      const fH=cfg.frameH||img.height;
-      const fW=cfg.frameW||fH; // Default to square frames
-      const numFrames=Math.floor(img.width/fW);
+      // Derive frame size from image height (auto-detect per strip image)
+      const fH=img.height;
+      const fW=cfg.frameW&&cfg.frameH===img.height?cfg.frameW:fH; // Square by default, or use frameW if frameH matches
+      const numFrames=Math.max(1,Math.floor(img.width/fW));
       const frameIdx=frame%numFrames;
 
       ctx.save();
@@ -573,24 +579,72 @@ const R={c:null,x:null,cam:{x:0,y:0},
 // ═══ SPRITE CONFIG ═══
 const SpriteConfig={
   heroes:{
-    kote:{img:'hero_kote',meta:'hero_kote',stateMap:{idle:'idle_A',run:'run',jump:'jump',fall:'fall',attack:'punch_A',skill:'punch_B',dash:'dash_attack'}},
-    minerva:{img:'hero_minerva',meta:'hero_minerva',stateMap:{idle:'idle',run:'run',jump:'jump_start',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
-    elber:{img:'hero_elber',meta:'hero_elber',stateMap:{idle:'idle',run:'run',jump:'jump_start',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
-    nesta:{img:'hero_nesta',meta:'hero_nesta',stateMap:{idle:'idle',run:'run',jump:'jump_start',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
-    nick:{img:'hero_nick',meta:'hero_nick',stateMap:{idle:'idle',run:'run',jump:'jump_start',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
-    bakaris:{img:'hero_bakaris',meta:'hero_bakaris',stateMap:{idle:'idle',run:'run',jump:'jump_start',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
+    kote:{img:'hero_kote',meta:'hero_kote',stateMap:{idle:'idle',run:'run',jump:'jump',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
+    minerva:{img:'hero_minerva',meta:'hero_minerva',stateMap:{idle:'idle',run:'run',jump:'jump',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
+    elber:{img:'hero_elber',meta:'hero_elber',stateMap:{idle:'idle',run:'run',jump:'jump',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
+    nesta:{img:'hero_nesta',meta:'hero_nesta',stateMap:{idle:'idle',run:'run',jump:'jump',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
+    nick:{img:'hero_nick',meta:'hero_nick',stateMap:{idle:'idle',run:'run',jump:'jump',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
+    bakaris:{img:'hero_bakaris',meta:'hero_bakaris',stateMap:{idle:'idle',run:'run',jump:'jump',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
   },
   enemies:{
     student:{type:'strip',imgs:{idle:'enemy_castle_knight_idle',run:'enemy_castle_knight_run'},frameH:64},
     bakaris:{type:'meta',img:'hero_bakaris',meta:'hero_bakaris',stateMap:{idle:'idle',run:'run',attack:'attack_A'}},
     darkmantle:{type:'strip',imgs:{idle:'enemy_darkmantle_idle'},frameW:24,frameH:16},
-    draconian:{type:'strip',imgs:{idle:'enemy_orc_warrior_idle',run:'enemy_orc_warrior_run'},frameH:64},
+    draconian:{type:'strip',imgs:{idle:'enemy_dragonborn_idle',run:'enemy_dragonborn_run'},frameW:128,frameH:128},
     spectator:{type:'strip',imgs:{idle:'enemy_spectator_idle',attack:'enemy_spectator_attack'},frameH:96},
     mimic:{type:'strip',imgs:{idle:'enemy_mimic_idle',attack:'enemy_mimic_activate'},frameW:72,frameH:48},
     ogre:{type:'strip',imgs:{idle:'enemy_mudman_idle'},frameH:48},
     boilerdrak:{type:'strip',imgs:{idle:'enemy_boilerdrak_idle'},frameH:48},
-    goblin:{type:'strip',imgs:{idle:'enemy_orc_warrior_idle',run:'enemy_orc_warrior_run'},frameH:64},
-    kansaldi:{type:'meta',img:'enemy_kansaldi',meta:'enemy_kansaldi',stateMap:{idle:'idle',run:'run',attack:'attack_A'}},
+    goblin:{type:'strip',imgs:{idle:'enemy_orc_warrior_idle',run:'enemy_orc_warrior_run'},frameW:32,frameH:32},
+    kansaldi:{type:'meta',img:'enemy_kansaldi',meta:'enemy_kansaldi',stateMap:{idle:'idle',run:'run',attack:'attack_A',skill:'attack_B'}},
+  }
+};
+
+// ═══ FX CONFIG (per-character attack effects) ═══
+const FXConfig={
+  heroes:{
+    kote:  {atk:'fx_kote_atk',  skill:'fx_kote_skill'},
+    minerva:{atk:'fx_minerva_atk',skill:'fx_minerva_skill'},
+    elber: {atk:'fx_elber_atk', skill:'fx_elber_skill'},
+    nesta: {atk:'fx_nesta_atk', skill:'fx_nesta_skill'},
+    nick:  {atk:'fx_nick_atk',  skill:'fx_nick_skill'},
+  },
+  dash:'fx_dash',
+  enemyDeath:'fx_enemy_death',
+};
+
+// ═══ ANIMATED FX PLAYER ═══
+const FX={
+  active:[], // {img,fW,fH,numF,frame,timer,x,y,size,flip,speed}
+  play(key,x,y,size,flip,speed){
+    const img=Assets.images[key];
+    if(!img)return;
+    const fH=img.height;
+    const fW=fH; // Square frames by default
+    const numF=Math.max(1,Math.floor(img.width/fW));
+    this.active.push({img,fW,fH,numF,frame:0,timer:0,x,y,size:size||fH,flip:!!flip,speed:speed||0.05});
+  },
+  up(dt){
+    this.active=this.active.filter(f=>{
+      f.timer+=dt;
+      if(f.timer>=f.speed){f.timer=0;f.frame++;}
+      return f.frame<f.numF;
+    });
+  },
+  draw(){
+    const ctx=R.x;
+    this.active.forEach(f=>{
+      const px=f.x-R.cam.x-f.size/2,py=f.y-R.cam.y-f.size/2;
+      ctx.save();
+      if(f.flip){
+        ctx.translate(f.x-R.cam.x+f.size/2,py);
+        ctx.scale(-1,1);
+        ctx.drawImage(f.img,f.frame*f.fW,0,f.fW,f.fH,0,0,f.size,f.size);
+      }else{
+        ctx.drawImage(f.img,f.frame*f.fW,0,f.fW,f.fH,px,py,f.size,f.size);
+      }
+      ctx.restore();
+    });
   }
 };
 
@@ -738,25 +792,23 @@ class Hero extends Ent{
       }
       if((I.pr('KeyZ')||I.pr('KeyJ'))&&this.atkCD<=0){
         this.st='attack';this.atkCD=0.4;this.atkT=0.3;this.animFrame=0;this.animTimer=0;
-        // Attack VFX — slash arc
-        const ax=this.rt?this.x+this.w+5:this.x-20;
-        P.emit(ax,this.y+this.h*0.4,6,'#fff',3,0.15,2);
+        // Attack VFX — sprite-based effect per character
+        const ax=this.rt?this.x+this.w+8:this.x-8;
+        const cfg=FXConfig.heroes[this.customType];
+        if(cfg)FX.play(cfg.atk,ax,this.y+this.h*0.4,40,!this.rt,0.04);
         P.emit(ax,this.y+this.h*0.3,4,this.col,2,0.2,1.5);
       }
       if((I.pr('KeyQ')||I.pr('KeyL'))&&this.skillCD<=0){
         this.st='skill';this.skillCD=3.0;this.skillT=0.5;this.animFrame=0;this.animTimer=0;
-        // Skill VFX — burst based on character
+        // Skill VFX — unique sprite effect per character
         const sx=this.x+this.w/2,sy=this.y+this.h/2;
-        if(this.customType==='kote') P.emit(sx,sy,12,'#40aa88',5,0.4,4);
-        else if(this.customType==='minerva') P.emit(sx,sy,15,'#ff6622',6,0.5,5);
-        else if(this.customType==='elber') P.emit(sx,sy,12,'#66ff66',5,0.4,4);
-        else if(this.customType==='nesta') P.emit(sx,sy,14,'#9944ff',6,0.5,4);
-        else if(this.customType==='nick') P.emit(sx,sy,14,'#ffdd44',6,0.5,4);
-        else P.emit(sx,sy,10,this.col,4,0.3,3);
+        const cfg=FXConfig.heroes[this.customType];
+        if(cfg)FX.play(cfg.skill,sx,sy,56,!this.rt,0.04);
+        P.emit(sx,sy,6,this.col,3,0.3,2);
       }
       if((I.pr('KeyX')||I.pr('KeyK'))&&this.dashCD<=0){
         this.dshT=0.12;this.dashCD=0.6;this.vx=(this.rt?1:-1)*7;this.inv=0.15;
-        P.emit(this.x+this.w/2,this.y+this.h/2,5,this.col,2,0.2,2);
+        FX.play(FXConfig.dash,this.x+this.w/2,this.y+this.h/2,32,this.rt,0.03);
       }
     }
     if(this.dshT>0)this.dshT-=dt;
@@ -871,7 +923,7 @@ class Enem extends Ent{
     const frameCount={idle:4,run:6,attack:4}[this.st]||4;
     if(this.animTimer>=0.1){this.animTimer=0;this.animFrame=(this.animFrame+1)%frameCount}
   }
-  hurt(n){if(this.inv>0)return;this.hp-=n;this.inv=0.4;P.emit(this.x+this.w/2,this.y+this.h/2,8,'#f44',4,0.4,2);if(this.hp<=0){this.hp=0;this.on=false;P.emit(this.x+this.w/2,this.y+this.h/2,15,this.col,5,0.6,3)}}
+  hurt(n){if(this.inv>0)return;this.hp-=n;this.inv=0.4;P.emit(this.x+this.w/2,this.y+this.h/2,8,'#f44',4,0.4,2);if(this.hp<=0){this.hp=0;this.on=false;FX.play(FXConfig.enemyDeath,this.x+this.w/2,this.y+this.h/2,48,false,0.04);P.emit(this.x+this.w/2,this.y+this.h/2,15,this.col,5,0.6,3)}}
   draw(){
     if(!this.on)return;if(this.inv>0&&((this.inv*12)|0)%2)return;
     const cx=this.x+this.w/2,cy=this.y+this.h;
@@ -887,6 +939,7 @@ class NPC{
     this.x=x;this.y=y;this.nm=nm;this.customType=customType;this.dlgs=dlgs;this.tk=false;
   }
   up(dt){}
+  update(dt){}
   draw(){
     const h=36;
     if(this.customType){
@@ -2296,9 +2349,23 @@ const G={sc:null,
       {type:'image',key:'enemy_boilerdrak_idle',path:'assets/sprites/boilerdrak_idle.png'},
       {type:'image',key:'enemy_mimic_idle',path:'assets/sprites/mimic_idle.png'},
       {type:'image',key:'enemy_mimic_activate',path:'assets/sprites/mimic_activate.png'},
-      {type:'image',key:'enemy_dragonborn',path:'assets/sprites/dragonborn.png'},
+      {type:'image',key:'enemy_dragonborn_idle',path:'assets/sprites/dragonborn_idle.png'},
+      {type:'image',key:'enemy_dragonborn_run',path:'assets/sprites/dragonborn_run.png'},
       {type:'image',key:'enemy_kansaldi',path:'assets/sprites/kansaldi.png'},
       {type:'meta',key:'enemy_kansaldi',path:'assets/sprites/kansaldi.txt'},
+      // Attack/Skill FX per character
+      {type:'image',key:'fx_kote_atk',path:'assets/fx/kote_atk.png'},
+      {type:'image',key:'fx_kote_skill',path:'assets/fx/kote_skill.png'},
+      {type:'image',key:'fx_minerva_atk',path:'assets/fx/minerva_atk.png'},
+      {type:'image',key:'fx_minerva_skill',path:'assets/fx/minerva_skill.png'},
+      {type:'image',key:'fx_elber_atk',path:'assets/fx/elber_atk.png'},
+      {type:'image',key:'fx_elber_skill',path:'assets/fx/elber_skill.png'},
+      {type:'image',key:'fx_nesta_atk',path:'assets/fx/nesta_atk.png'},
+      {type:'image',key:'fx_nesta_skill',path:'assets/fx/nesta_skill.png'},
+      {type:'image',key:'fx_nick_atk',path:'assets/fx/nick_atk.png'},
+      {type:'image',key:'fx_nick_skill',path:'assets/fx/nick_skill.png'},
+      {type:'image',key:'fx_dash',path:'assets/fx/dash_fx.png'},
+      {type:'image',key:'fx_enemy_death',path:'assets/fx/enemy_death.png'},
     ];
     Assets.load(manifest).then(()=>{
       document.getElementById('loadScr').style.display='none';
@@ -2351,8 +2418,10 @@ const G={sc:null,
     try{
       if(this.sc){
         this.sc.update(dt);
+        FX.up(dt);
         R.cls('#000');
         this.sc.draw();
+        FX.draw();
       }else{
         R.cls('#0a1628');
       }

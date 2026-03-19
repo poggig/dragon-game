@@ -34,37 +34,35 @@ For the spectactor use C:\Users\LENOVO\Desktop\Project 1 - Dragon game\Assets\Su
 For anything I haven't listed use C:\Users\LENOVO\Desktop\Project 1 - Dragon game\Assets\Super Pixel Monsters Pack 1.zip\Super Pixel Monsters Pack 1\PNG\mudman_blue
 But list it here
 
-====== CHARACTER : SPRITE MAPPING (completed) ======
+====== CHARACTER : SPRITE MAPPING (DONE) ======
 
-HEROES (all in game/assets/chars/ with .png + .txt metadata):
-  Kote        → chars/kote.png (classic_character, 40x40 frames, platformer anims)
-  Minerva     → chars/minerva.png (Super Pixel Heroes Knight violet, 112x80 frames)
-  Elber       → chars/elber.png (Super Pixel Heroes Knight green, 112x80 frames)
-  Nesta       → chars/nesta.png (Super Pixel Heroes Knight blue, 112x80 frames)
-  Nick        → chars/nick.png (Super Pixel Heroes Knight red, 112x80 frames)
+HEROES (all in game/assets/chars/ with .png + .txt metadata, Mana Seed composed, 64x64 frames):
+  Kote        → chars/kote.png (Mana Seed: dark skin v03, forest outfit v03, dap1 hair v02, sword)
+  Minerva     → chars/minerva.png (Mana Seed: fair skin v01, plate armor v01, blonde bob v01, plate helm, sword+shield)
+  Elber       → chars/elber.png (Mana Seed: pale skin v02, green outfit v05, green hair v05, pointy hat, mace)
+  Nesta       → chars/nesta.png (Mana Seed: tan skin v04, boxer outfit v01, wild hair v06, axe)
+  Nick        → chars/nick.png (Mana Seed: light skin v00, red plate v03, brown hair v08, plate helm, sword+shield)
 
-HUMAN ENEMIES (in game/assets/enemies/, strip PNGs 64x64 frames):
-  student     → enemies/castle_knight/ (idle.png, run.png, hit.png, death.png)
-  bakaris     → chars/bakaris.png + bakaris.txt (same spritesheet format as heroes)
+HUMAN ENEMIES (in game/assets/enemies/, strip PNGs):
+  student     → enemies/castle_knight/ (idle.png 64x64, run.png 64x64)
+  bakaris     → chars/bakaris.png + bakaris.txt (dark purple tint of Kote, 64x64 frames)
 
 MONSTER ENEMIES (extracted to game/assets/sprites/):
-  darkmantle  → sprites/darkmantle_idle.png (exofish_A from Alien Monster Pack 2, 24x16 frames)
+  darkmantle  → sprites/darkmantle_idle.png (exofish_A, 24x16 frames)
   spectator   → sprites/spectator_idle.png + spectator_attack.png (evil_eye_blue, 96x96 frames)
-  draconian   → sprites/dragonborn.png (Dragonborn sprite, 1408x768 full sheet)
+  draconian   → sprites/dragonborn_idle.png + dragonborn_run.png (Dragonborn sprite, 128x128 frames)
   mimic       → sprites/mimic_idle.png + mimic_activate.png (Mimic Chest style_A, 72x48 frames)
-  ogre        → sprites/mudman_idle.png (mudman_blue from Monsters Pack 1, 48x48 frames)
-  boilerdrak  → sprites/mudman_idle.png (mudman_blue fallback — NEEDS CUSTOM SPRITE LATER)
-  goblin      → enemies/orc_warrior/ (orc_warrior strip PNGs, 64x64 frames)
-  kansaldi    → sprites/kansaldi.png + kansaldi.txt (red-tinted Minerva, 112x80 frames)
+  ogre        → sprites/mudman_idle.png (mudman_blue, 48x48 frames)
+  boilerdrak  → sprites/boilerdrak_idle.png (programmatic mechanical dragon, 48x48 frames)
+  goblin      → enemies/orc_warrior/ (idle.png 32x32, run.png 64x64 - auto-detected per image)
+  kansaldi    → sprites/kansaldi.png + kansaldi.txt (red-tinted Minerva Mana Seed, 64x64 frames)
 
 FALLBACK: mudman_blue (for any unlisted enemy type)
 
 Used sprites are saved in: game/assets/sprites/ (dedicated folder)
-Clean up the assets unused in the game folder
-Save the used sprites in a dedicated folder
 
-====== STILL TODO ======
-- Compose unique Mana Seed hero sprites (currently using pre-made Super Pixel Heroes)
-- Create custom boilerdrak sprite (currently using mudman_blue fallback)
-- Programmatic ogre with orc_warrior riding on top (goblin boss mechanic)
+====== FILES TO DELETE (from Windows) ======
+- game/assets/characters/ (entire folder - duplicate of chars/)
+- game/assets/sprites/mana_hero_v01-v05.png (old incompatible Mana Seed raw files)
+- game/assets/sprites/dragonborn.png (replaced by dragonborn_idle.png + dragonborn_run.png)
 
