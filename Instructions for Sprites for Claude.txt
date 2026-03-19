@@ -1,0 +1,70 @@
+Sub project instructions for claude - Assets
+
+
+Characters: for each one of the five, Nick, Elber, Minerva, Nesta, Kote:
+Use the assets in C:\Users\LENOVO\Desktop\Project 1 - Dragon game\Assets\FREE Mana Seed Character Base Demo 2.0.zip 
+Compose a different sprite for each one of them following your previously programmatic instructions on their main characteristics
+
+
+Human enemies:
+- Use a variation of 
+castle_archer
+castle_knight
+castle_priest
+castle_soldier
+hideout_fighter 
+
+that you have already saved in C:\Users\LENOVO\Desktop\Project 1 - Dragon game\game\assets\enemies
+
+
+For the goblin boss on top of the Ogre:
+Use your programmatic ogre sprite but save it in C:\Users\LENOVO\Desktop\Project 1 - Dragon game\game\assets\enemies
+Use the orc_warrior and place it on top of the ogre, with the goblin falling down and being attackable just after the ogre dies
+
+For Kansaldi Fire Eyes:
+use the sprite that you were using for Minerva in C:\Users\LENOVO\Desktop\Project 1 - Dragon game\game\assets\chars but with red colors
+
+For the Dark Mantles Use C:\Users\LENOVO\Desktop\Project 1 - Dragon game\Assets\Super Pixel Alien Monster Pack 2.zip\Super Pixel Alien Monster Pack 2\PNG\exofish_A
+
+For the Draconians useC:\Users\LENOVO\Desktop\Project 1 - Dragon game\Assets\Dragonborn sprite
+
+
+For the spectactor use C:\Users\LENOVO\Desktop\Project 1 - Dragon game\Assets\Super Pixel Monsters Pack 2.zip\Super Pixel Monsters Pack 2\PNG\evil_eye_blue\attack
+
+For anything I haven't listed use C:\Users\LENOVO\Desktop\Project 1 - Dragon game\Assets\Super Pixel Monsters Pack 1.zip\Super Pixel Monsters Pack 1\PNG\mudman_blue
+But list it here
+
+====== CHARACTER : SPRITE MAPPING (completed) ======
+
+HEROES (all in game/assets/chars/ with .png + .txt metadata):
+  Kote        → chars/kote.png (classic_character, 40x40 frames, platformer anims)
+  Minerva     → chars/minerva.png (Super Pixel Heroes Knight violet, 112x80 frames)
+  Elber       → chars/elber.png (Super Pixel Heroes Knight green, 112x80 frames)
+  Nesta       → chars/nesta.png (Super Pixel Heroes Knight blue, 112x80 frames)
+  Nick        → chars/nick.png (Super Pixel Heroes Knight red, 112x80 frames)
+
+HUMAN ENEMIES (in game/assets/enemies/, strip PNGs 64x64 frames):
+  student     → enemies/castle_knight/ (idle.png, run.png, hit.png, death.png)
+  bakaris     → chars/bakaris.png + bakaris.txt (same spritesheet format as heroes)
+
+MONSTER ENEMIES (extracted to game/assets/sprites/):
+  darkmantle  → sprites/darkmantle_idle.png (exofish_A from Alien Monster Pack 2, 24x16 frames)
+  spectator   → sprites/spectator_idle.png + spectator_attack.png (evil_eye_blue, 96x96 frames)
+  draconian   → sprites/dragonborn.png (Dragonborn sprite, 1408x768 full sheet)
+  mimic       → sprites/mimic_idle.png + mimic_activate.png (Mimic Chest style_A, 72x48 frames)
+  ogre        → sprites/mudman_idle.png (mudman_blue from Monsters Pack 1, 48x48 frames)
+  boilerdrak  → sprites/mudman_idle.png (mudman_blue fallback — NEEDS CUSTOM SPRITE LATER)
+  goblin      → enemies/orc_warrior/ (orc_warrior strip PNGs, 64x64 frames)
+  kansaldi    → sprites/kansaldi.png + kansaldi.txt (red-tinted Minerva, 112x80 frames)
+
+FALLBACK: mudman_blue (for any unlisted enemy type)
+
+Used sprites are saved in: game/assets/sprites/ (dedicated folder)
+Clean up the assets unused in the game folder
+Save the used sprites in a dedicated folder
+
+====== STILL TODO ======
+- Compose unique Mana Seed hero sprites (currently using pre-made Super Pixel Heroes)
+- Create custom boilerdrak sprite (currently using mudman_blue fallback)
+- Programmatic ogre with orc_warrior riding on top (goblin boss mechanic)
+

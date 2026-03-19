@@ -48,6 +48,11 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
 <h1>Chronicles of Azurerune</h1>
 <h2>El Desafio de los Heroes</h2>
 <div class="sub">Session 1 — School Day</div>
+<div style="margin-bottom:12px;display:flex;gap:6px">
+  <button class="btn" id="langEN" style="padding:4px 12px;font-size:10px">EN</button>
+  <button class="btn" id="langES" style="padding:4px 12px;font-size:10px">ES</button>
+  <button class="btn" id="langIT" style="padding:4px 12px;font-size:10px">IT</button>
+</div>
 <button class="btn" id="startBtn">Level 1: School Day</button>
 <button class="btn" id="startBtn2">Level 2: Kingfisher Festival</button>
 <button class="btn" id="startBtn3">Level 3: Library of Secrets</button>
@@ -129,6 +134,142 @@ const I={k:{},j:{},
   flush(){this.j={}},down(c){return!!this.k[c]},pr(c){return!!this.j[c]}
 };
 
+// ═══ TRANSLATION SYSTEM ═══
+const Lang = {
+  current: 'en',
+  set(lang) { this.current = lang; },
+  t(key) { return (this.strings[this.current] && this.strings[this.current][key]) || (this.strings.en && this.strings.en[key]) || key; },
+  strings: {
+    en: {
+      // Title screen
+      title: 'Chronicles of Azurerune',
+      subtitle: 'El Desafio de los Heroes',
+      lvl1: 'Level 1: School Day',
+      lvl2: 'Level 2: Kingfisher Festival',
+      lvl3: 'Level 3: Library of Secrets',
+      lvl4: 'Level 4: Yurthgreen Masquerade',
+      lvl5: 'Level 5: When the Home Burns',
+      // Common gameplay
+      enemies: 'Enemies',
+      victory: 'Victory!',
+      defeat: 'Defeat!',
+      press_space: '[SPACE or CLICK]',
+      fishing_catch: 'Fish Caught!',
+      fishing_miss: 'Missed! Try again.',
+      // L1 dialogues
+      l1_intro: 'The School Day: A grand finale awaits.',
+      l1_bakaris: '"You think you can beat me?"',
+      l1_tutorial: 'Defeat Bakaris and his crew!',
+      l1_victory: 'Victory! The arena is yours!',
+      l1_fox_death: 'Bakaris... killed Nesta\'s fox familiar.',
+      l1_nesta_scar: 'Nesta retaliates! Bakaris is scarred forever.',
+      l1_enemy_forged: 'A lifelong enemy has been forged.',
+      // L2 dialogues
+      l2_river: 'Suddenly, Darkmantles emerge from the darkness!',
+      l2_festival: 'Vogler village - the festival center',
+      l2_fishing: 'The Kingfisher Fishing Competition begins!',
+      l2_kapak: 'A Draconian Kapak blocks the path!',
+      // L3 dialogues
+      l3_stealth: 'Inside the Library of Secrets!',
+      l3_detected: 'Detected! Restarting stealth...',
+      l3_spectator: 'The Spectator floats menacingly!',
+      l3_escape: 'You escaped the library!',
+      // L4 dialogues
+      l4_masquerade: 'The Yurthgreen Masquerade begins...',
+      l4_armor: 'Minerva receives Solamnic armor!',
+      l4_pact: 'Lohezet offers a dark pact...',
+      l4_ritual: 'Ispin begins the ritual...',
+      // L5 dialogues
+      l5_calm: 'Vogler prepares for the reenactment...',
+      l5_broken: 'The actors reveal real weapons!',
+      l5_kansaldi: 'Kansaldi Fire Eyes appears!',
+      l5_becklin: 'Becklin falls... "Run, children!"',
+      l5_end: 'VICTORY! THE END',
+      l5_complete: 'Chronicles of Azurerune: Book 1 Complete',
+    },
+    es: {
+      title: 'Crónicas de Azurerune',
+      subtitle: 'El Desafío de los Héroes',
+      lvl1: 'Nivel 1: Día de Escuela',
+      lvl2: 'Nivel 2: Festival del Martín Pescador',
+      lvl3: 'Nivel 3: Biblioteca de Secretos',
+      lvl4: 'Nivel 4: Mascarada de Yurthgreen',
+      lvl5: 'Nivel 5: Cuando Arde el Hogar',
+      enemies: 'Enemigos',
+      victory: '¡Victoria!',
+      defeat: '¡Derrota!',
+      press_space: '[ESPACIO o CLIC]',
+      fishing_catch: '¡Pez atrapado!',
+      fishing_miss: '¡Fallaste! Inténtalo de nuevo.',
+      l1_intro: 'El Día de Escuela: Un gran final te espera.',
+      l1_bakaris: '"¿Crees que puedes vencerme?"',
+      l1_tutorial: '¡Derrota a Bakaris y su equipo!',
+      l1_victory: '¡Victoria! La arena es tuya.',
+      l1_fox_death: 'Bakaris... mató al familiar zorro de Nesta.',
+      l1_nesta_scar: '¡Nesta se venga! Bakaris queda marcado para siempre.',
+      l1_enemy_forged: 'Un enemigo de por vida ha sido forjado.',
+      l2_river: '¡De repente, los Darkmantles emergen de la oscuridad!',
+      l2_festival: 'Aldea de Vogler - el centro del festival',
+      l2_fishing: '¡La Competición de Pesca del Martín Pescador comienza!',
+      l2_kapak: '¡Un Draconiano Kapak bloquea el camino!',
+      l3_stealth: '¡Dentro de la Biblioteca de Secretos!',
+      l3_detected: '¡Detectado! Reiniciando sigilo...',
+      l3_spectator: '¡El Espectador flota amenazante!',
+      l3_escape: '¡Escapaste de la biblioteca!',
+      l4_masquerade: 'La Mascarada de Yurthgreen comienza...',
+      l4_armor: '¡Minerva recibe la armadura Solamnia!',
+      l4_pact: 'Lohezet ofrece un pacto oscuro...',
+      l4_ritual: 'Ispin comienza el ritual...',
+      l5_calm: 'Vogler se prepara para la recreación...',
+      l5_broken: '¡Los actores revelan armas reales!',
+      l5_kansaldi: '¡Kansaldi Ojos de Fuego aparece!',
+      l5_becklin: 'Becklin cae... "¡Corran, niños!"',
+      l5_end: '¡VICTORIA! FIN',
+      l5_complete: 'Crónicas de Azurerune: Libro 1 Completo',
+    },
+    it: {
+      title: 'Cronache di Azurerune',
+      subtitle: 'La Sfida degli Eroi',
+      lvl1: 'Livello 1: Giorno di Scuola',
+      lvl2: 'Livello 2: Festival del Martin Pescatore',
+      lvl3: 'Livello 3: Biblioteca dei Segreti',
+      lvl4: 'Livello 4: Mascherata di Yurthgreen',
+      lvl5: 'Livello 5: Quando Brucia la Casa',
+      enemies: 'Nemici',
+      victory: 'Vittoria!',
+      defeat: 'Sconfitta!',
+      press_space: '[SPAZIO o CLIC]',
+      fishing_catch: 'Pesce catturato!',
+      fishing_miss: 'Mancato! Riprova.',
+      l1_intro: 'Il Giorno di Scuola: Un grande finale ti aspetta.',
+      l1_bakaris: '"Pensi di potermi battere?"',
+      l1_tutorial: 'Sconfiggi Bakaris e la sua squadra!',
+      l1_victory: 'Vittoria! L\'arena è tua.',
+      l1_fox_death: 'Bakaris... ha ucciso il famiglio volpe di Nesta.',
+      l1_nesta_scar: 'Nesta si vendica! Bakaris è sfregiato per sempre.',
+      l1_enemy_forged: 'Un nemico per la vita è stato forgiato.',
+      l2_river: 'Improvvisamente, i Darkmantle emergono dall\'oscurità!',
+      l2_festival: 'Villaggio di Vogler - il centro del festival',
+      l2_fishing: 'La Gara di Pesca del Martin Pescatore inizia!',
+      l2_kapak: 'Un Draconiano Kapak blocca il cammino!',
+      l3_stealth: 'Dentro la Biblioteca dei Segreti!',
+      l3_detected: 'Scoperto! Riavvio furtività...',
+      l3_spectator: 'Lo Spettatore fluttua minaccioso!',
+      l3_escape: 'Sei fuggito dalla biblioteca!',
+      l4_masquerade: 'La Mascherata di Yurthgreen inizia...',
+      l4_armor: 'Minerva riceve l\'armadura Solamnia!',
+      l4_pact: 'Lohezet offre un patto oscuro...',
+      l4_ritual: 'Ispin inizia il rituale...',
+      l5_calm: 'Vogler si prepara per la rievocazione...',
+      l5_broken: 'Gli attori rivelano armi vere!',
+      l5_kansaldi: 'Kansaldi Occhi di Fuoco appare!',
+      l5_becklin: 'Becklin cade... "Correte, ragazzi!"',
+      l5_end: 'VITTORIA! FINE',
+      l5_complete: 'Cronache di Azurerune: Libro 1 Completo',
+    }
+  }
+};
+
 // ═══ RENDERER ═══
 const R={c:null,x:null,cam:{x:0,y:0},
   init(){this.c=document.getElementById('c');this.c.width=CW;this.c.height=CH;this.x=this.c.getContext('2d');this.x.imageSmoothingEnabled=false},
@@ -138,8 +279,103 @@ const R={c:null,x:null,cam:{x:0,y:0},
   txt(t,x,y,c,s,a){this.x.fillStyle=c||'#fff';this.x.font=(s||11)+'px "Courier New",monospace';this.x.textAlign=a||'left';this.x.fillText(t,x,y)},
   a(v){this.x.globalAlpha=v},ra(){this.x.globalAlpha=1},
 
-  // CUSTOM HERO DRAWING
+  // SPRITE-BASED HERO DRAWING
   drawHero(type,state,frame,x,y,w,h,flip){
+    const cfg=SpriteConfig.heroes[type];
+    if(!cfg){this._drawHeroFallback(type,state,frame,x,y,w,h,flip);return;}
+
+    const img=Assets.images[cfg.img];
+    const meta=Assets.meta[cfg.meta];
+    if(!img||!meta){this._drawHeroFallback(type,state,frame,x,y,w,h,flip);return;}
+
+    const animName=cfg.stateMap[state]||cfg.stateMap.idle;
+    const frames=meta[animName];
+    if(!frames||frames.length===0){this._drawHeroFallback(type,state,frame,x,y,w,h,flip);return;}
+
+    const f=frames[frame%frames.length];
+    const px=x-this.cam.x,py=y-this.cam.y;
+
+    const ctx=this.x;
+    ctx.save();
+    if(flip){
+      ctx.translate(px+w,py);
+      ctx.scale(-1,1);
+      ctx.drawImage(img,f.x,f.y,f.w,f.h,0,0,w,h);
+    }else{
+      ctx.drawImage(img,f.x,f.y,f.w,f.h,px,py,w,h);
+    }
+    ctx.restore();
+  },
+
+  // SPRITE-BASED ENEMY DRAWING
+  drawEnemy(type,state,frame,x,y,w,h,flip){
+    const cfg=SpriteConfig.enemies[type];
+    if(!cfg){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
+
+    const px=x-this.cam.x,py=y-this.cam.y;
+    const ctx=this.x;
+
+    if(cfg.type==='meta'){
+      // Meta format (like heroes)
+      const img=Assets.images[cfg.img];
+      const meta=Assets.meta[cfg.meta];
+      if(!img||!meta){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
+
+      const animName=cfg.stateMap[state]||cfg.stateMap.idle;
+      const frames=meta[animName];
+      if(!frames||frames.length===0){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
+
+      const f=frames[frame%frames.length];
+      ctx.save();
+      if(flip){
+        ctx.translate(px+w,py);
+        ctx.scale(-1,1);
+        ctx.drawImage(img,f.x,f.y,f.w,f.h,0,0,w,h);
+      }else{
+        ctx.drawImage(img,f.x,f.y,f.w,f.h,px,py,w,h);
+      }
+      ctx.restore();
+    }else if(cfg.type==='strip'){
+      // Strip format - horizontal frames
+      const stripKey=cfg.imgs[state]||cfg.imgs.idle||Object.values(cfg.imgs)[0];
+      const img=Assets.images[stripKey];
+      if(!img){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
+
+      const fH=cfg.frameH||img.height;
+      const fW=cfg.frameW||fH; // Default to square frames
+      const numFrames=Math.floor(img.width/fW);
+      const frameIdx=frame%numFrames;
+
+      ctx.save();
+      if(flip){
+        ctx.translate(px+w,py);
+        ctx.scale(-1,1);
+        ctx.drawImage(img,frameIdx*fW,0,fW,fH,0,0,w,h);
+      }else{
+        ctx.drawImage(img,frameIdx*fW,0,fW,fH,px,py,w,h);
+      }
+      ctx.restore();
+    }else if(cfg.type==='single'){
+      // Single image - draw the full sprite
+      const img=Assets.images[cfg.img];
+      if(!img){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
+
+      ctx.save();
+      if(flip){
+        ctx.translate(px+w,py);
+        ctx.scale(-1,1);
+        ctx.drawImage(img,0,0,img.width,img.height,0,0,w,h);
+      }else{
+        ctx.drawImage(img,0,0,img.width,img.height,px,py,w,h);
+      }
+      ctx.restore();
+    }else{
+      this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);
+    }
+  },
+
+  // FALLBACK HERO DRAWING (programmatic)
+  _drawHeroFallback(type,state,frame,x,y,w,h,flip){
     const ctx=this.x,px=x-this.cam.x,py=y-this.cam.y;
     const sc=(w/20);const ox=px+w/2;
 
@@ -217,8 +453,8 @@ const R={c:null,x:null,cam:{x:0,y:0},
     if(state==='idle'){py+=Math.sin(frame*0.1)*0.5*sc;}
   },
 
-  // CUSTOM ENEMY DRAWING
-  drawEnemy(type,state,frame,x,y,w,h,flip){
+  // FALLBACK ENEMY DRAWING (programmatic)
+  _drawEnemyFallback(type,state,frame,x,y,w,h,flip){
     const ctx=this.x,px=x-this.cam.x,py=y-this.cam.y;
     const sc=(w/30);const ox=px+w/2;
 
@@ -334,6 +570,30 @@ const R={c:null,x:null,cam:{x:0,y:0},
   }
 };
 
+// ═══ SPRITE CONFIG ═══
+const SpriteConfig={
+  heroes:{
+    kote:{img:'hero_kote',meta:'hero_kote',stateMap:{idle:'idle_A',run:'run',jump:'jump',fall:'fall',attack:'punch_A',skill:'punch_B',dash:'dash_attack'}},
+    minerva:{img:'hero_minerva',meta:'hero_minerva',stateMap:{idle:'idle',run:'run',jump:'jump_start',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
+    elber:{img:'hero_elber',meta:'hero_elber',stateMap:{idle:'idle',run:'run',jump:'jump_start',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
+    nesta:{img:'hero_nesta',meta:'hero_nesta',stateMap:{idle:'idle',run:'run',jump:'jump_start',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
+    nick:{img:'hero_nick',meta:'hero_nick',stateMap:{idle:'idle',run:'run',jump:'jump_start',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
+    bakaris:{img:'hero_bakaris',meta:'hero_bakaris',stateMap:{idle:'idle',run:'run',jump:'jump_start',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
+  },
+  enemies:{
+    student:{type:'strip',imgs:{idle:'enemy_castle_knight_idle',run:'enemy_castle_knight_run'},frameH:64},
+    bakaris:{type:'meta',img:'hero_bakaris',meta:'hero_bakaris',stateMap:{idle:'idle',run:'run',attack:'attack_A'}},
+    darkmantle:{type:'strip',imgs:{idle:'enemy_darkmantle_idle'},frameW:24,frameH:16},
+    draconian:{type:'strip',imgs:{idle:'enemy_orc_warrior_idle',run:'enemy_orc_warrior_run'},frameH:64},
+    spectator:{type:'strip',imgs:{idle:'enemy_spectator_idle',attack:'enemy_spectator_attack'},frameH:96},
+    mimic:{type:'strip',imgs:{idle:'enemy_mimic_idle',attack:'enemy_mimic_activate'},frameW:72,frameH:48},
+    ogre:{type:'strip',imgs:{idle:'enemy_mudman_idle'},frameH:48},
+    boilerdrak:{type:'strip',imgs:{idle:'enemy_boilerdrak_idle'},frameH:48},
+    goblin:{type:'strip',imgs:{idle:'enemy_orc_warrior_idle',run:'enemy_orc_warrior_run'},frameH:64},
+    kansaldi:{type:'meta',img:'enemy_kansaldi',meta:'enemy_kansaldi',stateMap:{idle:'idle',run:'run',attack:'attack_A'}},
+  }
+};
+
 // ═══ PARTICLES ═══
 const P={ps:[],
   emit(x,y,n,col,sp,lf,sz){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=Math.random()*sp;this.ps.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1,l:lf,ml:lf,c:col,s:sz||2})}},
@@ -440,7 +700,7 @@ class Hero extends Ent{
   constructor(nm,x,y,col,customType){
     super(x,y,20,36);
     this.nm=nm;this.col=col;this.customType=customType;
-    this.spd=3.0;this.jf=-9;this.ctrl=false;
+    this.spd=2.1;this.jf=-9;this.ctrl=false;
     this.st='idle';this.atkT=0;this.atkCD=0;this.dashCD=0;this.dshT=0;
     this.atkDmg=24;this.skillCD=0;this.skillT=0;
     this.jumps=0;this.maxJumps=2;
@@ -478,12 +738,24 @@ class Hero extends Ent{
       }
       if((I.pr('KeyZ')||I.pr('KeyJ'))&&this.atkCD<=0){
         this.st='attack';this.atkCD=0.4;this.atkT=0.3;this.animFrame=0;this.animTimer=0;
+        // Attack VFX — slash arc
+        const ax=this.rt?this.x+this.w+5:this.x-20;
+        P.emit(ax,this.y+this.h*0.4,6,'#fff',3,0.15,2);
+        P.emit(ax,this.y+this.h*0.3,4,this.col,2,0.2,1.5);
       }
       if((I.pr('KeyQ')||I.pr('KeyL'))&&this.skillCD<=0){
         this.st='skill';this.skillCD=3.0;this.skillT=0.5;this.animFrame=0;this.animTimer=0;
+        // Skill VFX — burst based on character
+        const sx=this.x+this.w/2,sy=this.y+this.h/2;
+        if(this.customType==='kote') P.emit(sx,sy,12,'#40aa88',5,0.4,4);
+        else if(this.customType==='minerva') P.emit(sx,sy,15,'#ff6622',6,0.5,5);
+        else if(this.customType==='elber') P.emit(sx,sy,12,'#66ff66',5,0.4,4);
+        else if(this.customType==='nesta') P.emit(sx,sy,14,'#9944ff',6,0.5,4);
+        else if(this.customType==='nick') P.emit(sx,sy,14,'#ffdd44',6,0.5,4);
+        else P.emit(sx,sy,10,this.col,4,0.3,3);
       }
       if((I.pr('KeyX')||I.pr('KeyK'))&&this.dashCD<=0){
-        this.dshT=0.12;this.dashCD=0.6;this.vx=(this.rt?1:-1)*10;this.inv=0.15;
+        this.dshT=0.12;this.dashCD=0.6;this.vx=(this.rt?1:-1)*7;this.inv=0.15;
         P.emit(this.x+this.w/2,this.y+this.h/2,5,this.col,2,0.2,2);
       }
     }
@@ -560,7 +832,7 @@ class Companion{
 class Enem extends Ent{
   constructor(x,y,w,h,nm,col,hp,dmg,ai,customType){
     super(x,y,w,h);this.nm=nm;this.col=col;this.hp=hp;this.mhp=hp;this.dmg=dmg;this.ai=ai;
-    this.dir=1;this.pt=0;this.akt=0;this.spd=1;this.ag=130;
+    this.dir=1;this.pt=0;this.akt=0;this.spd=0.7;this.ag=130;
     this.customType=customType;this.animFrame=0;this.animTimer=0;this.st='idle';
   }
   update(dt,tm,heroes){
@@ -569,7 +841,8 @@ class Enem extends Ent{
     const d=Math.abs(this.x-h.x);
     if(this.ai==='boss'){
       this.vx=(h.x>this.x?1:-1)*this.spd*1.8;this.rt=this.vx>0;this.st='run';
-      if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1.2;this.st='attack'}
+      if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1.2;this.st='attack';
+        P.emit(h.x+h.w/2,h.y+h.h/2,10,'#f66',5,0.3,3);P.emit(this.x+(this.rt?this.w:0),this.y+this.h*0.3,8,'#fa0',4,0.25,2);}
     }else if(this.ai==='patrol'){
       this.pt+=dt;if(this.pt>2.5){this.dir*=-1;this.pt=0}
       this.vx=this.spd*this.dir;this.rt=this.dir>0;
@@ -579,10 +852,12 @@ class Enem extends Ent{
       if(d>280){this.ai='patrol';return}
       this.vx=(h.x>this.x?1:-1)*this.spd*1.4;this.rt=this.vx>0;
       this.st='run';
-      if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1;this.st='attack'}
+      if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1;this.st='attack';
+        P.emit(h.x+h.w/2,h.y+h.h/2,8,'#f44',4,0.25,2);}
     }else if(this.ai==='static'){
       this.vx=0;this.st=d<60?'attack':'idle';
-      if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1.2}
+      if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1.2;
+        P.emit(h.x+h.w/2,h.y+h.h/2,6,'#f44',3,0.2,2);}
     }
 
     this.vy=Math.min(this.vy+GR,MF);
@@ -664,7 +939,7 @@ function d(sp,tx){return{sp,tx}}
 
 // ═══ GAME STATE ═══
 class Lv1{
-  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tut=false;this.exit=null;this.shk=0;this.shi=0;this.tileset='tiles_castle';this.fox={x:200,y:100,b:0,alive:true}}
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tut=false;this.exit=null;this.shk=0;this.shi=0;this.tileset='tiles_castle';this.fox={x:200,y:100,b:0,alive:true};this.stealthFailed=false}
 
   createHeroes(x,y,includeNesta){
     const heroes=[
@@ -688,14 +963,21 @@ class Lv1{
     this.bAct1();
   }
 
+  // ACT 1: THE FINAL EXAM - Tutorial + Arena combat
   bAct1(){
     this.act=1;this.tileset='tiles_castle';
-    const W=90,H=16;
+    const W=120,H=18;
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
+    this.tut=false;
 
+    // Base floor
     for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    // Walls
     for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+    // Arena platforms for vertical gameplay
+    for(let x=30;x<50;x++)this.tm.set(x,H-6,3);
+    for(let x=70;x<90;x++)this.tm.set(x,H-7,3);
 
     this.heroes=this.createHeroes(50,(H-4)*T,true);
     this.heroes[0].ctrl=true;
@@ -711,12 +993,121 @@ class Lv1{
     this.rebuildCompanions();
     this.hud();
     document.getElementById('hud').style.display='flex';
-    document.getElementById('hint').textContent='Bakaris challenges you! Defeat him!';
+    document.getElementById('hint').textContent='Act 1: Final Exam - Defeat Bakaris and his students!';
     D.show([
-      d('Narrator','The School Day: A grand finale awaits.'),
+      d('Narrator','Azurerune Fortress - The Tribunal watches from above.'),
+      d('Narrator','This is the final exam. Survive!'),
+      d('Tutorial','Use ARROW KEYS to move, Z to attack, Q for skills, TAB to swap heroes.'),
       d('Bakaris','"You think you can beat me?"'),
-      d('Tutorial','Defeat Bakaris and his crew!')
+      d('Narrator','Defeat Bakaris and his crew to advance!')
     ],()=>{this.tut=true});
+  }
+
+  // ACT 2: BLOOD AND GRUDGE - Cutscene (pure dialogue)
+  bAct2(){
+    this.act=2;
+    document.getElementById('hud').style.display='none';
+    document.getElementById('hint').textContent='Act 2: Blood and Grudge';
+    this.tm=null;
+    this.enemies=[];this.npcs=[];
+    D.show([
+      d('Narrator','The exam ends. Bakaris falls to one knee.'),
+      d('Bakaris','You... you beat me...'),
+      d('Nesta','You hurt my familiar. You sealed your fate!'),
+      d('Narrator','Nesta draws a blade. Blood spills.'),
+      d('Narrator','Bakaris screams as a scar tears across his face.'),
+      d('Narrator','The tribunal above shifts uneasily.'),
+      d('Narrator','This was no simple exam anymore.')
+    ],()=>{this._act2done=true;this.bAct3()});
+  }
+
+  // ACT 3: HALLWAY RUMORS - Exploration/social (walk right, talk to NPCs)
+  bAct3(){
+    this.act=3;this.tileset='tiles_castle';
+    const W=150,H=16;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+    this._act3done=false;
+
+    // Corridors
+    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+
+    this.heroes=this.createHeroes(50,(H-4)*T,true);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.npcs=[
+      new NPC(300,(H-4)*T,'Levna Drakehorn','levna',[d('Levna','The scar... I saw it on a dragon once. A blue dragon.')]),
+      new NPC(400,(H-4)*T,'Clystran','clystran',[d('Clystran','Dragons are myths... or are they?')]),
+      new NPC(500,(H-4)*T,'Darrett','darrett',[d('Darrett','I want to be a squire to someone great!')]),
+      new NPC(600,(H-4)*T,'Andir','andir',[d('Andir','The Old Gods watch over us still.')]),
+    ];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('hint').textContent='Act 3: Hallway Rumors - Walk right to progress, press Z to talk to NPCs';
+    D.show([
+      d('Narrator','Azurerune corridors. Whispers of the exam echo.'),
+      d('Narrator','Talk to the other students. What do they know?')
+    ],()=>{});
+  }
+
+  // ACT 4: NIGHT INFILTRATION - Stealth + Combat in the library
+  bAct4(){
+    this.act=4;this.tileset='tiles_library';
+    const W=150,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+    this.stealthFailed=false;
+
+    // Library base
+    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    // Bookshelves (tiles type 5)
+    for(let x=0;x<W;x++){this.tm.set(x,0,5);this.tm.set(x,1,5)}
+    for(let y=0;y<H;y++){this.tm.set(0,y,5);this.tm.set(1,y,5);this.tm.set(W-1,y,5);this.tm.set(W-2,y,5)}
+    for(let x=30;x<60;x++){this.tm.set(x,H-6,3)}
+    for(let x=80;x<110;x++){this.tm.set(x,H-7,3)}
+
+    this.heroes=this.createHeroes(40,(H-4)*T,true);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    // Guard NPC with patrol — touching it restarts the act
+    this.enemies=[
+      new Enem(400,(H-4)*T,20,32,'Guard','#4466aa',40,8,'patrol','student'),
+      new Enem(600,(H-5)*T,16,20,'Mimic Book','#8844aa',20,6,'static','mimic'),
+      new Enem(700,(H-5)*T,16,20,'Mimic Book','#8844aa',20,6,'static','mimic'),
+    ];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('hint').textContent='Act 4: Night Infiltration - Avoid the Guard! Defeat the Mimic Books and reach x>700!';
+    D.show([
+      d('Narrator','Under cover of night, the group sneaks into the library.'),
+      d('Narrator','A guard patrols the halls. Avoid detection!'),
+      d('Narrator','Defeat the Mimic Books and reach the far side.')
+    ],()=>{this.tut=true});
+  }
+
+  // ACT 5: DIVERGING PATHS - Story cutscene (pure dialogue, then to Lv2)
+  bAct5(){
+    this.act=5;
+    document.getElementById('hud').style.display='none';
+    document.getElementById('hint').textContent='Act 5: Diverging Paths';
+    this.tm=null;
+    this.enemies=[];this.npcs=[];
+    D.show([
+      d('Narrator','The library holds many secrets.'),
+      d('Narrator','The group gathers to discuss their findings.'),
+      d('Ispin','The Kingfisher Festival is in Vogler. Join us!'),
+      d('Narrator','Vogler: the trading hub of the realm.'),
+      d('Narrator','But first, they must understand the scar.'),
+      d('Narrator','A blue dragon. A connection. A journey begins.'),
+      d('Narrator','Next stop: Vogler.')
+    ],()=>{G.sc=new Lv2();G.sc.enter()});
   }
 
   swap(idx){
@@ -758,9 +1149,46 @@ class Lv1{
     }
     for(let i=0;i<this.heroes.length;i++)if(I.pr('Digit'+(i+1)))this.swap(i);
 
+    // Act 3: NPC interaction via Z/J key
+    if(this.act===3){
+      if(I.pr('KeyZ')||I.pr('KeyJ')){
+        const h=this.heroes[this.ai];
+        this.npcs.forEach(n=>{
+          if(!n.tk&&n.dlgs&&Math.abs(n.x-h.x)<50&&Math.abs(n.y-h.y)<40){
+            n.tk=true;
+            D.show(n.dlgs,()=>{});
+          }
+        });
+      }
+      // Auto-progress when walking right past x=900
+      if(this.heroes[this.ai].x>900&&!this._act3done){
+        this._act3done=true;
+        D.show([d('Narrator','The truth becomes clearer with each step...')],()=>{this.bAct4()});
+      }
+      this.heroes[this.ai].update(dt,this.tm);
+      this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm));
+      P.up(dt);this.hud();
+      if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
+      return;
+    }
+
     this.heroes[this.ai].update(dt,this.tm);
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm));
     this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
+
+    // Act 4: Guard detection (stealth failure)
+    if(this.act===4&&this.tut){
+      const h=this.heroes[this.ai];
+      this.enemies.forEach(e=>{
+        if(e.customType==='student'&&e.on){
+          const dist=Math.sqrt((e.x-h.x)**2+(e.y-h.y)**2);
+          if(dist<100&&!this.stealthFailed){
+            this.stealthFailed=true;
+            D.show([d('Guard','Intruder! Guards!')],()=>{this.bAct4()});
+          }
+        }
+      });
+    }
 
     this.heroes.forEach(hero=>{
       const ab=hero.atkBox();if(!ab)return;
@@ -768,14 +1196,20 @@ class Lv1{
     });
 
     P.up(dt);
-
     this.hud();
 
-    if(this.act===1&&this.tut){
-      if(this.enemies.every(e=>!e.on)){
-        this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#c8a84e',6,0.8,3);
-        D.show([d('Narrator','Victory! Level 1 Complete.')],()=>{G.sc=new Lv2();G.sc.enter()});
-      }
+    // Act 1: Defeat all enemies
+    if(this.act===1&&this.tut&&this.enemies.every(e=>!e.on)){
+      this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#c8a84e',6,0.8,3);
+      this._act1done=true;
+      D.show([d('Narrator','Victory in the exam!')],()=>{this.bAct2()});
+    }
+
+    // Act 4: Defeat all mimics AND reach x>700
+    if(this.act===4&&this.tut&&this.enemies.every(e=>!e.on)&&this.heroes[this.ai].x>700){
+      this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#00aa44',6,0.8,3);
+      this._act4done=true;
+      D.show([d('Narrator','The library secrets are revealed!')],()=>{this.bAct5()});
     }
 
     if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
@@ -798,14 +1232,13 @@ class Lv1{
 
 // ═══ LEVEL 2 ═══
 class Lv2{
-  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_garden';this.exit=null;this.shk=0;this.shi=0}
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_garden';this.exit=null;this.shk=0;this.shi=0;this.fishing=false;this.fishRound=0;this.fishCaught=0;this.fishBar=0;this.fishMarker=0;this.fishDir=1;this.tut=false}
 
   createHeroes(x,y){
     return[
       new Hero('Kote',x,y,'#40aa88','kote'),
       new Hero('Minerva',x+30,y,'#cc44cc','minerva'),
       new Hero('Elber',x+60,y,'#44aa44','elber'),
-      new Hero('Nesta',x+90,y,'#4488cc','nesta'),
       new Hero('Nick',x+120,y,'#d0a066','nick'),
     ];
   }
@@ -823,27 +1256,92 @@ class Lv2{
 
   bAct1(){
     this.act=1;
-    const W=90,H=16;
+    const W=150,H=18;
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
     for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
     for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+    for(let x=50;x<80;x++)this.tm.set(x,H-5,3);
 
-    this.heroes=this.createHeroes(60,(H-4)*T);
+    this.heroes=this.createHeroes(40,(H-4)*T);
     this.heroes[0].ctrl=true;
     this.ai=0;
 
     this.enemies=[
-      new Enem(500,(H-4)*T,20,24,'Darkmantle','#334',60,12,'chase','darkmantle'),
-      new Enem(600,(H-8)*T,20,24,'Darkmantle','#334',60,12,'patrol','darkmantle'),
-      new Enem(750,(H-9)*T,20,24,'Darkmantle','#334',70,14,'chase','darkmantle'),
+      new Enem(400,(H-5)*T,20,24,'Darkmantle','#334',60,12,'chase','darkmantle'),
+      new Enem(500,(H-8)*T,20,24,'Darkmantle','#334',60,12,'patrol','darkmantle'),
+      new Enem(650,(H-9)*T,20,24,'Darkmantle','#334',70,14,'chase','darkmantle'),
     ];
 
     this.rebuildCompanions();
     this.hud();
     document.getElementById('hud').style.display='flex';
-    D.show([d('Narrator','The Kingfisher Festival! But danger lurks...'),d('Tutorial','Defeat the threats!')],()=>{this.tut=true});
+    document.getElementById('hint').textContent='River Ambush: Defeat the Darkmantles!';
+    D.show([d('Narrator','The Kingfisher Festival celebration...'),d('Narrator','Suddenly, Darkmantles emerge from the darkness!'),d('Tutorial','Defeat them!')],()=>{this.tut=true});
+  }
+
+  bAct2(){
+    this.act=2;
+    const W=150,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    for(let y=0;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+    for(let x=0;x<W;x++){this.tm.set(x,0,2);this.tm.set(x,1,2)}
+    for(let x=30;x<40;x++){this.tm.set(x,H-6,3);this.tm.set(x,H-8,3)}
+    for(let x=80;x<95;x++){this.tm.set(x,H-5,3)}
+
+    this.heroes=this.createHeroes(50,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.npcs=[
+      new NPC(400,(H-4)*T,'Mayor','npc',[d('Mayor','Welcome to Vogler village!')]),
+      new NPC(500,(H-4)*T,'Ispin','npc',[d('Ispin','The fishing competition awaits!')]),
+    ];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='Festival Sabotage: Explore and talk to NPCs';
+    D.show([d('Narrator','Vogler village - the festival center'),d('Mayor','Welcome, heroes! But darkness clouds our joy...'),d('Ispin','The sabotage must be revealed!')],()=>{});
+  }
+
+  bAct3(){
+    this.act=3;
+    this.fishing=true;
+    this.fishRound=0;
+    this.fishCaught=0;
+    document.getElementById('hud').style.display='none';
+    document.getElementById('hint').textContent='Fishing Minigame: Catch the fish!';
+    D.show([d('Narrator','The Kingfisher Fishing Competition begins!'),d('Narrator','Time to prove your skills with the line.')],()=>{});
+  }
+
+  bAct4(){
+    this.act=4;
+    this.fishing=false;
+    const W=150,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+    for(let x=40;x<80;x++)this.tm.set(x,H-6,3);
+
+    this.heroes=this.createHeroes(50,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.enemies=[
+      new Enem(500,(H-5)*T,28,36,'Draconian Kapak','#4a6622',120,15,'boss','draconian'),
+    ];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('hint').textContent='Shadow on the Road: Defeat the Draconian Kapak!';
+    D.show([d('Narrator','Shadow on the Road...'),d('Narrator','A Draconian Kapak blocks the path!'),d('Tutorial','Defeat it!')],()=>{this.tut=true});
   }
 
   swap(idx){
@@ -875,6 +1373,30 @@ class Lv2{
   update(dt){
     if(D.on){D.up(dt);return}
     if(this.shk>0){this.shk-=dt;R.cam.x+=(Math.random()-0.5)*this.shi;R.cam.y+=(Math.random()-0.5)*this.shi}
+
+    if(this.fishing){
+      this.fishMarker+=this.fishDir*2*dt;
+      if(this.fishMarker>1)this.fishDir=-1;
+      if(this.fishMarker<0)this.fishDir=1;
+      if(I.pr('Space')){
+        const sweetSpot=this.fishRound===0?0.3:this.fishRound===1?0.2:0.1;
+        const inZone=Math.abs(this.fishMarker-0.5)<sweetSpot;
+        if(inZone){
+          this.fishCaught++;
+          D.show([d('Narrator',`Fish ${this.fishCaught} Caught!`)],()=>{
+            this.fishRound++;
+            if(this.fishRound>=3){
+              this.bAct4();
+            }
+          });
+        }else{
+          D.show([d('Narrator','Missed! Try again.')],()=>{});
+        }
+      }
+      P.up(dt);
+      return;
+    }
+
     if(!this.tm){P.up(dt);return}
 
     if(I.pr('Tab')){
@@ -883,6 +1405,29 @@ class Lv2{
       this.swap(n);
     }
     for(let i=0;i<this.heroes.length;i++)if(I.pr('Digit'+(i+1)))this.swap(i);
+
+    if(this.act===2){
+      // NPC interaction — press Z/J near an NPC to talk
+      if(I.pr('KeyZ')||I.pr('KeyJ')){
+        const h=this.heroes[this.ai];
+        this.npcs.forEach(n=>{
+          if(!n.tk&&n.dlgs&&Math.abs(n.x-h.x)<50&&Math.abs(n.y-h.y)<40){
+            n.tk=true;
+            D.show(n.dlgs,()=>{});
+          }
+        });
+      }
+      // Auto-progress when hero walks past x=800 (right side of village)
+      if(this.heroes[this.ai].x>800&&!this._act2done){
+        this._act2done=true;
+        D.show([d('Narrator','The fishing competition is about to start!'),d('Ispin','Head to the river — it\'s time to fish!')],()=>{this.bAct3()});
+      }
+      this.heroes[this.ai].update(dt,this.tm);
+      this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm));
+      P.up(dt);this.hud();
+      if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
+      return;
+    }
 
     this.heroes[this.ai].update(dt,this.tm);
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm));
@@ -898,7 +1443,13 @@ class Lv2{
 
     if(this.act===1&&this.tut&&this.enemies.every(e=>!e.on)){
       this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#c8a84e',6,0.8,3);
-      D.show([d('Narrator','The festival is saved! Level 2 Complete.')],()=>{G.sc=new Lv3();G.sc.enter()});
+      D.show([d('Narrator','The ambush is defeated!')],()=>{this.bAct2()});
+    }
+
+    if(this.act===4&&this.tut&&this.enemies.every(e=>!e.on)){
+      this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#00aa44',6,0.8,3);
+      P.emit(this.enemies[0].x,this.enemies[0].y,20,'#00dd44',5,0.6,3);
+      D.show([d('Narrator','The Draconian Kapak falls in acid!')],()=>{G.sc=new Lv3();G.sc.enter()});
     }
 
     if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
@@ -909,8 +1460,34 @@ class Lv2{
     g.addColorStop(0,'#0d4a2a');g.addColorStop(1,'#1a5a3a');
     R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
 
+    if(this.fishing){
+      R.x.fillStyle='rgba(0,100,50,0.3)';
+      for(let i=0;i<20;i++){
+        const ox=Math.sin(Date.now()*0.001+i)*30;
+        R.x.fillRect(CW/2+ox,Math.random()*CH,10,10);
+      }
+      const barW=40,barH=200;
+      const barX=CW-60,barY=(CH-barH)/2;
+      R.x.strokeStyle='#fff';R.x.lineWidth=2;
+      R.x.strokeRect(barX,barY,barW,barH);
+      R.x.fillStyle='#00aa44';
+      const sweetStart=barY+(barH*(0.5-0.2)),sweetHeight=barH*0.4;
+      R.x.fillRect(barX,sweetStart,barW,sweetHeight);
+      const markerY=barY+this.fishMarker*barH;
+      R.x.fillStyle='#ffff00';
+      R.x.fillRect(barX-5,markerY-10,barW+10,20);
+      R.x.fillStyle='#fff';
+      R.x.font='bold 16px monospace';
+      R.x.textAlign='center';
+      R.x.fillText(`Fish: ${this.fishCaught+1}/3`,CW/2,50);
+      R.x.fillText('Press SPACE',CW/2,CH-50);
+      P.draw();
+      return;
+    }
+
     if(this.tm)this.tm.draw(this.tileset);
 
+    this.npcs.forEach(n=>n.draw());
     this.enemies.forEach(e=>e.draw());
     this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
@@ -920,14 +1497,13 @@ class Lv2{
 
 // ═══ LEVEL 3 ═══
 class Lv3{
-  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_library';this.exit=null;this.shk=0;this.shi=0}
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_library';this.exit=null;this.shk=0;this.shi=0;this.tut=false;this.stealthFailed=false}
 
   createHeroes(x,y){
     return[
       new Hero('Kote',x,y,'#40aa88','kote'),
       new Hero('Minerva',x+30,y,'#cc44cc','minerva'),
       new Hero('Elber',x+60,y,'#44aa44','elber'),
-      new Hero('Nesta',x+90,y,'#4488cc','nesta'),
       new Hero('Nick',x+120,y,'#d0a066','nick'),
     ];
   }
@@ -945,25 +1521,119 @@ class Lv3{
 
   bAct1(){
     this.act=1;
-    const W=70,H=20;
+    const W=120,H=20;
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
+    this.stealthFailed=false;
 
     for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
     for(let x=0;x<W;x++){this.tm.set(x,0,5);this.tm.set(x,1,5)}
     for(let y=0;y<H;y++){this.tm.set(0,y,5);this.tm.set(1,y,5);this.tm.set(W-1,y,5);this.tm.set(W-2,y,5)}
+    for(let x=30;x<50;x++){this.tm.set(x,H-5,3);this.tm.set(x,H-7,3)}
 
     this.heroes=this.createHeroes(40,(H-4)*T);
     this.heroes[0].ctrl=true;
     this.ai=0;
 
-    this.enemies=[new Enem(300,(H-4)*T,20,32,'Guard','#4466aa',40,8,'patrol','draconian')];
+    this.enemies=[new Enem(300,(H-4)*T,20,32,'Guard','#4466aa',40,8,'patrol','student')];
 
     this.rebuildCompanions();
     this.hud();
     document.getElementById('hud').style.display='flex';
-    document.getElementById('hint').textContent='Defeat the Guard!';
-    D.show([d('Narrator','Inside the Library of Secrets!'),d('Tutorial','Defeat the Guard!')],()=>{this.tut=true});
+    document.getElementById('hint').textContent='Silence Threshold: Avoid the Guard!';
+    D.show([d('Narrator','Inside the Library of Secrets...'),d('Narrator','A guard patrols the halls.'),d('Tutorial','Avoid detection and reach the end!')],()=>{this.tut=true});
+  }
+
+  bAct2(){
+    this.act=2;
+    const W=120,H=20;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    for(let y=0;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+    for(let x=10;x<W;x+=20){
+      for(let y=H-8;y<H-3;y+=3)this.tm.set(x,y,3);
+    }
+    for(let x=0;x<W;x++)this.tm.set(x,0,5);
+
+    this.heroes=this.createHeroes(40,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='Descent to the Forbidden: Platforming challenge!';
+    D.show([d('Narrator','Descending into the depths...'),d('Narrator','Watch for trap platforms!')],()=>{});
+  }
+
+  bAct3(){
+    this.act=3;
+    const W=120,H=20;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+
+    this.heroes=this.createHeroes(50,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.enemies=[
+      new Enem(400,(H-4)*T,18,28,'Cursed Sword','#9944ff',80,10,'static','student'),
+    ];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='Echoes of the Past: Defeat the Cursed Sword!';
+    D.show([d('Narrator','The chamber echoes with ancient magic...'),d('Narrator','A sword moves on its own!'),d('Tutorial','Defeat it!')],()=>{this.tut=true});
+  }
+
+  bAct4(){
+    this.act=4;
+    const W=120,H=20;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+    for(let x=60;x<90;x++)this.tm.set(x,H-6,3);
+
+    this.heroes=this.createHeroes(50,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.enemies=[
+      new Enem(450,(H-8)*T,24,32,'The Spectator','#6644aa',110,12,'static','spectator'),
+    ];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='Deceptions and Depths: Defeat the Spectator!';
+    D.show([d('Narrator','A figure floats above the abyss...'),d('Narrator','The Spectator observes all who enter.'),d('Tutorial','Defeat it!')],()=>{this.tut=true});
+  }
+
+  bAct5(){
+    this.act=5;
+    const W=120,H=20;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+    for(let x=90;x<W;x++)this.tm.set(x,H-4,3);
+
+    this.heroes=this.createHeroes(50,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.npcs=[new NPC(900,(H-4)*T,'Becklin','npc',[d('Becklin','You made it through the library.')])];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='Escape: Reach the exit!';
+    D.show([d('Narrator','The exit corridor lies ahead.')],()=>{});
   }
 
   swap(idx){
@@ -1004,9 +1674,42 @@ class Lv3{
     }
     for(let i=0;i<this.heroes.length;i++)if(I.pr('Digit'+(i+1)))this.swap(i);
 
+    if(this.act===1){
+      const guard=this.enemies[0];
+      const hero=this.heroes[this.ai];
+      const dist=Math.sqrt((hero.x-guard.x)**2+(hero.y-guard.y)**2);
+      if(dist<100&&this.tut&&!this.stealthFailed){
+        this.stealthFailed=true;
+        D.show([d('Narrator','Detected! Restarting stealth...')],()=>{this.bAct1()});
+        return;
+      }
+      if(hero.x>500&&this.tut&&!this._stealthDone){
+        this._stealthDone=true;
+        D.show([d('Narrator','Stealth successful!')],()=>{this.bAct2()});
+        return;
+      }
+    }
+
+    if(this.act===2&&!this._act2done){
+      if(this.heroes[this.ai].y<100){
+        this._act2done=true;
+        D.show([d('Narrator','You have descended to the forbidden chamber.')],()=>{this.bAct3()});
+        return;
+      }
+    }
+
+    if(this.act===5&&!this._act5done){
+      if(this.heroes[this.ai].x>800){
+        this._act5done=true;
+        D.show([d('Narrator','You escaped the library!')],()=>{G.sc=new Lv4();G.sc.enter()});
+        return;
+      }
+    }
+
     this.heroes[this.ai].update(dt,this.tm);
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm));
     this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
+    this.npcs.forEach(n=>n.update(dt,this.heroes[this.ai]));
 
     this.heroes.forEach(hero=>{
       const ab=hero.atkBox();if(!ab)return;
@@ -1016,9 +1719,14 @@ class Lv3{
     P.up(dt);
     this.hud();
 
-    if(this.act===1&&this.tut&&this.enemies.every(e=>!e.on)){
+    if(this.act===3&&this.tut&&this.enemies.every(e=>!e.on)){
+      this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#9944ff',6,0.8,3);
+      D.show([d('Narrator','The curse breaks!')],()=>{this.bAct4()});
+    }
+
+    if(this.act===4&&this.tut&&this.enemies.every(e=>!e.on)){
       this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#c8a84e',6,0.8,3);
-      D.show([d('Narrator','The Library is yours! Level 3 Complete.')],()=>{G.sc=new Lv4();G.sc.enter()});
+      D.show([d('Narrator','The Spectator falls!')],()=>{this.bAct5()});
     }
 
     if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
@@ -1031,6 +1739,7 @@ class Lv3{
 
     if(this.tm)this.tm.draw(this.tileset);
 
+    this.npcs.forEach(n=>n.draw());
     this.enemies.forEach(e=>e.draw());
     this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
@@ -1065,23 +1774,81 @@ class Lv4{
 
   bAct1(){
     this.act=1;
-    const W=90,H=16;
+    const W=180,H=16;
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
     for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
     for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+    for(let x=40;x<80;x++)this.tm.set(x,H-6,3);
 
     this.heroes=this.createHeroes(60,(H-4)*T);
     this.heroes[0].ctrl=true;
     this.ai=0;
 
-    this.enemies=[];
+    this.npcs=[
+      new NPC(150,(H-4)*T,'Bakaris','npc',[d('Bakaris','The time has come.')]),
+      new NPC(250,(H-4)*T,'Levna','npc',[d('Levna','The destiny awaits us.')]),
+      new NPC(350,(H-4)*T,'Clystran','npc',[d('Clystran','Our bonds are tested.')]),
+      new NPC(450,(H-4)*T,'Becklin','npc',[d('Becklin','What lies ahead?')]),
+      new NPC(550,(H-4)*T,'Cudgel','npc',[d('Cudgel','The choice is ours.')]),
+      new NPC(650,(H-4)*T,'Tem Temble','npc',[d('Tem Temble','Magic flows through us all.')]),
+    ];
 
     this.rebuildCompanions();
     this.hud();
     document.getElementById('hud').style.display='flex';
-    D.show([d('Narrator','The Yurthgreen Masquerade.'),d('Tutorial','Peace for now...')],()=>{this.tut=true});
+    document.getElementById('hint').textContent='The Yurthgreen Masquerade: Explore and talk';
+    D.show([d('Narrator','The Yurthgreen Masquerade begins...'),d('Narrator','A grand celebration of heroes and legends.')],()=>{});
+  }
+
+  bAct2(){
+    this.act=2;
+    document.getElementById('hint').textContent='The Legacy: Minerva receives Solamnic armor';
+    D.show([
+      d('Narrator','In the great hall, a sacred moment unfolds...'),
+      d('Minerva','Is this... the armor of legends?'),
+      d('Narrator','Solamnic armor - wielded by heroes of old.'),
+    ],()=>{this.bAct3()});
+  }
+
+  bAct3(){
+    this.act=3;
+    document.getElementById('hint').textContent='Shadow of Sorcery: A dark offer';
+    D.show([
+      d('Narrator','In the shadows, Lohezet appears...'),
+      d('Lohezet','Nesta... I have something to offer you.'),
+      d('Nesta','What do you want from me?'),
+      d('Lohezet','Power. A path to redemption for what you\'ve done.'),
+      d('Lohezet','A dark pact... if you dare.'),
+    ],()=>{this.bAct4()});
+  }
+
+  bAct4(){
+    this.act=4;
+    document.getElementById('hint').textContent='Ispin\'s Ritual: Magic and memory';
+    P.emit(CW/2,CH/2,30,'#d4af37',4,1,3);
+    P.emit(CW/2,CH/2,20,'#ffff88',3,0.8,2);
+    D.show([
+      d('Narrator','Ispin begins the ritual...'),
+      d('Narrator','Pearls glow with ancient magic.'),
+      d('Narrator','The moons align above...'),
+      d('Narrator','Kote sees a vision - his mother!'),
+      d('Kote','Mother... is it really you?'),
+    ],()=>{this.bAct5()});
+  }
+
+  bAct5(){
+    this.act=5;
+    document.getElementById('hint').textContent='Library Discoveries: The path forward';
+    D.show([
+      d('Narrator','The ritual fades...'),
+      d('Becklin','There is much we have learned.'),
+      d('Becklin','The Golden Museum holds secrets.'),
+      d('Becklin','There, you will find the answers you seek.'),
+      d('Narrator','The masquerade concludes.'),
+      d('Narrator','But the true test lies ahead...'),
+    ],()=>{G.sc=new Lv5();G.sc.enter()});
   }
 
   swap(idx){
@@ -1120,12 +1887,14 @@ class Lv4{
 
     this.heroes[this.ai].update(dt,this.tm);
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm));
+    this.npcs.forEach(n=>n.update(dt,this.heroes[this.ai]));
 
     P.up(dt);
     this.hud();
 
-    if(this.act===1&&this.tut){
-      D.show([d('Narrator','The masquerade passes. Level 4 Complete.')],()=>{G.sc=new Lv5();G.sc.enter()});
+    if(this.act===1&&this.heroes[this.ai].x>800&&!this._act1done){
+      this._act1done=true;
+      D.show([d('Narrator','Moving deeper into the masquerade...')],()=>{this.bAct2()});
     }
 
     if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
@@ -1138,7 +1907,7 @@ class Lv4{
 
     if(this.tm)this.tm.draw(this.tileset);
 
-    this.enemies.forEach(e=>e.draw());
+    this.npcs.forEach(n=>n.draw());
     this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
     P.draw();
@@ -1147,7 +1916,7 @@ class Lv4{
 
 // ═══ LEVEL 5 ═══
 class Lv5{
-  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_dungeon';this.shk=0;this.shi=0}
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_dungeon';this.shk=0;this.shi=0;this.escapeTimer=0}
 
   createHeroes(x,y){
     return[
@@ -1172,29 +1941,170 @@ class Lv5{
 
   bAct1(){
     this.act=1;
-    const W=90,H=18;
+    const W=150,H=18;
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
     for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let x=0;x<W;x++){this.tm.set(x,0,2);this.tm.set(x,1,2)}
-    for(let y=0;y<H;y++){this.tm.set(0,y,2);this.tm.set(1,y,2);this.tm.set(W-1,y,2);this.tm.set(W-2,y,2)}
+    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+
+    this.heroes=this.createHeroes(60,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.npcs=[new NPC(300,(H-4)*T,'Armory Master','npc',[d('Armory Master','Arm yourselves. War comes.')])];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('hint').textContent='Calm Before Storm: Prepare for battle';
+    D.show([d('Narrator','The home burns...'),d('Narrator','When the home burns, all must rise.'),d('Narrator','Walk forward to face the mercenaries.')],()=>{});
+  }
+
+  bAct2(){
+    this.act=2;
+    const W=150,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
 
     this.heroes=this.createHeroes(60,(H-4)*T);
     this.heroes[0].ctrl=true;
     this.ai=0;
 
     this.enemies=[
-      new Enem(500,(H-4)*T,28,40,'Kansaldi','#1a0a0a',250,20,'boss','kansaldi'),
-      new Enem(300,(H-4)*T,20,32,'Guard','#666',40,8,'patrol','draconian'),
-      new Enem(400,(H-8)*T,20,32,'Scout','#888',40,8,'chase','draconian'),
+      new Enem(400,(H-4)*T,20,32,'Soldier 1','#888',50,9,'chase','student'),
+      new Enem(500,(H-4)*T,20,32,'Soldier 2','#999',50,9,'chase','student'),
+      new Enem(600,(H-4)*T,20,32,'Soldier 3','#777',50,9,'patrol','student'),
+      new Enem(700,(H-4)*T,20,32,'Soldier 4','#aaa',50,9,'chase','student'),
     ];
 
     this.rebuildCompanions();
     this.hud();
-    document.getElementById('hud').style.display='flex';
-    document.getElementById('hint').textContent='FINAL BOSS: Kansaldi!';
-    D.show([d('Narrator','When the home burns...'),d('Narrator','Kansaldi, Dragon Commander!'),d('Tutorial','Defeat Kansaldi to save everyone!')],()=>{this.tut=true});
+    document.getElementById('hint').textContent='Broken Illusion: Mercenaries attack!';
+    D.show([d('Narrator','The mercenaries reveal their true weapons!'),d('Narrator','This is no illusion - this is real war!'),d('Tutorial','Defeat all soldiers!')],()=>{this.tut=true});
+  }
+
+  bAct3(){
+    this.act=3;
+    const W=150,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+
+    this.heroes=this.createHeroes(60,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.enemies=[
+      new Enem(500,(H-5)*T,24,32,'Draconian','#4a6622',70,12,'chase','draconian'),
+      new Enem(650,(H-6)*T,24,32,'Draconian','#5a7722',70,12,'chase','draconian'),
+    ];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='La Ruina Roja: Draconians reinforce!';
+    D.show([d('Kansaldi','La Ruina Roja - the Red Ruin has come!'),d('Kansaldi','You cannot stop us all!'),d('Tutorial','Defeat the draconians!')],()=>{this.tut=true});
+  }
+
+  bAct4(){
+    this.act=4;
+    const W=150,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+    for(let x=80;x<120;x++)this.tm.set(x,H-6,3);
+
+    this.heroes=this.createHeroes(60,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.enemies=[
+      new Enem(450,(H-7)*T,32,40,'Sivak Draconian','#556633',150,14,'boss','draconian'),
+    ];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='First Wave: Sivak Draconian boss!';
+    D.show([d('Narrator','A towering Sivak Draconian emerges!'),d('Narrator','Its wings spread wide, blocking the sun.'),d('Tutorial','This foe is formidable!')],()=>{this.tut=true});
+  }
+
+  bAct5(){
+    this.act=5;
+    const W=150,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+
+    this.heroes=this.createHeroes(60,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.enemies=[
+      new Enem(450,(H-4)*T,28,36,'Boilerdrak','#ff6633',200,16,'boss','boilerdrak'),
+    ];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='Iron and Fire: Boilerdrak awakes!';
+    D.show([d('Narrator','From the flames, the Boilerdrak emerges!'),d('Narrator','Its armor glows with terrible heat!'),d('Tutorial','Stand firm!')],()=>{this.tut=true});
+  }
+
+  bAct6(){
+    this.act=6;
+    const W=150,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+
+    this.heroes=this.createHeroes(60,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    const ogre=new Enem(400,(H-5)*T,28,40,'Ogre','#aa8855',180,13,'boss','ogre');
+    const goblin=new Enem(400,(H-5)*T,16,20,'Goblin Chief','#44cc44',80,8,'static','goblin');
+    goblin.inv=999;
+    this.enemies=[ogre,goblin];
+    this._ogreDead=false;
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='Last Stand: Ogre and Goblin Chief!';
+    D.show([d('Narrator','A towering Ogre appears, bearing a Goblin Chief!'),d('Narrator','The final defense of the enemy forces!'),d('Tutorial','Defeat them!')],()=>{this.tut=true});
+  }
+
+  bAct7(){
+    this.act=7;
+    const W=150,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
+    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+
+    this.heroes=this.createHeroes(60,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.enemies=[
+      new Enem(500,(H-5)*T,40,48,'Kansaldi','#1a0a0a',999,25,'static','kansaldi'),
+    ];
+
+    this.escapeTimer=10;
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='Sin Esperanza: The Dragon Commander!';
+    D.show([d('Narrator','The ground shakes...'),d('Narrator','Kansaldi, the Dragon Commander, emerges!'),d('Kansaldi','Your struggle ends now!'),d('Narrator','This battle cannot be won. Escape!')],()=>{this.tut=true});
   }
 
   swap(idx){
@@ -1235,9 +2145,36 @@ class Lv5{
     }
     for(let i=0;i<this.heroes.length;i++)if(I.pr('Digit'+(i+1)))this.swap(i);
 
+    if(this.act===1&&!this._act1done){
+      if(this.heroes[this.ai].x>500){
+        this._act1done=true;
+        D.show([d('Narrator','The battle of High Hill begins...'),d('Narrator','But something is wrong with the actors...')],()=>{this.bAct2()});
+      }
+    }
+
     this.heroes[this.ai].update(dt,this.tm);
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm));
     this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
+    this.npcs.forEach(n=>n.update(dt,this.heroes[this.ai]));
+
+    // Handle ogre-goblin mechanic for act 6
+    if(this.act===6&&this.enemies.length>=2){
+      const ogre=this.enemies[0];
+      const goblin=this.enemies[1];
+      if(ogre.on&&!this._ogreDead){
+        // Goblin rides on ogre
+        goblin.x=ogre.x;
+        goblin.y=ogre.y-ogre.h;
+        goblin.inv=999;
+      }else if(!ogre.on&&!this._ogreDead){
+        // Ogre dies - goblin falls and becomes vulnerable
+        this._ogreDead=true;
+        D.show([d('Narrator','The Goblin Chief falls!')],()=>{this.tut=true});
+        goblin.ai='chase';
+        goblin.inv=0;
+        P.emit(ogre.x+ogre.w/2,ogre.y+ogre.h/2,20,'#44cc44',6,0.8,3);
+      }
+    }
 
     this.heroes.forEach(hero=>{
       const ab=hero.atkBox();if(!ab)return;
@@ -1247,9 +2184,44 @@ class Lv5{
     P.up(dt);
     this.hud();
 
-    if(this.act===1&&this.tut&&this.enemies.every(e=>!e.on)){
+    if(this.act===2&&this.tut&&this.enemies.every(e=>!e.on)){
       this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#c8a84e',6,0.8,3);
-      D.show([d('Narrator','VICTORY! THE END'),d('Narrator','Chronicles of Azurerune: Book 1 Complete')],()=>{G.sc=new Lv1();G.sc.enter()});
+      D.show([d('Narrator','The soldiers fall!')],()=>{this.bAct3()});
+    }
+
+    if(this.act===3&&this.tut&&this.enemies.every(e=>!e.on)){
+      this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#00aa44',6,0.8,3);
+      D.show([d('Narrator','The draconians retreat!')],()=>{this.bAct4()});
+    }
+
+    if(this.act===4&&this.tut&&this.enemies.every(e=>!e.on)){
+      this.shk=0.8;this.shi=6;P.emit(this.enemies[0].x,this.enemies[0].y,40,'#ff8833',6,0.8,3);
+      D.show([d('Narrator','The Sivak falls!')],()=>{this.bAct5()});
+    }
+
+    if(this.act===5&&this.tut&&this.enemies.every(e=>!e.on)){
+      this.shk=0.8;this.shi=6;P.emit(this.enemies[0].x,this.enemies[0].y,50,'#ff4400',7,1,4);
+      D.show([d('Narrator','The Boilerdrak is vanquished!')],()=>{this.bAct6()});
+    }
+
+    if(this.act===6&&this.tut&&this.enemies.every(e=>!e.on)){
+      this.shk=0.6;this.shi=5;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,30,'#d4a574',6,0.8,3);
+      D.show([d('Narrator','The last defenders fall!')],()=>{this.bAct7()});
+    }
+
+    if(this.act===7&&this.tut){
+      this.escapeTimer-=dt;
+      if(this.escapeTimer<=0){
+        D.show([
+          d('Narrator','Becklin cries out: "Run!"'),
+          d('Narrator','Becklin stands against Kansaldi...'),
+          d('Narrator','The Dragon Commander\'s fire engulfs him.'),
+          d('Arturito','No! I will hold the line!'),
+          d('Narrator','Arturito charges forward to buy time.'),
+          d('Narrator','The heroes flee through the inferno...'),
+          d('Narrator','Back to Vogler village, victorious but forever changed.'),
+        ],()=>{D.show([d('Narrator','Chronicles of Azurerune: Book 1 - Complete')],()=>{G.sc=new Lv1();G.sc.enter()})});
+      }
     }
 
     if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
@@ -1260,16 +2232,18 @@ class Lv5{
     g.addColorStop(0,'#2a0a0a');g.addColorStop(1,'#3a1a1a');
     R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
 
-    // Fire effect
-    for(let i=0;i<10;i++){
-      const x=Math.random()*CW;
-      const y=Math.random()*CH;
-      R.x.fillStyle=`rgba(255,100,0,${Math.random()*0.3})`;
-      R.x.fillRect(x,y,20+Math.random()*30,20+Math.random()*30);
+    if(this.act>=5){
+      for(let i=0;i<15;i++){
+        const x=Math.random()*CW;
+        const y=Math.random()*CH;
+        R.x.fillStyle=`rgba(255,${100+Math.random()*100},0,${Math.random()*0.2})`;
+        R.x.fillRect(x,y,20+Math.random()*40,20+Math.random()*40);
+      }
     }
 
     if(this.tm)this.tm.draw(this.tileset);
 
+    this.npcs.forEach(n=>n.draw());
     this.enemies.forEach(e=>e.draw());
     this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
@@ -1287,6 +2261,44 @@ const G={sc:null,
       {type:'image',key:'tiles_library',path:'assets/env/library/tiles.png'},
       {type:'image',key:'tiles_garden',path:'assets/env/garden/tiles.png'},
       {type:'image',key:'tiles_dungeon',path:'assets/env/dungeon/dungeon_tiles.png'},
+      // Hero sprite assets
+      {type:'image',key:'hero_kote',path:'assets/chars/kote.png'},
+      {type:'meta',key:'hero_kote',path:'assets/chars/kote.txt'},
+      {type:'image',key:'hero_minerva',path:'assets/chars/minerva.png'},
+      {type:'meta',key:'hero_minerva',path:'assets/chars/minerva.txt'},
+      {type:'image',key:'hero_elber',path:'assets/chars/elber.png'},
+      {type:'meta',key:'hero_elber',path:'assets/chars/elber.txt'},
+      {type:'image',key:'hero_nesta',path:'assets/chars/nesta.png'},
+      {type:'meta',key:'hero_nesta',path:'assets/chars/nesta.txt'},
+      {type:'image',key:'hero_nick',path:'assets/chars/nick.png'},
+      {type:'meta',key:'hero_nick',path:'assets/chars/nick.txt'},
+      {type:'image',key:'hero_bakaris',path:'assets/chars/bakaris.png'},
+      {type:'meta',key:'hero_bakaris',path:'assets/chars/bakaris.txt'},
+      // Enemy sprite assets - castle enemies (strips)
+      {type:'image',key:'enemy_castle_knight_idle',path:'assets/enemies/castle_knight/idle.png'},
+      {type:'image',key:'enemy_castle_knight_run',path:'assets/enemies/castle_knight/run.png'},
+      {type:'image',key:'enemy_castle_archer_idle',path:'assets/enemies/castle_archer/idle.png'},
+      {type:'image',key:'enemy_castle_archer_run',path:'assets/enemies/castle_archer/run.png'},
+      {type:'image',key:'enemy_castle_priest_idle',path:'assets/enemies/castle_priest/idle.png'},
+      {type:'image',key:'enemy_castle_priest_run',path:'assets/enemies/castle_priest/run.png'},
+      {type:'image',key:'enemy_castle_soldier_idle',path:'assets/enemies/castle_soldier/idle.png'},
+      {type:'image',key:'enemy_castle_soldier_run',path:'assets/enemies/castle_soldier/run.png'},
+      {type:'image',key:'enemy_hideout_fighter_idle',path:'assets/enemies/hideout_fighter/idle.png'},
+      {type:'image',key:'enemy_hideout_fighter_run',path:'assets/enemies/hideout_fighter/run.png'},
+      {type:'image',key:'enemy_orc_warrior_idle',path:'assets/enemies/orc_warrior/idle.png'},
+      {type:'image',key:'enemy_orc_warrior_run',path:'assets/enemies/orc_warrior/run.png'},
+      // Extracted sprites
+      {type:'image',key:'enemy_darkmantle_idle',path:'assets/sprites/darkmantle_idle.png'},
+      {type:'image',key:'enemy_spectator_idle',path:'assets/sprites/spectator_idle.png'},
+      {type:'image',key:'enemy_spectator_attack',path:'assets/sprites/spectator_attack.png'},
+      {type:'image',key:'enemy_mudman_idle',path:'assets/sprites/mudman_idle.png'},
+      {type:'image',key:'enemy_mudman_appear',path:'assets/sprites/mudman_appear.png'},
+      {type:'image',key:'enemy_boilerdrak_idle',path:'assets/sprites/boilerdrak_idle.png'},
+      {type:'image',key:'enemy_mimic_idle',path:'assets/sprites/mimic_idle.png'},
+      {type:'image',key:'enemy_mimic_activate',path:'assets/sprites/mimic_activate.png'},
+      {type:'image',key:'enemy_dragonborn',path:'assets/sprites/dragonborn.png'},
+      {type:'image',key:'enemy_kansaldi',path:'assets/sprites/kansaldi.png'},
+      {type:'meta',key:'enemy_kansaldi',path:'assets/sprites/kansaldi.txt'},
     ];
     Assets.load(manifest).then(()=>{
       document.getElementById('loadScr').style.display='none';
@@ -1296,6 +2308,10 @@ const G={sc:null,
       document.getElementById('startBtn3').onclick=()=>this.start(new Lv3());
       document.getElementById('startBtn4').onclick=()=>this.start(new Lv4());
       document.getElementById('startBtn5').onclick=()=>this.start(new Lv5());
+      document.getElementById('langEN').onclick=()=>{Lang.set('en');this.updateTitleText()};
+      document.getElementById('langES').onclick=()=>{Lang.set('es');this.updateTitleText()};
+      document.getElementById('langIT').onclick=()=>{Lang.set('it');this.updateTitleText()};
+      this.updateTitleText();
     });
   },
   start(lvl){
@@ -1313,6 +2329,21 @@ const G={sc:null,
     document.getElementById('dlg').style.display='none';
     document.getElementById('hint').textContent='';
     document.getElementById('ecount').textContent='';
+  },
+  updateTitleText(){
+    document.querySelector('#title h1').textContent=Lang.t('title');
+    document.querySelector('#title h2').textContent=Lang.t('subtitle');
+    document.getElementById('startBtn').textContent=Lang.t('lvl1');
+    document.getElementById('startBtn2').textContent=Lang.t('lvl2');
+    document.getElementById('startBtn3').textContent=Lang.t('lvl3');
+    document.getElementById('startBtn4').textContent=Lang.t('lvl4');
+    document.getElementById('startBtn5').textContent=Lang.t('lvl5');
+    document.querySelector('#dlg .pr').textContent=Lang.t('press_space');
+    // Highlight active lang
+    ['EN','ES','IT'].forEach(l=>{
+      const el=document.getElementById('lang'+l);
+      el.style.borderColor=Lang.current===l.toLowerCase()?'#fff':'#c8a84e';
+    });
   },
   _looping:false,
   loop(){

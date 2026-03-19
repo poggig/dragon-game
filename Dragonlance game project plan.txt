@@ -365,16 +365,24 @@ Phase 1 - HTML5 Prototype (CURRENT)
   [x] Explore all source material and understand story
   [x] Create project plan
   [x] Session 1 PDF received and Level 1 designed
-  [ ] Extract and organize assets
+  [x] Extract and organize assets (sprites extracted to game/assets/sprites/)
   [x] Build game engine core (canvas rendering, sprite system, input, scenes)
   [x] Character system with party swap
   [x] Level 1: School Day (tutorial + arena + stealth - good intro level)
-  [x] Level 2: Kingfisher Festival (most varied gameplay)
-  [x] Level 3: Library of Secrets (stealth + Spectator boss)
-  [x] Level 4: Yurthgreen Masquerade (social/story, Nesta returns)
-  [x] Level 5: Fall of Vogler (multi-boss rush + Kansaldi escape)
+  [x] Level 2: Kingfisher Festival (4 acts: river ambush, festival, fishing minigame, draconian boss)
+  [x] Level 3: Library of Secrets (5 acts: stealth, platforming, cursed sword, Spectator boss, escape)
+  [x] Level 4: Yurthgreen Masquerade (5 acts: ballroom NPCs, armor, dark pact, ritual, discoveries)
+  [x] Level 5: Fall of Vogler (7 acts: calm, broken illusion, ruina roja, sivak, boilerdrak, ogre/goblin, kansaldi escape)
+  [x] Sprite-based rendering with PNG assets (heroes + enemies) + programmatic fallback
+  [x] 30% speed reduction for all characters and enemies
+  [x] VFX particle effects for hero attacks/skills and enemy attacks
+  [ ] Compose unique Mana Seed hero sprites (currently using Super Pixel Heroes packs)
+  [ ] Custom boilerdrak sprite (currently using mudman_blue fallback)
+  [ ] Goblin-on-ogre boss mechanic (goblin falls and becomes attackable after ogre dies)
+  [ ] Level 1 multi-act structure (currently single arena act, needs 5 acts per design)
   [ ] Trilingual text system (EN/ES/IT)
   [ ] Push to GitHub
+  [ ] Clean up unused assets from game folder
 
 Phase 2 - Godot Port
   [ ] Set up Godot 4.6 project structure
@@ -385,6 +393,23 @@ Phase 2 - Godot Port
   [ ] Push to GitHub
 
 ******* CHANGELOG *******
+2026-03-19 (update 2): ASSET-BASED SPRITE SYSTEM + LEVEL RESTORATION
+  - Replaced programmatic canvas drawing with PNG sprite-based rendering
+  - Heroes: kote.png, minerva.png, elber.png, nesta.png, nick.png (with .txt metadata)
+  - Enemies: castle_knight/archer/priest/soldier strips, exofish_A (darkmantle),
+    evil_eye_blue (spectator), dragonborn.png (draconian), orc_warrior (goblin),
+    mudman_blue (ogre/fallback), mimic_chest, kansaldi (red-tinted minerva)
+  - Programmatic drawing kept as fallback for any missing sprites
+  - ALL LEVELS RESTORED to multi-act structures:
+    * L2: 4 acts with fishing minigame, festival NPCs, Kapak Draconian boss
+    * L3: 5 acts with stealth, platforming, Spectator boss, escape
+    * L4: 5 acts story level (ballroom, Solamnic armor, dark pact, ritual)
+    * L5: 7 acts (mercenaries, Sivak, Boilerdrak, Ogre/Goblin, Kansaldi escape)
+  - 30% speed reduction: hero 3.0→2.1, enemy 1.0→0.7, dash 10→7
+  - VFX particle effects for hero attacks/skills and enemy attacks
+  - Game loop error handling (try-catch) prevents silent crashes
+  - Dialogue system fixed: direct _advance flag for reliable Space/Enter/click
+
 2026-03-19: COMPLETE SPRITE OVERHAUL — 100% custom pixel art
   - Removed ALL external PNG sprite dependencies (heroes + enemies)
   - Every hero drawn programmatically with canvas primitives:

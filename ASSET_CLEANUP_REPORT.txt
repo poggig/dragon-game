@@ -1,0 +1,175 @@
+========== ASSET CLEANUP ANALYSIS ==========
+
+COMPLETE ASSET AUDIT FOR: /sessions/jolly-festive-einstein/mnt/Project 1 - Dragon game/game/assets/
+
+==== USED ASSETS (41 files - all actively loaded) ====
+
+TILESETS (4 files):
+✓ assets/env/castle/tiles.png
+✓ assets/env/library/tiles.png
+✓ assets/env/garden/tiles.png
+✓ assets/env/dungeon/dungeon_tiles.png
+
+HERO CHARACTERS (12 files):
+✓ assets/chars/kote.png + assets/chars/kote.txt
+✓ assets/chars/minerva.png + assets/chars/minerva.txt
+✓ assets/chars/elber.png + assets/chars/elber.txt
+✓ assets/chars/nesta.png + assets/chars/nesta.txt
+✓ assets/chars/nick.png + assets/chars/nick.txt
+✓ assets/chars/bakaris.png + assets/chars/bakaris.txt
+
+CASTLE ENEMIES (8 files):
+✓ assets/enemies/castle_knight/idle.png + run.png
+✓ assets/enemies/castle_archer/idle.png + run.png
+✓ assets/enemies/castle_priest/idle.png + run.png
+✓ assets/enemies/castle_soldier/idle.png + run.png
+
+OTHER ENEMIES (4 files):
+✓ assets/enemies/hideout_fighter/idle.png + run.png
+✓ assets/enemies/orc_warrior/idle.png + run.png
+
+EXTRACTED SPRITES (11 files):
+✓ assets/sprites/darkmantle_idle.png
+✓ assets/sprites/spectator_idle.png
+✓ assets/sprites/spectator_attack.png
+✓ assets/sprites/mudman_idle.png
+✓ assets/sprites/mudman_appear.png
+✓ assets/sprites/boilerdrak_idle.png
+✓ assets/sprites/mimic_idle.png
+✓ assets/sprites/mimic_activate.png
+✓ assets/sprites/dragonborn.png
+✓ assets/sprites/kansaldi.png + assets/sprites/kansaldi.txt
+
+==== COMPLETELY UNUSED FOLDERS/FILES (108 files) ====
+
+CHARACTERS FOLDER (duplicate, unused):
+✗ assets/characters/ (8 files - ENTIRE FOLDER UNUSED)
+  - elber.png, elber.txt
+  - kote.png, kote.txt
+  - minerva.png, minerva.txt
+  - nesta.png, nesta.txt
+  (These are duplicates of chars/ folder - game uses chars/ instead)
+
+ENEMY ANIMATION STRIPS (not in manifest):
+✗ assets/enemies/bat_*.png (3 files)
+  - bat_idle.png
+  - bat_move.png
+  - bat_atk.png
+
+✗ assets/enemies/castle_knight/death.png + hit.png (2 files)
+✗ assets/enemies/castle_archer/death.png + hit.png (2 files)
+✗ assets/enemies/castle_priest/death.png + hit.png (2 files)
+✗ assets/enemies/castle_soldier/death.png + hit.png (2 files)
+✗ assets/enemies/hideout_fighter/death.png + hit.png (2 files)
+✗ assets/enemies/hideout_scout/ (4 files - entire folder)
+  - death.png, hit.png, idle.png, run.png
+✗ assets/enemies/orc/ (3 files - entire folder)
+  - death.png, idle.png, run.png
+✗ assets/enemies/orc_warrior/death.png (1 file)
+✗ assets/enemies/skeleton/ (3 files - entire folder)
+  - death.png, idle.png, run.png
+✗ assets/enemies/skeleton_mage/ (3 files - entire folder)
+  - death.png, idle.png, run.png
+✗ assets/enemies/lib_cataloguer/ (4 files - entire folder)
+✗ assets/enemies/lib_censor/ (4 files - entire folder)
+✗ assets/enemies/lib_director/ (4 files - entire folder)
+✗ assets/enemies/lib_researcher/ (4 files - entire folder)
+✗ assets/enemies/evil_eye_*.png (2 files)
+  - evil_eye_red.png, evil_eye_red.txt
+  - evil_eye_blue.png
+✗ assets/enemies/hell_hand_*.png (2 files)
+  - hell_hand_red.png
+  - hell_hand_violet.png
+✗ assets/enemies/mimic.png + mimic.txt (2 files)
+
+FX/EFFECTS (not in manifest):
+✗ assets/fx/ (8 files - ENTIRE FOLDER UNUSED)
+  - kote_atk.png, kote_skill.png
+  - minerva_atk.png, minerva_skill.png
+  - elber_atk.png, elber_skill.png
+  - nesta_atk.png, nesta_skill.png
+
+ENVIRONMENT/TILESETS (not in manifest):
+✗ assets/env/castle/hideout_tiles.png
+✗ assets/env/castle/mockup.png
+✗ assets/env/castle/social_assets.png
+✗ assets/env/dungeon/floors_tiles.png
+✗ assets/env/dungeon/wall_tiles.png
+✗ assets/env/dungeon/wall_variations.png
+✗ assets/env/dungeon/water_tiles.png
+✗ assets/env/library/tiles_4x.png
+✗ assets/env/props/ (8 files - ENTIRE FOLDER)
+  - building_floors.png, building_props.png, building_walls.png
+  - dungeon_props.png, esoteric.png, furniture.png
+  - rocks.png, vegetation.png
+✗ assets/env/weapons/ (5 files - ENTIRE FOLDER)
+  - bone.png, castle_weapons.png, hands.png
+  - library_weapons.png, wood.png
+
+MIMIC (alternate location):
+✗ assets/mimic/spritesheet.png + spritesheet.txt (2 files)
+  (Note: mimic sprites are loaded from assets/sprites/ instead)
+
+SPRITES (misc variants):
+✗ assets/sprites/mana_hero_v01.png through v05.png (5 files)
+✗ assets/sprites/README.md (1 file)
+
+TILESETS (old structure):
+✗ assets/tiles/castle.png
+✗ assets/tiles/library.png
+✗ assets/tilesets/castle.png
+✗ assets/tilesets/library.png
+
+UI ELEMENTS (not in manifest):
+✗ assets/ui/ (12 files - ENTIRE FOLDER)
+  - meter_left_red.png, meter_left_green.png, meter_left_blue.png, meter_left_violet.png
+  - meter_center_red.png, meter_center_green.png, meter_center_blue.png, meter_center_violet.png
+  - meter_right_red.png, meter_right_green.png, meter_right_blue.png, meter_right_violet.png
+
+DOCUMENTATION:
+✓ assets/ASSET_CATALOG.md (KEEP - useful reference documentation)
+
+========== SUMMARY ==========
+
+Total files in assets: 151
+Files used by game: 41
+Files NOT used: 109 (plus ASSET_CATALOG.md which is documentation)
+
+FOLDERS THAT ARE COMPLETELY UNUSED:
+1. assets/characters/ - 8 files (duplicate of chars/)
+2. assets/fx/ - 8 files (effects not loaded)
+3. assets/enemies/hideout_scout/ - 4 files
+4. assets/enemies/orc/ - 3 files
+5. assets/enemies/skeleton/ - 3 files
+6. assets/enemies/skeleton_mage/ - 3 files
+7. assets/enemies/lib_cataloguer/ - 4 files
+8. assets/enemies/lib_censor/ - 4 files
+9. assets/enemies/lib_director/ - 4 files
+10. assets/enemies/lib_researcher/ - 4 files
+11. assets/env/props/ - 8 files
+12. assets/env/weapons/ - 5 files
+13. assets/mimic/ - 2 files (duplicate location)
+14. assets/tiles/ - 2 files (old structure)
+15. assets/tilesets/ - 2 files (old structure)
+16. assets/ui/ - 12 files
+
+PARTIALLY USED FOLDERS (with unused animation frames):
+1. assets/enemies/castle_knight/ - idle+run used, death+hit unused
+2. assets/enemies/castle_archer/ - idle+run used, death+hit unused
+3. assets/enemies/castle_priest/ - idle+run used, death+hit unused
+4. assets/enemies/castle_soldier/ - idle+run used, death+hit unused
+5. assets/enemies/hideout_fighter/ - idle+run used, death+hit unused
+6. assets/enemies/orc_warrior/ - idle+run used, death unused
+7. assets/env/castle/ - only tiles.png used; hideout_tiles, mockup, social_assets unused
+8. assets/env/dungeon/ - only dungeon_tiles used; floors, walls, water unused
+9. assets/env/library/ - only tiles.png used; tiles_4x unused
+
+INDIVIDUAL UNUSED FILES IN PARTIALLY USED FOLDERS:
+- assets/enemies/bat_*.png (3 files)
+- assets/enemies/evil_eye_*.png (2 files)
+- assets/enemies/hell_hand_*.png (2 files)
+- assets/enemies/mimic.png + mimic.txt (2 files)
+- assets/sprites/mana_hero_v*.png (5 files)
+- assets/sprites/README.md
+
+ESTIMATED SIZE SAVINGS: ~40-50% of total assets folder
