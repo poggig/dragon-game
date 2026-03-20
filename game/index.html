@@ -278,6 +278,18 @@ const R={c:null,x:null,cam:{x:0,y:0},
   rect(x,y,w,h,col){this.x.fillStyle=col;this.x.fillRect(x-this.cam.x,y-this.cam.y,w,h)},
   sr(x,y,w,h,col){this.x.fillStyle=col;this.x.fillRect(x,y,w,h)},
   txt(t,x,y,c,s,a){this.x.fillStyle=c||'#fff';this.x.font=(s||11)+'px "Courier New",monospace';this.x.textAlign=a||'left';this.x.fillText(t,x,y)},
+  drawDecos(decos){
+    if(!decos)return;
+    const ctx=this.x;
+    decos.forEach(d=>{
+      const px=d.x-this.cam.x,py=d.y-this.cam.y;
+      if(px>-100&&px<CW+100&&py>-100&&py<CH+100){
+        ctx.globalAlpha=d.a||1;
+        ctx.drawImage(d.img,px,py);
+        ctx.globalAlpha=1;
+      }
+    });
+  },
   a(v){this.x.globalAlpha=v},ra(){this.x.globalAlpha=1},
 
   // SPRITE-BASED HERO DRAWING (aspect-ratio preserving)
@@ -294,11 +306,11 @@ const R={c:null,x:null,cam:{x:0,y:0},
     if(!frames||frames.length===0){this._drawHeroFallback(type,state,frame,x,y,w,h,flip);return;}
 
     const f=frames[frame%frames.length];
-    // Preserve aspect ratio: scale sprite to fill entity height, center horizontally
+    // Preserve aspect ratio: scale sprite 1.5x, feet anchored at entity bottom
     const ratio=f.w/f.h;
-    const dh=h+8;const dw=dh*ratio;
-    const ox=(w-dw)/2; // Center on entity
-    const px=x-this.cam.x+ox,py=y-this.cam.y-4;
+    const dh=h*1.5;const dw=dh*ratio;
+    const ox=(w-dw)/2; // Center on entity horizontally
+    const px=x-this.cam.x+ox,py=y-this.cam.y+h-dh; // feet anchored
 
     const ctx=this.x;
     ctx.save();
@@ -312,16 +324,17 @@ const R={c:null,x:null,cam:{x:0,y:0},
     ctx.restore();
   },
 
-  // SPRITE-BASED ENEMY DRAWING
+  // SPRITE-BASED ENEMY DRAWING (1.5x scale, feet anchored)
   drawEnemy(type,state,frame,x,y,w,h,flip){
     const cfg=SpriteConfig.enemies[type];
     if(!cfg){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
 
-    const px=x-this.cam.x,py=y-this.cam.y;
+    // Scale sprite 1.5x, anchor feet at entity bottom
+    const dw=w*1.5,dh=h*1.5;
+    const px=x-this.cam.x-(dw-w)/2, py=y-this.cam.y-(dh-h); // center X, feet anchored
     const ctx=this.x;
 
     if(cfg.type==='meta'){
-      // Meta format (like heroes)
       const img=Assets.images[cfg.img];
       const meta=Assets.meta[cfg.meta];
       if(!img||!meta){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
@@ -333,46 +346,43 @@ const R={c:null,x:null,cam:{x:0,y:0},
       const f=frames[frame%frames.length];
       ctx.save();
       if(flip){
-        ctx.translate(px+w,py);
+        ctx.translate(x-this.cam.x+(dw+w)/2,py);
         ctx.scale(-1,1);
-        ctx.drawImage(img,f.x,f.y,f.w,f.h,0,0,w,h);
+        ctx.drawImage(img,f.x,f.y,f.w,f.h,0,0,dw,dh);
       }else{
-        ctx.drawImage(img,f.x,f.y,f.w,f.h,px,py,w,h);
+        ctx.drawImage(img,f.x,f.y,f.w,f.h,px,py,dw,dh);
       }
       ctx.restore();
     }else if(cfg.type==='strip'){
-      // Strip format - horizontal frames
       const stripKey=cfg.imgs[state]||cfg.imgs.idle||Object.values(cfg.imgs)[0];
       const img=Assets.images[stripKey];
       if(!img){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
 
-      // Derive frame size from image height (auto-detect per strip image)
       const fH=img.height;
-      const fW=cfg.frameW&&cfg.frameH===img.height?cfg.frameW:fH; // Square by default, or use frameW if frameH matches
+      const fW=cfg.frameW&&cfg.frameH===img.height?cfg.frameW:fH;
       const numFrames=Math.max(1,Math.floor(img.width/fW));
       const frameIdx=frame%numFrames;
 
       ctx.save();
       if(flip){
-        ctx.translate(px+w,py);
+        ctx.translate(x-this.cam.x+(dw+w)/2,py);
         ctx.scale(-1,1);
-        ctx.drawImage(img,frameIdx*fW,0,fW,fH,0,0,w,h);
+        ctx.drawImage(img,frameIdx*fW,0,fW,fH,0,0,dw,dh);
       }else{
-        ctx.drawImage(img,frameIdx*fW,0,fW,fH,px,py,w,h);
+        ctx.drawImage(img,frameIdx*fW,0,fW,fH,px,py,dw,dh);
       }
       ctx.restore();
     }else if(cfg.type==='single'){
-      // Single image - draw the full sprite
       const img=Assets.images[cfg.img];
       if(!img){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
 
       ctx.save();
       if(flip){
-        ctx.translate(px+w,py);
+        ctx.translate(x-this.cam.x+(dw+w)/2,py);
         ctx.scale(-1,1);
-        ctx.drawImage(img,0,0,img.width,img.height,0,0,w,h);
+        ctx.drawImage(img,0,0,img.width,img.height,0,0,dw,dh);
       }else{
-        ctx.drawImage(img,0,0,img.width,img.height,px,py,w,h);
+        ctx.drawImage(img,0,0,img.width,img.height,px,py,dw,dh);
       }
       ctx.restore();
     }else{
@@ -382,7 +392,8 @@ const R={c:null,x:null,cam:{x:0,y:0},
 
   // FALLBACK HERO DRAWING (programmatic)
   _drawHeroFallback(type,state,frame,x,y,w,h,flip){
-    const ctx=this.x,px=x-this.cam.x,py=y-this.cam.y;
+    const ctx=this.x;
+    let px=x-this.cam.x,py=y-this.cam.y;
     const sc=(w/20);const ox=px+w/2;
 
     if(type==='kote'){
@@ -453,6 +464,14 @@ const R={c:null,x:null,cam:{x:0,y:0},
         ctx.fillStyle='#333';ctx.fillRect(ox+6.3*sc,py+27.3*sc,0.5*sc,0.5*sc);ctx.fillRect(ox+7.2*sc,py+27.3*sc,0.5*sc,0.5*sc); // eye holes
       }
       if(state==='attack'||state==='skill'){ctx.fillStyle='#44ff88';ctx.globalAlpha=0.8;const da=flip?-8:8;ctx.fillRect(ox+da*sc,py+16*sc,2*sc,8*sc);ctx.globalAlpha=1;} // necrotic bolt
+    }
+
+    else{
+      // Generic NPC fallback - hooded figure
+      ctx.fillStyle='#c8a866';ctx.fillRect(ox-3*sc,py+8*sc,6*sc,6*sc); // head
+      ctx.fillStyle='#555';ctx.fillRect(ox-5*sc,py+15*sc,10*sc,10*sc); // grey robes
+      ctx.fillStyle='#333';ctx.fillRect(ox-5*sc,py+25*sc,10*sc,6*sc); // pants
+      ctx.fillStyle='#1a1a0a';ctx.fillRect(ox-5*sc,py+31*sc,5*sc,4*sc);ctx.fillRect(ox,py+31*sc,5*sc,4*sc); // boots
     }
 
     // Idle breathing bob
@@ -588,6 +607,11 @@ const SpriteConfig={
   },
   enemies:{
     student:{type:'strip',imgs:{idle:'enemy_castle_knight_idle',run:'enemy_castle_knight_run'},frameH:64},
+    castle_knight:{type:'strip',imgs:{idle:'enemy_castle_knight_idle',run:'enemy_castle_knight_run'},frameH:64},
+    castle_archer:{type:'strip',imgs:{idle:'enemy_castle_archer_idle',run:'enemy_castle_archer_run'},frameH:64},
+    castle_priest:{type:'strip',imgs:{idle:'enemy_castle_priest_idle',run:'enemy_castle_priest_run'},frameH:64},
+    castle_soldier:{type:'strip',imgs:{idle:'enemy_castle_soldier_idle',run:'enemy_castle_soldier_run'},frameH:64},
+    hideout_fighter:{type:'strip',imgs:{idle:'enemy_hideout_fighter_idle',run:'enemy_hideout_fighter_run'},frameH:64},
     bakaris:{type:'meta',img:'hero_bakaris',meta:'hero_bakaris',stateMap:{idle:'idle',run:'run',attack:'attack_A'}},
     darkmantle:{type:'strip',imgs:{idle:'enemy_darkmantle_idle'},frameW:24,frameH:16},
     draconian:{type:'strip',imgs:{idle:'enemy_dragonborn_idle',run:'enemy_dragonborn_run'},frameW:128,frameH:128},
@@ -659,8 +683,10 @@ const P={ps:[],
 class TM{
   constructor(w,h){this.w=w;this.h=h;this.d=new Uint8Array(w*h)}
   set(x,y,v){if(x>=0&&x<this.w&&y>=0&&y<this.h)this.d[y*this.w+x]=v}
-  get(x,y){if(x<0||x>=this.w||y<0||y>=this.h)return 1;return this.d[y*this.w+x]}
+  get(x,y){if(x<0||x>=this.w)return 1;if(y<0)return 0;if(y>=this.h)return 1;return this.d[y*this.w+x]}
   sol(x,y){const v=this.get(x,y);return v>=1&&v<=5}
+  // Solid ceiling check: platforms (3) are one-way, passable from below
+  solUp(x,y){const v=this.get(x,y);return v>=1&&v<=5&&v!==3}
 
   draw(tilesetKey){
     const timg=Assets.images[tilesetKey];
@@ -699,10 +725,117 @@ class TM{
   }
 }
 
+// ═══ MAP BUILDER ═══
+// Jump physics: jf=-9, GR=0.6 → single jump ~4.5 tiles, double ~9 tiles
+// P2: 4 tiles above ground (single jump), P3: 7 tiles up (double from ground or single from P2), P4: 10 tiles up
+function buildArena(tm,W,H,seed){
+  // Ground: 3 rows deep (H-3 surface, H-2, H-1 subsurface)
+  for(let x=0;x<W;x++){tm.set(x,H-3,1);tm.set(x,H-2,1);tm.set(x,H-1,1)}
+
+  // Platform level 2: 4 tiles above ground (~60% coverage)
+  const p2y=H-7;
+  let x=6+(seed%4);
+  while(x<W-6){
+    const pw=5+((x*7+seed)%4);
+    for(let i=0;i<pw&&x+i<W-2;i++)tm.set(x+i,p2y,3);
+    x+=pw+4+((x*3+seed)%3);
+  }
+
+  // Platform level 3: 3 tiles above P2 (~30% coverage)
+  const p3y=H-10;
+  if(p3y>1){
+    x=12+(seed*3%6);
+    while(x<W-8){
+      const pw=4+((x*5+seed)%3);
+      for(let i=0;i<pw&&x+i<W-2;i++)tm.set(x+i,p3y,3);
+      x+=pw+16+((x*2+seed)%8);
+    }
+  }
+
+  // Platform level 4: 3 tiles above P3 (~15% coverage)
+  const p4y=H-13;
+  if(p4y>1){
+    x=20+(seed*7%10);
+    while(x<W-10){
+      const pw=3+((x*4+seed)%3);
+      for(let i=0;i<pw&&x+i<W-2;i++)tm.set(x+i,p4y,3);
+      x+=pw+28+((x+seed)%12);
+    }
+  }
+}
+
+// ═══ DECORATION GENERATOR ═══
+const DecoThemes={
+  castle:{
+    ground:['deco_barrel','deco_pot','deco_bench','deco_rock_sm'],
+    wall:['deco_banner_red','deco_banner_blue','deco_window','deco_candelabra'],
+    bg:['deco_weapons','deco_planter']
+  },
+  garden:{
+    ground:['deco_tree','deco_bush','deco_rock_lg','deco_rock_md','deco_mushroom'],
+    wall:['deco_tree','deco_dead_tree'],
+    bg:['deco_grass','deco_bush','deco_rock_sm']
+  },
+  library:{
+    ground:['deco_barrel','deco_pot','deco_candle','deco_potion'],
+    wall:['deco_candelabra','deco_banner_blue','deco_window'],
+    bg:['deco_potion','deco_candle','deco_mushroom']
+  },
+  dungeon:{
+    ground:['deco_rock_lg','deco_rock_md','deco_barrel','deco_weapons'],
+    wall:['deco_chain','deco_candelabra','deco_banner_red'],
+    bg:['deco_rock_sm','deco_candle','deco_pot']
+  }
+};
+
+function genDecos(W,H,theme,seed){
+  const cfg=DecoThemes[theme]||DecoThemes.castle;
+  const decos=[];
+  const gndY=(H-3)*T; // ground pixel Y (top of ground tile)
+
+  // Ground-level decorations (on the floor, behind entities)
+  for(let i=0;i<W/6;i++){
+    const dx=(i*97+seed*31)%((W-4)*T)+2*T;
+    const key=cfg.ground[(i+seed)%cfg.ground.length];
+    const img=Assets.images[key];
+    if(!img)continue;
+    decos.push({img,x:dx,y:gndY-img.height,a:0.9});
+  }
+
+  // Wall/background decorations (higher up, behind everything)
+  for(let i=0;i<W/12;i++){
+    const dx=(i*143+seed*53)%((W-4)*T)+2*T;
+    const dy=(seed*17+i*71)%(gndY-80)+16;
+    const key=cfg.wall[(i+seed*2)%cfg.wall.length];
+    const img=Assets.images[key];
+    if(!img)continue;
+    decos.push({img,x:dx,y:dy,a:0.35});
+  }
+
+  // Scattered small bg items
+  for(let i=0;i<W/8;i++){
+    const dx=(i*79+seed*41)%((W-4)*T)+T;
+    const dy=(seed*23+i*113)%(gndY-40)+8;
+    const key=cfg.bg[(i+seed)%cfg.bg.length];
+    const img=Assets.images[key];
+    if(!img)continue;
+    decos.push({img,x:dx,y:dy,a:0.2});
+  }
+  return decos;
+}
+
 // ═══ ENTITY BASE ═══
 class Ent{
   constructor(x,y,w,h){this.x=x;this.y=y;this.w=w;this.h=h;this.vx=0;this.vy=0;this.gnd=false;this.rt=true;this.hp=100;this.mhp=100;this.on=true;this.inv=0;this.animFrame=0}
   hits(o){return this.x<o.x+o.w&&this.x+this.w>o.x&&this.y<o.y+o.h&&this.y+this.h>o.y}
+  // Snap entity down to nearest solid surface below current position
+  snapGnd(tm){
+    let by=Math.floor((this.y+this.h)/T);
+    for(let y=by;y<tm.h;y++){
+      const bx1=Math.floor((this.x+4)/T),bx2=Math.floor((this.x+this.w-4)/T);
+      if(tm.sol(bx1,y)||tm.sol(bx2,y)){this.y=y*T-this.h;this.gnd=true;this.vy=0;return}
+    }
+  }
 
   onSolid(tm){
     const bx1=Math.floor((this.x+4)/T),bx2=Math.floor((this.x+this.w-4)/T);
@@ -713,12 +846,13 @@ class Ent{
     const nx=this.x+dx;
     const tx=dx>0?Math.floor((nx+this.w-2)/T):Math.floor((nx+2)/T);
     const ty1=Math.floor((this.y+6)/T),ty2=Math.floor((this.y+this.h-2)/T);
-    return tm.sol(tx,ty1)||tm.sol(tx,ty2);
+    // Use solUp so platforms don't block horizontal movement
+    return tm.solUp(tx,ty1)||tm.solUp(tx,ty2);
   }
   blockedUp(tm){
     const tx1=Math.floor((this.x+4)/T),tx2=Math.floor((this.x+this.w-4)/T);
     const ty=Math.floor((this.y-1)/T);
-    return tm.sol(tx1,ty)||tm.sol(tx2,ty);
+    return tm.solUp(tx1,ty)||tm.solUp(tx2,ty);
   }
 
   mv(tm){
@@ -992,7 +1126,7 @@ function d(sp,tx){return{sp,tx}}
 
 // ═══ GAME STATE ═══
 class Lv1{
-  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tut=false;this.exit=null;this.shk=0;this.shi=0;this.tileset='tiles_castle';this.fox={x:200,y:100,b:0,alive:true};this.stealthFailed=false}
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tut=false;this.exit=null;this.shk=0;this.shi=0;this.tileset='tiles_castle';this.fox={x:200,y:100,b:0,alive:true};this.stealthFailed=false;this.decos=[]}
 
   createHeroes(x,y,includeNesta){
     const heroes=[
@@ -1010,6 +1144,18 @@ class Lv1{
     for(let i=0;i<this.heroes.length;i++){
       if(i!==this.ai)this.companions.push(new Companion(this.heroes[i]));
     }
+    // Snap all entities to nearest ground/platform surface
+    if(this.tm){
+      for(const h of this.heroes)h.snapGnd(this.tm);
+      if(this.enemies)for(const e of this.enemies)e.snapGnd(this.tm);
+      // Snap NPCs to ground (NPC.y is reference point; drawn bottom = y+10)
+      if(this.npcs)for(const n of this.npcs){
+        const bx=Math.floor(n.x/T);
+        for(let yy=Math.floor(n.y/T);yy<this.tm.h;yy++){
+          if(this.tm.sol(bx,yy)){n.y=yy*T-10;break}
+        }
+      }
+    }
   }
 
   enter(){
@@ -1024,23 +1170,18 @@ class Lv1{
     this.enemies=[];this.npcs=[];
     this.tut=false;
 
-    // Base floor
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    // Walls
-    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
-    // Arena platforms for vertical gameplay
-    for(let x=30;x<50;x++)this.tm.set(x,H-6,3);
-    for(let x=70;x<90;x++)this.tm.set(x,H-7,3);
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'castle',this.act);
 
     this.heroes=this.createHeroes(50,(H-4)*T,true);
     this.heroes[0].ctrl=true;
     this.ai=0;
 
     this.enemies=[
-      new Enem(900,(H-4)*T,16,28,'Bakaris','#aa5533',100,10,'boss','bakaris'),
-      new Enem(560,(H-4)*T,20,32,'Ayik Ur','#4466aa',50,8,'chase','student'),
-      new Enem(700,(H-4)*T,20,32,'Hrigg','#668877',50,8,'patrol','student'),
-      new Enem(800,(H-9)*T,20,32,'Iriad','#8a7a5a',45,8,'chase','student'),
+      new Enem(900,(H-4)*T,24,36,'Bakaris','#aa5533',100,10,'boss','bakaris'),
+      new Enem(560,(H-4)*T,28,40,'Ayik Ur','#4466aa',50,8,'chase','castle_soldier'),
+      new Enem(700,(H-4)*T,28,40,'Hrigg','#668877',50,8,'patrol','castle_archer'),
+      new Enem(800,(H-4)*T,28,40,'Iriad','#8a7a5a',45,8,'chase','hideout_fighter'),
     ];
 
     this.rebuildCompanions();
@@ -1082,19 +1223,18 @@ class Lv1{
     this.enemies=[];this.npcs=[];
     this._act3done=false;
 
-    // Corridors
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'castle',this.act);
 
     this.heroes=this.createHeroes(50,(H-4)*T,true);
     this.heroes[0].ctrl=true;
     this.ai=0;
 
     this.npcs=[
-      new NPC(300,(H-4)*T,'Levna Drakehorn','levna',[d('Levna','The scar... I saw it on a dragon once. A blue dragon.')]),
-      new NPC(400,(H-4)*T,'Clystran','clystran',[d('Clystran','Dragons are myths... or are they?')]),
-      new NPC(500,(H-4)*T,'Darrett','darrett',[d('Darrett','I want to be a squire to someone great!')]),
-      new NPC(600,(H-4)*T,'Andir','andir',[d('Andir','The Old Gods watch over us still.')]),
+      new NPC(300,(H-4)*T,'Levna Drakehorn','minerva',[d('Levna','The scar... I saw it on a dragon once. A blue dragon.')]),
+      new NPC(400,(H-4)*T,'Clystran','elber',[d('Clystran','Dragons are myths... or are they?')]),
+      new NPC(500,(H-4)*T,'Darrett','nesta',[d('Darrett','I want to be a squire to someone great!')]),
+      new NPC(600,(H-4)*T,'Andir','nick',[d('Andir','The Old Gods watch over us still.')]),
     ];
 
     this.rebuildCompanions();
@@ -1115,13 +1255,8 @@ class Lv1{
     this.enemies=[];this.npcs=[];
     this.stealthFailed=false;
 
-    // Library base
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    // Bookshelves (tiles type 5)
-    for(let x=0;x<W;x++){this.tm.set(x,0,5);this.tm.set(x,1,5)}
-    for(let y=0;y<H;y++){this.tm.set(0,y,5);this.tm.set(1,y,5);this.tm.set(W-1,y,5);this.tm.set(W-2,y,5)}
-    for(let x=30;x<60;x++){this.tm.set(x,H-6,3)}
-    for(let x=80;x<110;x++){this.tm.set(x,H-7,3)}
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'library',this.act);
 
     this.heroes=this.createHeroes(40,(H-4)*T,true);
     this.heroes[0].ctrl=true;
@@ -1129,7 +1264,7 @@ class Lv1{
 
     // Guard NPC with patrol — touching it restarts the act
     this.enemies=[
-      new Enem(400,(H-4)*T,20,32,'Guard','#4466aa',40,8,'patrol','student'),
+      new Enem(400,(H-4)*T,28,40,'Guard','#4466aa',40,8,'patrol','castle_knight'),
       new Enem(600,(H-5)*T,16,20,'Mimic Book','#8844aa',20,6,'static','mimic'),
       new Enem(700,(H-5)*T,16,20,'Mimic Book','#8844aa',20,6,'static','mimic'),
     ];
@@ -1274,6 +1409,7 @@ class Lv1{
     R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
 
     if(this.tm)this.tm.draw(this.tileset);
+    R.drawDecos(this.decos);
 
     this.npcs.forEach(n=>n.draw());
     this.enemies.forEach(e=>e.draw());
@@ -1285,7 +1421,7 @@ class Lv1{
 
 // ═══ LEVEL 2 ═══
 class Lv2{
-  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_garden';this.exit=null;this.shk=0;this.shi=0;this.fishing=false;this.fishRound=0;this.fishCaught=0;this.fishBar=0;this.fishMarker=0;this.fishDir=1;this.tut=false}
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_garden';this.exit=null;this.shk=0;this.shi=0;this.fishing=false;this.fishRound=0;this.fishCaught=0;this.fishBar=0;this.fishMarker=0;this.fishDir=1;this.tut=false;this.decos=[]}
 
   createHeroes(x,y){
     return[
@@ -1301,6 +1437,18 @@ class Lv2{
     for(let i=0;i<this.heroes.length;i++){
       if(i!==this.ai)this.companions.push(new Companion(this.heroes[i]));
     }
+    // Snap all entities to nearest ground/platform surface
+    if(this.tm){
+      for(const h of this.heroes)h.snapGnd(this.tm);
+      if(this.enemies)for(const e of this.enemies)e.snapGnd(this.tm);
+      // Snap NPCs to ground (NPC.y is reference point; drawn bottom = y+10)
+      if(this.npcs)for(const n of this.npcs){
+        const bx=Math.floor(n.x/T);
+        for(let yy=Math.floor(n.y/T);yy<this.tm.h;yy++){
+          if(this.tm.sol(bx,yy)){n.y=yy*T-10;break}
+        }
+      }
+    }
   }
 
   enter(){
@@ -1313,9 +1461,8 @@ class Lv2{
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
-    for(let x=50;x<80;x++)this.tm.set(x,H-5,3);
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'garden',this.act);
 
     this.heroes=this.createHeroes(40,(H-4)*T);
     this.heroes[0].ctrl=true;
@@ -1340,19 +1487,16 @@ class Lv2{
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let y=0;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
-    for(let x=0;x<W;x++){this.tm.set(x,0,2);this.tm.set(x,1,2)}
-    for(let x=30;x<40;x++){this.tm.set(x,H-6,3);this.tm.set(x,H-8,3)}
-    for(let x=80;x<95;x++){this.tm.set(x,H-5,3)}
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'garden',this.act);
 
     this.heroes=this.createHeroes(50,(H-4)*T);
     this.heroes[0].ctrl=true;
     this.ai=0;
 
     this.npcs=[
-      new NPC(400,(H-4)*T,'Mayor','npc',[d('Mayor','Welcome to Vogler village!')]),
-      new NPC(500,(H-4)*T,'Ispin','npc',[d('Ispin','The fishing competition awaits!')]),
+      new NPC(400,(H-4)*T,'Mayor','bakaris',[d('Mayor','Welcome to Vogler village!')]),
+      new NPC(500,(H-4)*T,'Ispin','minerva',[d('Ispin','The fishing competition awaits!')]),
     ];
 
     this.rebuildCompanions();
@@ -1378,9 +1522,8 @@ class Lv2{
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
-    for(let x=40;x<80;x++)this.tm.set(x,H-6,3);
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'garden',this.act);
 
     this.heroes=this.createHeroes(50,(H-4)*T);
     this.heroes[0].ctrl=true;
@@ -1539,6 +1682,7 @@ class Lv2{
     }
 
     if(this.tm)this.tm.draw(this.tileset);
+    R.drawDecos(this.decos);
 
     this.npcs.forEach(n=>n.draw());
     this.enemies.forEach(e=>e.draw());
@@ -1550,7 +1694,7 @@ class Lv2{
 
 // ═══ LEVEL 3 ═══
 class Lv3{
-  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_library';this.exit=null;this.shk=0;this.shi=0;this.tut=false;this.stealthFailed=false}
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_library';this.exit=null;this.shk=0;this.shi=0;this.tut=false;this.stealthFailed=false;this.decos=[]}
 
   createHeroes(x,y){
     return[
@@ -1566,6 +1710,18 @@ class Lv3{
     for(let i=0;i<this.heroes.length;i++){
       if(i!==this.ai)this.companions.push(new Companion(this.heroes[i]));
     }
+    // Snap all entities to nearest ground/platform surface
+    if(this.tm){
+      for(const h of this.heroes)h.snapGnd(this.tm);
+      if(this.enemies)for(const e of this.enemies)e.snapGnd(this.tm);
+      // Snap NPCs to ground (NPC.y is reference point; drawn bottom = y+10)
+      if(this.npcs)for(const n of this.npcs){
+        const bx=Math.floor(n.x/T);
+        for(let yy=Math.floor(n.y/T);yy<this.tm.h;yy++){
+          if(this.tm.sol(bx,yy)){n.y=yy*T-10;break}
+        }
+      }
+    }
   }
 
   enter(){
@@ -1579,16 +1735,14 @@ class Lv3{
     this.enemies=[];this.npcs=[];
     this.stealthFailed=false;
 
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let x=0;x<W;x++){this.tm.set(x,0,5);this.tm.set(x,1,5)}
-    for(let y=0;y<H;y++){this.tm.set(0,y,5);this.tm.set(1,y,5);this.tm.set(W-1,y,5);this.tm.set(W-2,y,5)}
-    for(let x=30;x<50;x++){this.tm.set(x,H-5,3);this.tm.set(x,H-7,3)}
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'library',this.act);
 
     this.heroes=this.createHeroes(40,(H-4)*T);
     this.heroes[0].ctrl=true;
     this.ai=0;
 
-    this.enemies=[new Enem(300,(H-4)*T,20,32,'Guard','#4466aa',40,8,'patrol','student')];
+    this.enemies=[new Enem(300,(H-4)*T,28,40,'Guard','#4466aa',40,8,'patrol','castle_knight')];
 
     this.rebuildCompanions();
     this.hud();
@@ -1603,12 +1757,8 @@ class Lv3{
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let y=0;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
-    for(let x=10;x<W;x+=20){
-      for(let y=H-8;y<H-3;y+=3)this.tm.set(x,y,3);
-    }
-    for(let x=0;x<W;x++)this.tm.set(x,0,5);
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'library',this.act);
 
     this.heroes=this.createHeroes(40,(H-4)*T);
     this.heroes[0].ctrl=true;
@@ -1626,15 +1776,15 @@ class Lv3{
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'library',this.act);
 
     this.heroes=this.createHeroes(50,(H-4)*T);
     this.heroes[0].ctrl=true;
     this.ai=0;
 
     this.enemies=[
-      new Enem(400,(H-4)*T,18,28,'Cursed Sword','#9944ff',80,10,'static','student'),
+      new Enem(400,(H-4)*T,28,40,'Cursed Sword','#9944ff',80,10,'static','castle_priest'),
     ];
 
     this.rebuildCompanions();
@@ -1649,9 +1799,8 @@ class Lv3{
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
-    for(let x=60;x<90;x++)this.tm.set(x,H-6,3);
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'library',this.act);
 
     this.heroes=this.createHeroes(50,(H-4)*T);
     this.heroes[0].ctrl=true;
@@ -1673,15 +1822,14 @@ class Lv3{
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
-    for(let x=90;x<W;x++)this.tm.set(x,H-4,3);
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'library',this.act);
 
     this.heroes=this.createHeroes(50,(H-4)*T);
     this.heroes[0].ctrl=true;
     this.ai=0;
 
-    this.npcs=[new NPC(900,(H-4)*T,'Becklin','npc',[d('Becklin','You made it through the library.')])];
+    this.npcs=[new NPC(900,(H-4)*T,'Becklin','bakaris',[d('Becklin','You made it through the library.')])];
 
     this.rebuildCompanions();
     this.hud();
@@ -1791,6 +1939,7 @@ class Lv3{
     R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
 
     if(this.tm)this.tm.draw(this.tileset);
+    R.drawDecos(this.decos);
 
     this.npcs.forEach(n=>n.draw());
     this.enemies.forEach(e=>e.draw());
@@ -1802,7 +1951,7 @@ class Lv3{
 
 // ═══ LEVEL 4 ═══
 class Lv4{
-  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_castle';this.exit=null;this.shk=0;this.shi=0}
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_castle';this.exit=null;this.shk=0;this.shi=0;this.decos=[]}
 
   createHeroes(x,y){
     return[
@@ -1819,6 +1968,18 @@ class Lv4{
     for(let i=0;i<this.heroes.length;i++){
       if(i!==this.ai)this.companions.push(new Companion(this.heroes[i]));
     }
+    // Snap all entities to nearest ground/platform surface
+    if(this.tm){
+      for(const h of this.heroes)h.snapGnd(this.tm);
+      if(this.enemies)for(const e of this.enemies)e.snapGnd(this.tm);
+      // Snap NPCs to ground (NPC.y is reference point; drawn bottom = y+10)
+      if(this.npcs)for(const n of this.npcs){
+        const bx=Math.floor(n.x/T);
+        for(let yy=Math.floor(n.y/T);yy<this.tm.h;yy++){
+          if(this.tm.sol(bx,yy)){n.y=yy*T-10;break}
+        }
+      }
+    }
   }
 
   enter(){
@@ -1831,21 +1992,20 @@ class Lv4{
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
-    for(let x=40;x<80;x++)this.tm.set(x,H-6,3);
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'castle',this.act);
 
     this.heroes=this.createHeroes(60,(H-4)*T);
     this.heroes[0].ctrl=true;
     this.ai=0;
 
     this.npcs=[
-      new NPC(150,(H-4)*T,'Bakaris','npc',[d('Bakaris','The time has come.')]),
-      new NPC(250,(H-4)*T,'Levna','npc',[d('Levna','The destiny awaits us.')]),
-      new NPC(350,(H-4)*T,'Clystran','npc',[d('Clystran','Our bonds are tested.')]),
-      new NPC(450,(H-4)*T,'Becklin','npc',[d('Becklin','What lies ahead?')]),
-      new NPC(550,(H-4)*T,'Cudgel','npc',[d('Cudgel','The choice is ours.')]),
-      new NPC(650,(H-4)*T,'Tem Temble','npc',[d('Tem Temble','Magic flows through us all.')]),
+      new NPC(150,(H-4)*T,'Bakaris','bakaris',[d('Bakaris','The time has come.')]),
+      new NPC(250,(H-4)*T,'Levna','minerva',[d('Levna','The destiny awaits us.')]),
+      new NPC(350,(H-4)*T,'Clystran','elber',[d('Clystran','Our bonds are tested.')]),
+      new NPC(450,(H-4)*T,'Becklin','nesta',[d('Becklin','What lies ahead?')]),
+      new NPC(550,(H-4)*T,'Cudgel','nick',[d('Cudgel','The choice is ours.')]),
+      new NPC(650,(H-4)*T,'Tem Temble','kote',[d('Tem Temble','Magic flows through us all.')]),
     ];
 
     this.rebuildCompanions();
@@ -1959,6 +2119,7 @@ class Lv4{
     R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
 
     if(this.tm)this.tm.draw(this.tileset);
+    R.drawDecos(this.decos);
 
     this.npcs.forEach(n=>n.draw());
     this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
@@ -1969,7 +2130,7 @@ class Lv4{
 
 // ═══ LEVEL 5 ═══
 class Lv5{
-  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_dungeon';this.shk=0;this.shi=0;this.escapeTimer=0}
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_dungeon';this.shk=0;this.shi=0;this.escapeTimer=0;this.decos=[]}
 
   createHeroes(x,y){
     return[
@@ -1986,6 +2147,18 @@ class Lv5{
     for(let i=0;i<this.heroes.length;i++){
       if(i!==this.ai)this.companions.push(new Companion(this.heroes[i]));
     }
+    // Snap all entities to nearest ground/platform surface
+    if(this.tm){
+      for(const h of this.heroes)h.snapGnd(this.tm);
+      if(this.enemies)for(const e of this.enemies)e.snapGnd(this.tm);
+      // Snap NPCs to ground (NPC.y is reference point; drawn bottom = y+10)
+      if(this.npcs)for(const n of this.npcs){
+        const bx=Math.floor(n.x/T);
+        for(let yy=Math.floor(n.y/T);yy<this.tm.h;yy++){
+          if(this.tm.sol(bx,yy)){n.y=yy*T-10;break}
+        }
+      }
+    }
   }
 
   enter(){
@@ -1998,14 +2171,14 @@ class Lv5{
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'dungeon',this.act);
 
     this.heroes=this.createHeroes(60,(H-4)*T);
     this.heroes[0].ctrl=true;
     this.ai=0;
 
-    this.npcs=[new NPC(300,(H-4)*T,'Armory Master','npc',[d('Armory Master','Arm yourselves. War comes.')])];
+    this.npcs=[new NPC(300,(H-4)*T,'Armory Master','nick',[d('Armory Master','Arm yourselves. War comes.')])];
 
     this.rebuildCompanions();
     this.hud();
@@ -2020,18 +2193,18 @@ class Lv5{
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'dungeon',this.act);
 
     this.heroes=this.createHeroes(60,(H-4)*T);
     this.heroes[0].ctrl=true;
     this.ai=0;
 
     this.enemies=[
-      new Enem(400,(H-4)*T,20,32,'Soldier 1','#888',50,9,'chase','student'),
-      new Enem(500,(H-4)*T,20,32,'Soldier 2','#999',50,9,'chase','student'),
-      new Enem(600,(H-4)*T,20,32,'Soldier 3','#777',50,9,'patrol','student'),
-      new Enem(700,(H-4)*T,20,32,'Soldier 4','#aaa',50,9,'chase','student'),
+      new Enem(400,(H-4)*T,28,40,'Soldier 1','#888',50,9,'chase','castle_soldier'),
+      new Enem(500,(H-4)*T,28,40,'Soldier 2','#999',50,9,'chase','castle_knight'),
+      new Enem(600,(H-4)*T,28,40,'Soldier 3','#777',50,9,'patrol','castle_archer'),
+      new Enem(700,(H-4)*T,28,40,'Soldier 4','#aaa',50,9,'chase','hideout_fighter'),
     ];
 
     this.rebuildCompanions();
@@ -2046,8 +2219,8 @@ class Lv5{
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'dungeon',this.act);
 
     this.heroes=this.createHeroes(60,(H-4)*T);
     this.heroes[0].ctrl=true;
@@ -2070,9 +2243,8 @@ class Lv5{
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
-    for(let x=80;x<120;x++)this.tm.set(x,H-6,3);
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'dungeon',this.act);
 
     this.heroes=this.createHeroes(60,(H-4)*T);
     this.heroes[0].ctrl=true;
@@ -2094,8 +2266,8 @@ class Lv5{
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'dungeon',this.act);
 
     this.heroes=this.createHeroes(60,(H-4)*T);
     this.heroes[0].ctrl=true;
@@ -2117,8 +2289,8 @@ class Lv5{
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'dungeon',this.act);
 
     this.heroes=this.createHeroes(60,(H-4)*T);
     this.heroes[0].ctrl=true;
@@ -2142,8 +2314,8 @@ class Lv5{
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
-    for(let x=0;x<W;x++)for(let y=H-3;y<H;y++)this.tm.set(x,y,1);
-    for(let y=H-3;y<H;y++){this.tm.set(0,y,2);this.tm.set(W-1,y,2)}
+    buildArena(this.tm,W,H,this.act);
+    this.decos=genDecos(W,H,'dungeon',this.act);
 
     this.heroes=this.createHeroes(60,(H-4)*T);
     this.heroes[0].ctrl=true;
@@ -2295,6 +2467,7 @@ class Lv5{
     }
 
     if(this.tm)this.tm.draw(this.tileset);
+    R.drawDecos(this.decos);
 
     this.npcs.forEach(n=>n.draw());
     this.enemies.forEach(e=>e.draw());
@@ -2366,6 +2539,27 @@ const G={sc:null,
       {type:'image',key:'fx_nick_skill',path:'assets/fx/nick_skill.png'},
       {type:'image',key:'fx_dash',path:'assets/fx/dash_fx.png'},
       {type:'image',key:'fx_enemy_death',path:'assets/fx/enemy_death.png'},
+      // Decoration props
+      {type:'image',key:'deco_tree',path:'assets/env/props/extracted/tree_green.png'},
+      {type:'image',key:'deco_bush',path:'assets/env/props/extracted/bush.png'},
+      {type:'image',key:'deco_dead_tree',path:'assets/env/props/extracted/dead_tree.png'},
+      {type:'image',key:'deco_grass',path:'assets/env/props/extracted/grass_tuft.png'},
+      {type:'image',key:'deco_rock_lg',path:'assets/env/props/extracted/rock_large.png'},
+      {type:'image',key:'deco_rock_md',path:'assets/env/props/extracted/rock_med.png'},
+      {type:'image',key:'deco_rock_sm',path:'assets/env/props/extracted/rock_small.png'},
+      {type:'image',key:'deco_banner_red',path:'assets/env/props/extracted/banner_red.png'},
+      {type:'image',key:'deco_banner_blue',path:'assets/env/props/extracted/banner_blue.png'},
+      {type:'image',key:'deco_candelabra',path:'assets/env/props/extracted/candelabra.png'},
+      {type:'image',key:'deco_barrel',path:'assets/env/props/extracted/barrel.png'},
+      {type:'image',key:'deco_pot',path:'assets/env/props/extracted/pot.png'},
+      {type:'image',key:'deco_bench',path:'assets/env/props/extracted/bench.png'},
+      {type:'image',key:'deco_window',path:'assets/env/props/extracted/window_arch.png'},
+      {type:'image',key:'deco_potion',path:'assets/env/props/extracted/potion_green.png'},
+      {type:'image',key:'deco_candle',path:'assets/env/props/extracted/candle.png'},
+      {type:'image',key:'deco_mushroom',path:'assets/env/props/extracted/mushroom.png'},
+      {type:'image',key:'deco_chain',path:'assets/env/props/extracted/chain_row.png'},
+      {type:'image',key:'deco_weapons',path:'assets/env/props/extracted/weapons_rack.png'},
+      {type:'image',key:'deco_planter',path:'assets/env/props/extracted/planter.png'},
     ];
     Assets.load(manifest).then(()=>{
       document.getElementById('loadScr').style.display='none';
@@ -2384,13 +2578,21 @@ const G={sc:null,
   start(lvl){
     document.getElementById('title').style.display='none';
     document.getElementById('c').focus();
+    D.on=false;D.idx=0;D.dlgs=[];document.getElementById('dlg').style.display='none'; // Reset dialogue state
+    FX.active=[]; // Clear leftover FX
     this.sc=lvl;
-    this.sc.enter();
+    try{
+      this.sc.enter();
+    }catch(err){
+      console.error('Level enter() error:',err);
+      document.getElementById('hint').textContent='ERROR: '+err.message;
+    }
     I.flush(); // clear any leftover key presses from button click
     if(!this._looping){this._looping=true;this.loop()}
   },
   title(){
     this.sc=null;
+    D.on=false;D.idx=0;D.dlgs=[];
     document.getElementById('title').style.display='flex';
     document.getElementById('hud').style.display='none';
     document.getElementById('dlg').style.display='none';
@@ -2427,6 +2629,7 @@ const G={sc:null,
       }
     }catch(err){
       console.error('Game loop error:',err);
+      document.getElementById('hint').textContent='LOOP ERR: '+err.message;
       // Even if draw crashes, keep the loop alive so dialogue still works
       if(D.on) D.up(dt);
     }
