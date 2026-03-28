@@ -1,0 +1,3463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chronicles of Azurerune</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a1a;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Courier New',monospace}
+canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+#gameContainer{position:relative}
+#ui{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+#dlg{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);width:88%;max-width:680px;background:rgba(8,8,30,0.95);border:2px solid #c8a84e;border-radius:6px;padding:14px 18px;color:#f0e6c0;font-size:14px;line-height:1.5;display:none;pointer-events:auto;z-index:10}
+#dlg .sp{color:#c8a84e;font-weight:bold;margin-bottom:3px;font-size:12px}
+#dlg .tx{min-height:36px}
+#dlg .pr{color:#555;font-size:10px;margin-top:6px;text-align:right}
+#title{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;pointer-events:auto;z-index:20}
+#title h1{color:#c8a84e;font-size:30px;text-shadow:0 0 18px rgba(200,168,78,0.4);margin-bottom:4px;text-align:center}
+#title h2{color:#8ab4d4;font-size:15px;margin-bottom:28px;font-weight:normal;text-align:center}
+#title .sub{color:#5a84a4;font-size:11px;margin-bottom:20px}
+.btn{pointer-events:auto;background:rgba(200,168,78,0.1);border:1px solid #c8a84e;color:#c8a84e;padding:9px 32px;font-family:inherit;font-size:13px;cursor:pointer;margin:4px;border-radius:3px;outline:none}
+.btn:hover{background:rgba(200,168,78,0.22)}
+.btn:focus{outline:none}
+#hud{position:absolute;top:0;left:0;width:100%;padding:5px 8px;display:none;pointer-events:none;z-index:5;display:flex;gap:5px;align-items:flex-start}
+.hs{display:flex;flex-direction:column;align-items:center;pointer-events:auto;cursor:pointer;padding:2px 3px;border-radius:3px;border:2px solid transparent}
+.hs.act{border-color:#c8a84e;background:rgba(200,168,78,0.08)}
+.hp-bar{width:32px;height:3px;background:#222;border-radius:1px;margin-top:2px}
+.hp-fill{height:100%;border-radius:1px;transition:width 0.3s}
+.hs .nm{color:#888;font-size:8px;margin-top:1px}
+#ecount{color:#f88;font-size:10px;margin-left:10px;margin-top:6px;pointer-events:none}
+#actT{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;display:none;z-index:8;pointer-events:none}
+#actT .an{color:#c8a84e;font-size:12px;letter-spacing:3px;text-transform:uppercase}
+#actT .at{color:#f0e6c0;font-size:24px;margin-top:3px;text-shadow:0 0 12px rgba(200,168,78,0.3)}
+#hint{position:absolute;bottom:5px;right:8px;color:#3a3a3a;font-size:9px;pointer-events:none}
+#loadScr{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;background:#0a0a1a;z-index:30}
+#loadScr .lt{color:#c8a84e;font-size:14px;margin-bottom:12px}
+#loadScr .bar{width:200px;height:6px;background:#1a1a2a;border:1px solid #333;border-radius:3px}
+#loadScr .fill{height:100%;background:#c8a84e;border-radius:2px;width:0%;transition:width 0.2s}
+#loadScr .info{color:#555;font-size:10px;margin-top:8px}
+</style>
+</head>
+<body>
+<div id="gameContainer">
+<canvas id="c" tabindex="0"></canvas>
+<div id="ui">
+<div id="loadScr"><div class="lt">Loading Assets...</div><div class="bar"><div class="fill" id="loadBar"></div></div><div class="info" id="loadInfo"></div></div>
+<div id="title" style="display:none">
+<h1>Chronicles of Azurerune</h1>
+<h2>El Desafio de los Heroes</h2>
+<div class="sub">Session 1 — School Day</div>
+<div style="margin-bottom:12px;display:flex;gap:6px">
+  <button class="btn" id="langEN" style="padding:4px 12px;font-size:10px">EN</button>
+  <button class="btn" id="langES" style="padding:4px 12px;font-size:10px">ES</button>
+  <button class="btn" id="langIT" style="padding:4px 12px;font-size:10px">IT</button>
+</div>
+<button class="btn" id="startBtn">Level 1: School Day</button>
+<button class="btn" id="startBtn2">Level 2: Kingfisher Festival</button>
+<button class="btn" id="startBtn3">Level 3: Library of Secrets</button>
+<button class="btn" id="startBtn4">Level 4: Yurthgreen Masquerade</button>
+<button class="btn" id="startBtn5">Level 5: When the Home Burns</button>
+</div>
+<div id="hud"></div>
+<span id="ecount"></span>
+<div id="actT"><div class="an"></div><div class="at"></div></div>
+<div id="dlg"><div class="sp"></div><div class="tx"></div><div class="pr">[SPACE or CLICK]</div></div>
+<div id="hint"></div>
+</div>
+</div>
+<script>
+const CW=800,CH=480,T=16,GR=0.6,MF=10;
+
+// ═══ ASSET LOADER ═══
+const Assets={
+  images:{},meta:{},total:0,loaded:0,
+  parseMeta(txt){
+    const anims={};
+    for(const line of txt.split('\n')){
+      const m=line.match(/^(.+?)\s*=\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/);
+      if(!m)continue;
+      const path=m[1].trim(),x=+m[2],y=+m[3],w=+m[4],h=+m[5];
+      let anim=path,frame=0;
+      const fm=path.match(/^(.+?)(?:\/frame(\d+)(?:\.png)?|\.png)?$/);
+      if(fm){anim=fm[1];frame=fm[2]?+fm[2]:0}
+      const parts=anim.split('/');
+      if(parts.length>1)anim=parts.slice(1).join('/');
+      if(!anims[anim])anims[anim]=[];
+      anims[anim].push({x,y,w,h,frame});
+    }
+    for(const k in anims)anims[k].sort((a,b)=>a.frame-b.frame);
+    return anims;
+  },
+  async load(manifest){
+    this.total=manifest.length;this.loaded=0;
+    const bar=document.getElementById('loadBar'),info=document.getElementById('loadInfo');
+    const bust='?v='+Date.now(); // Cache bust to force reload of updated sprites
+    const promises=manifest.map(item=>{
+      if(item.type==='image'){
+        return new Promise(res=>{
+          const img=new Image();
+          img.onload=()=>{this.images[item.key]=img;this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%';info.textContent=item.path;res()};
+          img.onerror=()=>{console.warn('Failed:',item.path);this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%';res()};
+          img.src=item.path+bust;
+        });
+      }else if(item.type==='meta'){
+        return fetch(item.path+bust).then(r=>r.text()).then(txt=>{
+          this.meta[item.key]=this.parseMeta(txt);this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%';info.textContent=item.path;
+        }).catch(()=>{console.warn('Failed meta:',item.path);this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%'});
+      }
+    });
+    await Promise.all(promises);
+  }
+};
+
+// ═══ INPUT ═══
+const I={k:{},j:{},
+  init(){
+    window.addEventListener('keydown',e=>{
+      if(!this.k[e.code])this.j[e.code]=true;
+      this.k[e.code]=true;
+      if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.code))e.preventDefault();
+      // Direct dialogue advancement as backup — bypasses game loop entirely
+      if(D.on&&(e.code==='Space'||e.code==='Enter')){
+        D._advance=true;
+      }
+    });
+    window.addEventListener('keyup',e=>{this.k[e.code]=false});
+    // Click anywhere on the page advances dialogue
+    window.addEventListener('click',e=>{
+      if(D.on){
+        D._advance=true;
+        this.j['Space']=true;
+      }
+    });
+  },
+  flush(){this.j={}},down(c){return!!this.k[c]},pr(c){return!!this.j[c]}
+};
+
+// ═══ TRANSLATION SYSTEM ═══
+const Lang = {
+  current: 'en',
+  set(lang) { this.current = lang; },
+  t(key) { return (this.strings[this.current] && this.strings[this.current][key]) || (this.strings.en && this.strings.en[key]) || key; },
+  strings: {
+    en: {
+      // Title screen
+      title: 'Chronicles of Azurerune',
+      subtitle: 'El Desafio de los Heroes',
+      lvl1: 'Level 1: School Day',
+      lvl2: 'Level 2: Kingfisher Festival',
+      lvl3: 'Level 3: Library of Secrets',
+      lvl4: 'Level 4: Yurthgreen Masquerade',
+      lvl5: 'Level 5: When the Home Burns',
+      // Common gameplay
+      enemies: 'Enemies',
+      victory: 'Victory!',
+      defeat: 'Defeat!',
+      press_space: '[SPACE or CLICK]',
+      fishing_catch: 'Fish Caught!',
+      fishing_miss: 'Missed! Try again.',
+      // L1 dialogues
+      l1_intro: 'The School Day: A grand finale awaits.',
+      l1_bakaris: '"You think you can beat me?"',
+      l1_tutorial: 'Defeat Bakaris and his crew!',
+      l1_victory: 'Victory! The arena is yours!',
+      l1_fox_death: 'Bakaris... killed Nesta\'s fox familiar.',
+      l1_nesta_scar: 'Nesta retaliates! Bakaris is scarred forever.',
+      l1_enemy_forged: 'A lifelong enemy has been forged.',
+      // L2 dialogues
+      l2_river: 'Suddenly, Darkmantles emerge from the darkness!',
+      l2_festival: 'Vogler village - the festival center',
+      l2_fishing: 'The Kingfisher Fishing Competition begins!',
+      l2_kapak: 'A Draconian Kapak blocks the path!',
+      // L3 dialogues
+      l3_stealth: 'Inside the Library of Secrets!',
+      l3_detected: 'Detected! Restarting stealth...',
+      l3_spectator: 'The Spectator floats menacingly!',
+      l3_escape: 'You escaped the library!',
+      // L4 dialogues
+      l4_masquerade: 'The Yurthgreen Masquerade begins...',
+      l4_armor: 'Minerva receives Solamnic armor!',
+      l4_pact: 'Lohezet offers a dark pact...',
+      l4_ritual: 'Ispin begins the ritual...',
+      // L5 dialogues
+      l5_calm: 'Vogler prepares for the reenactment...',
+      l5_broken: 'The actors reveal real weapons!',
+      l5_kansaldi: 'Kansaldi Fire Eyes appears!',
+      l5_becklin: 'Becklin falls... "Run, children!"',
+      l5_end: 'VICTORY! THE END',
+      l5_complete: 'Chronicles of Azurerune: Book 1 Complete',
+    },
+    es: {
+      title: 'Crónicas de Azurerune',
+      subtitle: 'El Desafío de los Héroes',
+      lvl1: 'Nivel 1: Día de Escuela',
+      lvl2: 'Nivel 2: Festival del Martín Pescador',
+      lvl3: 'Nivel 3: Biblioteca de Secretos',
+      lvl4: 'Nivel 4: Mascarada de Yurthgreen',
+      lvl5: 'Nivel 5: Cuando Arde el Hogar',
+      enemies: 'Enemigos',
+      victory: '¡Victoria!',
+      defeat: '¡Derrota!',
+      press_space: '[ESPACIO o CLIC]',
+      fishing_catch: '¡Pez atrapado!',
+      fishing_miss: '¡Fallaste! Inténtalo de nuevo.',
+      l1_intro: 'El Día de Escuela: Un gran final te espera.',
+      l1_bakaris: '"¿Crees que puedes vencerme?"',
+      l1_tutorial: '¡Derrota a Bakaris y su equipo!',
+      l1_victory: '¡Victoria! La arena es tuya.',
+      l1_fox_death: 'Bakaris... mató al familiar zorro de Nesta.',
+      l1_nesta_scar: '¡Nesta se venga! Bakaris queda marcado para siempre.',
+      l1_enemy_forged: 'Un enemigo de por vida ha sido forjado.',
+      l2_river: '¡De repente, los Darkmantles emergen de la oscuridad!',
+      l2_festival: 'Aldea de Vogler - el centro del festival',
+      l2_fishing: '¡La Competición de Pesca del Martín Pescador comienza!',
+      l2_kapak: '¡Un Draconiano Kapak bloquea el camino!',
+      l3_stealth: '¡Dentro de la Biblioteca de Secretos!',
+      l3_detected: '¡Detectado! Reiniciando sigilo...',
+      l3_spectator: '¡El Espectador flota amenazante!',
+      l3_escape: '¡Escapaste de la biblioteca!',
+      l4_masquerade: 'La Mascarada de Yurthgreen comienza...',
+      l4_armor: '¡Minerva recibe la armadura Solamnia!',
+      l4_pact: 'Lohezet ofrece un pacto oscuro...',
+      l4_ritual: 'Ispin comienza el ritual...',
+      l5_calm: 'Vogler se prepara para la recreación...',
+      l5_broken: '¡Los actores revelan armas reales!',
+      l5_kansaldi: '¡Kansaldi Ojos de Fuego aparece!',
+      l5_becklin: 'Becklin cae... "¡Corran, niños!"',
+      l5_end: '¡VICTORIA! FIN',
+      l5_complete: 'Crónicas de Azurerune: Libro 1 Completo',
+    },
+    it: {
+      title: 'Cronache di Azurerune',
+      subtitle: 'La Sfida degli Eroi',
+      lvl1: 'Livello 1: Giorno di Scuola',
+      lvl2: 'Livello 2: Festival del Martin Pescatore',
+      lvl3: 'Livello 3: Biblioteca dei Segreti',
+      lvl4: 'Livello 4: Mascherata di Yurthgreen',
+      lvl5: 'Livello 5: Quando Brucia la Casa',
+      enemies: 'Nemici',
+      victory: 'Vittoria!',
+      defeat: 'Sconfitta!',
+      press_space: '[SPAZIO o CLIC]',
+      fishing_catch: 'Pesce catturato!',
+      fishing_miss: 'Mancato! Riprova.',
+      l1_intro: 'Il Giorno di Scuola: Un grande finale ti aspetta.',
+      l1_bakaris: '"Pensi di potermi battere?"',
+      l1_tutorial: 'Sconfiggi Bakaris e la sua squadra!',
+      l1_victory: 'Vittoria! L\'arena è tua.',
+      l1_fox_death: 'Bakaris... ha ucciso il famiglio volpe di Nesta.',
+      l1_nesta_scar: 'Nesta si vendica! Bakaris è sfregiato per sempre.',
+      l1_enemy_forged: 'Un nemico per la vita è stato forgiato.',
+      l2_river: 'Improvvisamente, i Darkmantle emergono dall\'oscurità!',
+      l2_festival: 'Villaggio di Vogler - il centro del festival',
+      l2_fishing: 'La Gara di Pesca del Martin Pescatore inizia!',
+      l2_kapak: 'Un Draconiano Kapak blocca il cammino!',
+      l3_stealth: 'Dentro la Biblioteca dei Segreti!',
+      l3_detected: 'Scoperto! Riavvio furtività...',
+      l3_spectator: 'Lo Spettatore fluttua minaccioso!',
+      l3_escape: 'Sei fuggito dalla biblioteca!',
+      l4_masquerade: 'La Mascherata di Yurthgreen inizia...',
+      l4_armor: 'Minerva riceve l\'armadura Solamnia!',
+      l4_pact: 'Lohezet offre un patto oscuro...',
+      l4_ritual: 'Ispin inizia il rituale...',
+      l5_calm: 'Vogler si prepara per la rievocazione...',
+      l5_broken: 'Gli attori rivelano armi vere!',
+      l5_kansaldi: 'Kansaldi Occhi di Fuoco appare!',
+      l5_becklin: 'Becklin cade... "Correte, ragazzi!"',
+      l5_end: 'VITTORIA! FINE',
+      l5_complete: 'Cronache di Azurerune: Libro 1 Completo',
+    }
+  }
+};
+
+// ═══ RENDERER ═══
+const R={c:null,x:null,cam:{x:0,y:0},
+  init(){this.c=document.getElementById('c');this.c.width=CW;this.c.height=CH;this.x=this.c.getContext('2d');this.x.imageSmoothingEnabled=false},
+  cls(col){this.x.fillStyle=col;this.x.fillRect(0,0,CW,CH)},
+  rect(x,y,w,h,col){this.x.fillStyle=col;this.x.fillRect(x-this.cam.x,y-this.cam.y,w,h)},
+  sr(x,y,w,h,col){this.x.fillStyle=col;this.x.fillRect(x,y,w,h)},
+  txt(t,x,y,c,s,a){this.x.fillStyle=c||'#fff';this.x.font=(s||11)+'px "Courier New",monospace';this.x.textAlign=a||'left';this.x.fillText(t,x,y)},
+  drawDecos(decos){
+    if(!decos)return;
+    const ctx=this.x;
+    const order=['bg','wall','ground',undefined];
+    for(const layer of order){
+      decos.forEach(d=>{
+        if(d.layer!==layer)return;
+        const px=d.x-this.cam.x,py=d.y-this.cam.y;
+        if(px>-150&&px<CW+150&&py>-150&&py<CH+150){
+          ctx.globalAlpha=d.a||1;
+          if(d.img)ctx.drawImage(d.img,Math.round(px),Math.round(py));
+          ctx.globalAlpha=1;
+        }
+      });
+    }
+  },
+  a(v){this.x.globalAlpha=v},ra(){this.x.globalAlpha=1},
+
+  // SPRITE-BASED HERO DRAWING (aspect-ratio preserving)
+  drawHero(type,state,frame,x,y,w,h,flip){
+    const cfg=SpriteConfig.heroes[type];
+    if(!cfg){this._drawHeroFallback(type,state,frame,x,y,w,h,flip);return;}
+
+    const img=Assets.images[cfg.img];
+    const meta=Assets.meta[cfg.meta];
+    if(!img||!meta){this._drawHeroFallback(type,state,frame,x,y,w,h,flip);return;}
+
+    const animName=cfg.stateMap[state]||cfg.stateMap.idle;
+    const frames=meta[animName];
+    if(!frames||frames.length===0){this._drawHeroFallback(type,state,frame,x,y,w,h,flip);return;}
+
+    const f=frames[frame%frames.length];
+    // Preserve aspect ratio: scale sprite 1.5x, feet anchored at entity bottom
+    const ratio=f.w/f.h;
+    const dh=h*1.5;const dw=dh*ratio;
+    const ox=(w-dw)/2; // Center on entity horizontally
+    const px=x-this.cam.x+ox,py=y-this.cam.y+h-dh; // feet anchored
+
+    const ctx=this.x;
+    ctx.save();
+    if(flip){
+      ctx.translate(x-this.cam.x+w-ox,py);
+      ctx.scale(-1,1);
+      ctx.drawImage(img,f.x,f.y,f.w,f.h,0,0,dw,dh);
+    }else{
+      ctx.drawImage(img,f.x,f.y,f.w,f.h,px,py,dw,dh);
+    }
+    ctx.restore();
+  },
+
+  // SPRITE-BASED ENEMY DRAWING (1.5x scale, feet anchored)
+  drawEnemy(type,state,frame,x,y,w,h,flip){
+    const cfg=SpriteConfig.enemies[type];
+    if(!cfg){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
+
+    // Scale sprite 1.5x, anchor feet at entity bottom
+    const dw=w*1.5,dh=h*1.5;
+    const px=x-this.cam.x-(dw-w)/2, py=y-this.cam.y-(dh-h); // center X, feet anchored
+    const ctx=this.x;
+
+    if(cfg.type==='meta'){
+      const img=Assets.images[cfg.img];
+      const meta=Assets.meta[cfg.meta];
+      if(!img||!meta){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
+
+      const animName=cfg.stateMap[state]||cfg.stateMap.idle;
+      const frames=meta[animName];
+      if(!frames||frames.length===0){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
+
+      const f=frames[frame%frames.length];
+      ctx.save();
+      if(flip){
+        ctx.translate(x-this.cam.x+(dw+w)/2,py);
+        ctx.scale(-1,1);
+        ctx.drawImage(img,f.x,f.y,f.w,f.h,0,0,dw,dh);
+      }else{
+        ctx.drawImage(img,f.x,f.y,f.w,f.h,px,py,dw,dh);
+      }
+      ctx.restore();
+    }else if(cfg.type==='strip'){
+      const stripKey=cfg.imgs[state]||cfg.imgs.idle||Object.values(cfg.imgs)[0];
+      const img=Assets.images[stripKey];
+      if(!img){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
+
+      const fH=img.height;
+      const fW=cfg.frameW&&cfg.frameH===img.height?cfg.frameW:fH;
+      const numFrames=Math.max(1,Math.floor(img.width/fW));
+      const frameIdx=frame%numFrames;
+
+      ctx.save();
+      if(flip){
+        ctx.translate(x-this.cam.x+(dw+w)/2,py);
+        ctx.scale(-1,1);
+        ctx.drawImage(img,frameIdx*fW,0,fW,fH,0,0,dw,dh);
+      }else{
+        ctx.drawImage(img,frameIdx*fW,0,fW,fH,px,py,dw,dh);
+      }
+      ctx.restore();
+      // Tint overlay for color variants
+      if(cfg.tint){
+        ctx.globalCompositeOperation='multiply';
+        ctx.globalAlpha=0.6;
+        ctx.fillStyle=cfg.tint;
+        ctx.fillRect(px,py,dw,dh);
+        ctx.globalCompositeOperation='source-over';
+        ctx.globalAlpha=1;
+      }
+      // Draconian sprites now include full head from source sheet — no overlay needed
+    }else if(cfg.type==='single'){
+      const img=Assets.images[cfg.img];
+      if(!img){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
+
+      ctx.save();
+      if(flip){
+        ctx.translate(x-this.cam.x+(dw+w)/2,py);
+        ctx.scale(-1,1);
+        ctx.drawImage(img,0,0,img.width,img.height,0,0,dw,dh);
+      }else{
+        ctx.drawImage(img,0,0,img.width,img.height,px,py,dw,dh);
+      }
+      ctx.restore();
+    }else{
+      this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);
+    }
+  },
+
+  // FALLBACK HERO DRAWING (programmatic)
+  _drawHeroFallback(type,state,frame,x,y,w,h,flip){
+    const ctx=this.x;
+    let px=x-this.cam.x,py=y-this.cam.y;
+    const sc=(w/20);const ox=px+w/2;
+
+    if(type==='kote'){
+      // KOTE - Rogue with daggers
+      ctx.fillStyle='#c8a866';ctx.fillRect(ox-3*sc,py+8*sc,6*sc,6*sc); // head
+      ctx.fillStyle='#2a2a1a';ctx.fillRect(ox-2*sc,py+6*sc,4*sc,2*sc); // dark hair
+      ctx.fillStyle='#3a7a55';ctx.fillRect(ox-4*sc,py+15*sc,8*sc,8*sc); // tunic
+      ctx.fillStyle='#4a4a2a';ctx.fillRect(ox-5*sc,py+23*sc,10*sc,6*sc); // pants
+      ctx.fillStyle='#1a1a0a';ctx.fillRect(ox-5*sc,py+29*sc,5*sc,4*sc);ctx.fillRect(ox,py+29*sc,5*sc,4*sc); // boots
+      if(state==='run'){const lf=Math.sin(frame*0.5)*2;ctx.fillRect(ox-3*sc,py+29*sc,3*sc,4*sc+lf);ctx.fillRect(ox,py+29*sc,3*sc,4*sc-lf);}
+      if(state==='attack'||state==='skill'){ctx.fillStyle='#aaa';const da=flip?-8:8;ctx.fillRect(ox+da*sc,py+14*sc,2*sc,8*sc);} // dagger
+      if(state==='dash'){ctx.globalAlpha=0.5;ctx.fillStyle='#3a7a55';ctx.fillRect(ox-6*sc,py+15*sc,12*sc,8*sc);ctx.globalAlpha=1;}
+    }
+    else if(type==='minerva'){
+      // MINERVA - Warrior Knight with axe
+      ctx.fillStyle='#c8a866';ctx.fillRect(ox-3*sc,py+8*sc,6*sc,6*sc); // head
+      ctx.fillStyle='#dd3333';ctx.fillRect(ox-2*sc,py+6*sc,4*sc,2*sc); // red hair
+      ctx.fillStyle='#d4a830';ctx.fillRect(ox-5*sc,py+15*sc,10*sc,10*sc); // armor plate
+      ctx.fillStyle='#aaa';ctx.fillRect(ox-6*sc,py+14*sc,2*sc,4*sc);ctx.fillRect(ox+4*sc,py+14*sc,2*sc,4*sc); // pauldrons
+      ctx.fillStyle='#4a4a2a';ctx.fillRect(ox-5*sc,py+25*sc,10*sc,6*sc); // greaves
+      ctx.fillStyle='#1a1a0a';ctx.fillRect(ox-5*sc,py+31*sc,5*sc,4*sc);ctx.fillRect(ox,py+31*sc,5*sc,4*sc); // boots
+      if(state==='attack'||state==='skill'){ctx.fillStyle='#aaa';const da=flip?-10:10;ctx.fillRect(ox+da*sc,py+12*sc,3*sc,12*sc);} // axe head
+    }
+    else if(type==='elber'){
+      // ELBER - Druid/Inventor with goggles and mechanical gauntlet
+      ctx.fillStyle='#c8a866';ctx.fillRect(ox-3*sc,py+8*sc,6*sc,6*sc); // head
+      ctx.fillStyle='#8a5a2a';ctx.fillRect(ox-2*sc,py+6*sc,4*sc,2*sc); // brown hair
+      ctx.fillStyle='#888888';ctx.fillRect(ox-1.5*sc,py+5*sc,3*sc,1.5*sc); // goggles
+      ctx.fillStyle='#4a7a3a';ctx.fillRect(ox-5*sc,py+15*sc,10*sc,9*sc); // green tunic
+      ctx.fillStyle='#6a5a3a';ctx.fillRect(ox-3*sc,py+15*sc,6*sc,7*sc); // brown vest
+      if(flip){ctx.fillStyle='#c8a830';ctx.fillRect(ox-7*sc,py+16*sc,2*sc,6*sc);} // brass gauntlet left
+      else{ctx.fillStyle='#c8a830';ctx.fillRect(ox+5*sc,py+16*sc,2*sc,6*sc);} // brass gauntlet right
+      ctx.fillStyle='#4a4a2a';ctx.fillRect(ox-5*sc,py+24*sc,10*sc,7*sc); // pants
+      ctx.fillStyle='#1a1a0a';ctx.fillRect(ox-5*sc,py+31*sc,5*sc,4*sc);ctx.fillRect(ox,py+31*sc,5*sc,4*sc); // boots
+      ctx.fillStyle='#4a7a3a';ctx.globalAlpha=0.6;ctx.fillRect(ox-6*sc,py+20*sc,2*sc,8*sc);ctx.globalAlpha=1; // cape
+      if(state==='attack'||state==='skill'){ctx.fillStyle='#4f4';ctx.globalAlpha=0.7;for(let i=0;i<3;i++)ctx.fillRect(ox+(flip?-8-i*2:8+i*2)*sc,py+(16+i)*sc,1*sc,1*sc);ctx.globalAlpha=1;} // spark
+    }
+    else if(type==='nesta'){
+      // NESTA - Dark Mage with robes and hood
+      ctx.fillStyle='#d0d0e0';ctx.fillRect(ox-2*sc,py+6*sc,4*sc,2*sc); // silver hair
+      ctx.fillStyle='#3a2a5a';ctx.beginPath();ctx.ellipse(ox,py+10*sc,4*sc,3*sc,0,0,Math.PI*2);ctx.fill(); // hood
+      ctx.fillStyle='#1a0a3a';ctx.fillRect(ox-5*sc,py+15*sc,10*sc,11*sc); // dark robes
+      ctx.fillStyle='#c8a830';ctx.fillRect(ox-4*sc,py+24*sc,8*sc,1.5*sc); // silver trim belt
+      ctx.fillStyle='#a0a0c0';ctx.fillRect(ox-4*sc,py+16*sc,2*sc,6*sc);ctx.fillRect(ox+2*sc,py+16*sc,2*sc,6*sc); // pale hands
+      ctx.fillStyle='#4488ff';ctx.globalAlpha=0.5;for(let i=0;i<2;i++)ctx.fillRect(ox-3*sc+i*6*sc,py+(24+Math.sin(frame)*2)*sc,1*sc,3*sc);ctx.globalAlpha=1; // shadow aura
+      if(state==='attack'||state==='skill'){ctx.fillStyle='#4488ff';ctx.globalAlpha=0.8;const da=flip?-8:8;ctx.fillRect(ox+da*sc,py+16*sc,2*sc,8*sc);ctx.globalAlpha=1;} // shadow bolt
+    }
+    else if(type==='nick'){
+      // NICK - Aasimar Necromancer with halo and spectral wings
+      ctx.fillStyle='#d0a066';ctx.fillRect(ox-3*sc,py+8*sc,6*sc,6*sc); // golden-bronze head
+      ctx.fillStyle='#e8e8f0';ctx.fillRect(ox-2*sc,py+6*sc,4*sc,2*sc); // silvery-white hair
+      ctx.fillStyle='#c8a830';ctx.globalAlpha=0.4;ctx.beginPath();ctx.arc(ox,py+5*sc,4*sc,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1; // halo
+      ctx.fillStyle='#1a1a3a';ctx.fillRect(ox-5*sc,py+15*sc,10*sc,10*sc); // dark robes
+      ctx.fillStyle='#6a4a2a';ctx.fillRect(ox-5*sc,py+25*sc,10*sc,6*sc); // pants
+      ctx.fillStyle='#1a1a0a';ctx.fillRect(ox-5*sc,py+31*sc,5*sc,4*sc);ctx.fillRect(ox,py+31*sc,5*sc,4*sc); // boots
+      // Spectral wings (faint)
+      ctx.fillStyle='#aabbff';ctx.globalAlpha=0.4;
+      ctx.beginPath();ctx.ellipse(ox-6*sc,py+16*sc,2*sc,4*sc,-0.3,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.ellipse(ox+6*sc,py+16*sc,2*sc,4*sc,0.3,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=1;
+      // Hands glow
+      ctx.fillStyle='#aaa';ctx.fillRect(ox-5*sc,py+16*sc,1.5*sc,6*sc);ctx.fillRect(ox+3.5*sc,py+16*sc,1.5*sc,6*sc);
+      ctx.fillStyle='#ffaa44';ctx.globalAlpha=0.6;ctx.fillRect(ox+3.5*sc,py+16*sc,1.5*sc,6*sc);ctx.globalAlpha=1; // gold hand
+      ctx.fillStyle='#44ff88';ctx.globalAlpha=0.6;ctx.fillRect(ox-5*sc,py+16*sc,1.5*sc,6*sc);ctx.globalAlpha=1; // necrotic hand
+      // Arturito companion (tiny skull)
+      if(state!=='attack'&&state!=='skill'){
+        ctx.fillStyle='#b8a080';ctx.fillRect(ox+6*sc,py+27*sc,2*sc,2*sc); // tiny skull
+        ctx.fillStyle='#333';ctx.fillRect(ox+6.3*sc,py+27.3*sc,0.5*sc,0.5*sc);ctx.fillRect(ox+7.2*sc,py+27.3*sc,0.5*sc,0.5*sc); // eye holes
+      }
+      if(state==='attack'||state==='skill'){ctx.fillStyle='#44ff88';ctx.globalAlpha=0.8;const da=flip?-8:8;ctx.fillRect(ox+da*sc,py+16*sc,2*sc,8*sc);ctx.globalAlpha=1;} // necrotic bolt
+    }
+
+    else{
+      // Generic NPC fallback - hooded figure
+      ctx.fillStyle='#c8a866';ctx.fillRect(ox-3*sc,py+8*sc,6*sc,6*sc); // head
+      ctx.fillStyle='#555';ctx.fillRect(ox-5*sc,py+15*sc,10*sc,10*sc); // grey robes
+      ctx.fillStyle='#333';ctx.fillRect(ox-5*sc,py+25*sc,10*sc,6*sc); // pants
+      ctx.fillStyle='#1a1a0a';ctx.fillRect(ox-5*sc,py+31*sc,5*sc,4*sc);ctx.fillRect(ox,py+31*sc,5*sc,4*sc); // boots
+    }
+
+    // Idle breathing bob
+    if(state==='idle'){py+=Math.sin(frame*0.1)*0.5*sc;}
+  },
+
+  // FALLBACK ENEMY DRAWING (programmatic)
+  _drawEnemyFallback(type,state,frame,x,y,w,h,flip){
+    const ctx=this.x,px=x-this.cam.x,py=y-this.cam.y;
+    const sc=(w/30);const ox=px+w/2;
+
+    if(type==='bakaris'){
+      // BAKARIS - Arrogant noble with rapier
+      ctx.fillStyle='#c8a866';ctx.fillRect(ox-3*sc,py+6*sc,6*sc,6*sc); // head
+      ctx.fillStyle='#ffff88';ctx.fillRect(ox-2*sc,py+4*sc,4*sc,2*sc); // blond hair
+      ctx.fillStyle='#dd3333';ctx.fillRect(ox-7*sc,py+13*sc,14*sc,3*sc); // red cape (sash)
+      ctx.fillStyle='#8a6a4a';ctx.fillRect(ox-5*sc,py+14*sc,10*sc,10*sc); // body
+      ctx.fillStyle='#1a1a0a';ctx.fillRect(ox-5*sc,py+24*sc,10*sc,5*sc); // legs
+      if(state==='attack'||state==='skill'){ctx.fillStyle='#aaa';const da=flip?-8:8;ctx.fillRect(ox+da*sc,py+14*sc,1.5*sc,10*sc);} // rapier
+    }
+    else if(type==='student'){
+      // STUDENT - Rival academy student, lighter armor, sword
+      ctx.fillStyle='#c8a866';ctx.fillRect(ox-3*sc,py+6*sc,6*sc,5*sc); // head
+      ctx.fillStyle='#553322';ctx.fillRect(ox-2*sc,py+4*sc,4*sc,2*sc); // brown hair
+      ctx.fillStyle='#4a5a8a';ctx.fillRect(ox-5*sc,py+12*sc,10*sc,12*sc); // blue-grey uniform
+      ctx.fillStyle='#c8a84e';ctx.fillRect(ox-5*sc,py+12*sc,10*sc,2*sc); // gold trim
+      ctx.fillStyle='#2a2a3a';ctx.fillRect(ox-4*sc,py+24*sc,3.5*sc,6*sc);ctx.fillRect(ox+0.5*sc,py+24*sc,3.5*sc,6*sc); // legs
+      ctx.fillStyle='#1a1a1a';ctx.fillRect(ox-4*sc,py+28*sc,3.5*sc,3*sc);ctx.fillRect(ox+0.5*sc,py+28*sc,3.5*sc,3*sc); // boots
+      if(state==='attack'||state==='hit'){ctx.fillStyle='#888';const da=flip?-7:7;ctx.fillRect(ox+da*sc,py+14*sc,1*sc,9*sc);} // sword
+    }
+    else if(type==='darkmantle'){
+      // DARKMANTLE - Squid-manta creature
+      const px2=ox;ctx.fillStyle='#442266';ctx.beginPath();ctx.ellipse(px2,py+w/3,w/3,w/4,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#88ff88';ctx.fillRect(px2-4*sc,py+w/4-2*sc,3*sc,3*sc);ctx.fillRect(px2+1*sc,py+w/4-2*sc,3*sc,3*sc);
+      ctx.strokeStyle='#332244';ctx.lineWidth=1;
+      for(let i=0;i<6;i++){const tx=px2-10*sc+i*3.5*sc;ctx.beginPath();ctx.moveTo(tx,py+w/3);ctx.quadraticCurveTo(tx+Math.sin(frame+i)*2*sc,py+w/3+w/4,tx,py+w);ctx.stroke();}
+      // membrane flaps
+      ctx.fillStyle='#6644aa';ctx.globalAlpha=0.6;ctx.beginPath();ctx.ellipse(px2-w/3.5,py+w/2.5,w/5,w/6,0.3,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(px2+w/3.5,py+w/2.5,w/5,w/6,-0.3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+    }
+    else if(type==='draconian'||type==='draconian_sivak'||type==='draconian_kapak'||type==='draconian_bozak'){
+      // DRACONIAN variants - Reptilian humanoid
+      let bodyCol='#6a8844',headCol='#8a9a55',wingCol='#446633';
+      if(type==='draconian_sivak'){bodyCol='#a8b8c8';headCol='#c0d0e0';wingCol='#8090a0';}
+      else if(type==='draconian_kapak'){bodyCol='#b87333';headCol='#c88040';wingCol='#a06020';}
+      else if(type==='draconian_bozak'){bodyCol='#cd7f32';headCol='#dda040';wingCol='#b06020';}
+      ctx.fillStyle=bodyCol;ctx.fillRect(ox-w/4,py+w/3,w/2,w/2.5);
+      ctx.fillStyle=headCol;ctx.beginPath();ctx.ellipse(ox,py+w/6,w/3.5,w/5,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#555';ctx.fillRect(ox-w/6,py+w/8,w/3,w/12);
+      ctx.fillStyle='#333';ctx.fillRect(ox-w/5,py+w/5.5,w/6,w/8);ctx.fillRect(ox+w/15,py+w/5.5,w/6,w/8);
+      ctx.fillStyle=wingCol;ctx.globalAlpha=0.7;ctx.beginPath();ctx.ellipse(ox-w/3.5,py+w/3,w/6,w/4,-0.4,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(ox+w/3.5,py+w/3,w/6,w/4,0.4,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+      ctx.strokeStyle=bodyCol;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(ox+w/3,py+w/2);ctx.quadraticCurveTo(ox+w/2+Math.cos(frame)*3,py+w/2.5,ox+w/2,py+w);ctx.stroke();
+    }
+    else if(type==='spectator'){
+      // SPECTATOR - Beholder-kin
+      ctx.fillStyle='#dd6644';ctx.beginPath();ctx.arc(ox,py+w/2,w/2.5,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#000';ctx.beginPath();ctx.arc(ox+Math.sin(frame)*w/6,py+w/2,w/5,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#fff';ctx.fillRect(ox+Math.sin(frame)*w/6-1,py+w/2-1,2,2);
+      // Eye stalks
+      ctx.strokeStyle='#dd6644';ctx.lineWidth=2;
+      for(let i=0;i<4;i++){const a=Math.PI/2.5+i*Math.PI/3;ctx.beginPath();ctx.moveTo(ox,py+w/2);const ex=ox+Math.cos(a)*(w/2.2)+Math.cos(frame+i)*2;const ey=py+w/2+Math.sin(a)*(w/2.2)+Math.sin(frame+i)*2;ctx.lineTo(ex,ey);ctx.stroke();ctx.fillStyle='#88ff88';ctx.fillRect(ex-1.5,ey-1.5,3,3);}
+      // Mouth
+      ctx.fillStyle='#333';ctx.beginPath();ctx.ellipse(ox,py+w/1.8,w/3,w/8,0,0,Math.PI);ctx.fill();
+    }
+    else if(type==='mimic'){
+      // MIMIC - Treasure chest
+      if(state==='attack'){
+        ctx.fillStyle='#8a6a2a';ctx.fillRect(ox-w/3,py+w/4,w*2/3,w/1.8); // open body
+        ctx.fillStyle='#6a4a0a';ctx.fillRect(ox-w/3,py+w/4,w*2/3,w/6); // lid open
+        ctx.fillStyle='#333';ctx.fillRect(ox-w/4,py+w/3.5,w/2,w/4); // dark mouth
+        ctx.fillStyle='#aaa';for(let i=0;i<4;i++)ctx.fillRect(ox-w/4+i*w/8,py+w/2.5,w/16,w/16); // teeth
+      }else{
+        ctx.fillStyle='#8a6a2a';ctx.fillRect(ox-w/3,py+w/4,w*2/3,w/1.8); // chest body
+        ctx.fillStyle='#6a4a0a';ctx.fillRect(ox-w/3,py+w/4,w*2/3,w/8); // lid closed
+        ctx.fillStyle='#c8a830';ctx.fillRect(ox-w/6,py+w/4.5,w/3,w/16); // gold trim
+      }
+    }
+    else if(type==='ogre'){
+      // OGRE - Massive brute
+      ctx.fillStyle='#776655';ctx.fillRect(ox-w/2.5,py+w/4,w*2/2.5,w/1.6); // huge body
+      ctx.fillStyle='#666644';ctx.beginPath();ctx.ellipse(ox,py+w/8,w/2.5,w/3.5,0,0,Math.PI*2);ctx.fill(); // head
+      ctx.fillStyle='#333';ctx.fillRect(ox-w/6,py+w/10,w/3,w/8); // underbite mouth
+      ctx.fillStyle='#222';ctx.fillRect(ox-w/4,py,w/12,w/8);ctx.fillRect(ox+w/8,py,w/12,w/8); // beady eyes
+      // Arms
+      ctx.fillStyle='#776655';ctx.fillRect(ox-w/2.2,py+w/3,w/4.5,w/2);ctx.fillRect(ox+w/2.2-w/4.5,py+w/3,w/4.5,w/2);
+      // Legs
+      ctx.fillStyle='#666644';ctx.fillRect(ox-w/3,py+w/1.8,w/4,w/2.5);ctx.fillRect(ox+w/12,py+w/1.8,w/4,w/2.5);
+      // Club
+      if(state==='attack'||state==='skill'){ctx.fillStyle='#6a5a3a';const da=flip?-w/2:w/2;ctx.fillRect(ox+da,py+w/4,w/6,w*0.7);ctx.fillStyle='#aaa';ctx.fillRect(ox+da+w/12,py+w/4-w/8,w/12,w/8);}
+    }
+    else if(type==='boilerdrak'){
+      // BOILERDRAK - Mechanical dragon
+      ctx.fillStyle='#888899';ctx.fillRect(ox-w/2.5,py+w/3.5,w/1.5,w/2); // segmented body
+      // Head
+      ctx.fillStyle='#666677';ctx.beginPath();ctx.ellipse(ox-w/2,py+w/6,w/3,w/4,0,0,Math.PI*2);ctx.fill();
+      // Eyes glowing orange
+      ctx.fillStyle='#ff8844';ctx.fillRect(ox-w/2.5,py+w/8,w/8,w/8);ctx.fillRect(ox-w/2.5+w/4,py+w/8,w/8,w/8);
+      // Gears
+      ctx.fillStyle='#555555';for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(ox-w/4+i*w/4,py+w/2,w/12,0,Math.PI*2);ctx.fill();}
+      // Steam vents
+      ctx.fillStyle='#999';ctx.globalAlpha=0.5;ctx.fillRect(ox+w/4,py+w/5,w/8,w/8);ctx.globalAlpha=1;
+      // Tail with gear
+      ctx.strokeStyle='#666677';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(ox+w/1.8,py+w/2);ctx.quadraticCurveTo(ox+w/1.5,py+w/2.5,ox+w/1.3,py+w);ctx.stroke();
+      ctx.fillStyle='#555555';ctx.beginPath();ctx.arc(ox+w/1.3,py+w,w/10,0,Math.PI*2);ctx.fill();
+    }
+    else if(type==='kansaldi'){
+      // KANSALDI - Red Dragon Commander
+      ctx.fillStyle='#1a0a0a';ctx.fillRect(ox-w/2.2,py+w/4,w/1.1,w/1.8); // black armor
+      // Flaming eyes
+      ctx.fillStyle='#ff8844';ctx.fillRect(ox-w/4,py+w/6,w/6,w/6);ctx.fillRect(ox+w/8,py+w/6,w/6,w/6);
+      ctx.fillStyle='#ffaa44';ctx.globalAlpha=0.7;ctx.fillRect(ox-w/4,py+w/6,w/6,w/6);ctx.fillRect(ox+w/8,py+w/6,w/6,w/6);ctx.globalAlpha=1;
+      // Cape
+      ctx.fillStyle='#aa2222';ctx.globalAlpha=0.8;ctx.fillRect(ox+w/1.8,py+w/3.5,w/3.5,w/1.5);ctx.globalAlpha=1;
+      // Glowing pike
+      if(state==='attack'||state==='skill'){ctx.fillStyle='#ff4444';const da=flip?-w/2:w/2;ctx.fillRect(ox+da,py+w/5,w/12,w*0.8);ctx.fillStyle='#ffaa44';ctx.globalAlpha=0.6;ctx.fillRect(ox+da,py+w/5,w/12,w*0.8);ctx.globalAlpha=1;}
+    }
+    else if(type==='goblin'){
+      // GOBLIN on ground (handled by Ogre since it rides)
+      ctx.fillStyle='#4a8a4a';ctx.fillRect(ox-w/4,py+w/2.5,w/2,w/2.2); // green skin
+      ctx.fillStyle='#333';ctx.fillRect(ox-w/6,py+w/3,w/3,w/6); // huge eyes
+      ctx.fillStyle='#ffff88';ctx.fillRect(ox-w/5.5,py+w/3.2,w/6,w/5);ctx.fillRect(ox+w/12,py+w/3.2,w/6,w/5);
+      if(state==='attack'||state==='skill'){ctx.fillStyle='#aaa';const da=flip?-w/3:w/3;ctx.fillRect(ox+da,py+w/2.5,w/12,w/2);}
+    }
+  }
+};
+
+// ═══ SPRITE CONFIG ═══
+const SpriteConfig={
+  heroes:{
+    kote:{img:'hero_kote',meta:'hero_kote',stateMap:{idle:'idle',run:'run',jump:'jump',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
+    minerva:{img:'hero_minerva',meta:'hero_minerva',stateMap:{idle:'idle',run:'run',jump:'jump',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
+    elber:{img:'hero_elber',meta:'hero_elber',stateMap:{idle:'idle',run:'run',jump:'jump',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
+    nesta:{img:'hero_nesta',meta:'hero_nesta',stateMap:{idle:'idle',run:'run',jump:'jump',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
+    nick:{img:'hero_nick',meta:'hero_nick',stateMap:{idle:'idle',run:'run',jump:'jump',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
+    bakaris:{img:'hero_bakaris',meta:'hero_bakaris',stateMap:{idle:'idle',run:'run',jump:'jump',fall:'fall',attack:'attack_A',skill:'attack_B',dash:'dash_attack_A'}},
+  },
+  enemies:{
+    student:{type:'strip',imgs:{idle:'enemy_castle_knight_idle',run:'enemy_castle_knight_run'},frameH:64},
+    castle_knight:{type:'strip',imgs:{idle:'enemy_castle_knight_idle',run:'enemy_castle_knight_run'},frameH:64},
+    castle_archer:{type:'strip',imgs:{idle:'enemy_castle_archer_idle',run:'enemy_castle_archer_run'},frameH:64},
+    castle_priest:{type:'strip',imgs:{idle:'enemy_castle_priest_idle',run:'enemy_castle_priest_run'},frameH:64},
+    castle_soldier:{type:'strip',imgs:{idle:'enemy_castle_soldier_idle',run:'enemy_castle_soldier_run'},frameH:64},
+    hideout_fighter:{type:'strip',imgs:{idle:'enemy_hideout_fighter_idle',run:'enemy_hideout_fighter_run'},frameH:64},
+    lib_cataloguer:{type:'strip',imgs:{idle:'enemy_lib_cataloguer_idle',run:'enemy_lib_cataloguer_run'},frameH:64},
+    lib_censor:    {type:'strip',imgs:{idle:'enemy_lib_censor_idle',run:'enemy_lib_censor_run'},frameH:64},
+    lib_director:  {type:'strip',imgs:{idle:'enemy_lib_director_idle',run:'enemy_lib_director_run'},frameH:64},
+    lib_researcher:{type:'strip',imgs:{idle:'enemy_lib_researcher_idle',run:'enemy_lib_researcher_run'},frameH:64},
+    hideout_scout: {type:'strip',imgs:{idle:'enemy_hideout_scout_idle',run:'enemy_hideout_scout_run'},frameH:64},
+    skeleton:      {type:'strip',imgs:{idle:'enemy_skeleton_idle',run:'enemy_skeleton_run'},frameH:64},
+    bakaris:{type:'meta',img:'hero_bakaris',meta:'hero_bakaris',stateMap:{idle:'idle',run:'run',attack:'attack_A'}},
+    darkmantle:{type:'strip',imgs:{idle:'enemy_darkmantle_idle'},frameW:24,frameH:16},
+    draconian:{type:'strip',imgs:{idle:'enemy_dragonborn_idle',run:'enemy_dragonborn_run'},frameW:80,frameH:96},
+    draconian_sivak:{type:'strip',imgs:{idle:'enemy_dragonborn_idle',run:'enemy_dragonborn_run'},frameW:80,frameH:96,tint:'#c8d0d8'},
+    draconian_kapak:{type:'strip',imgs:{idle:'enemy_dragonborn_idle',run:'enemy_dragonborn_run'},frameW:80,frameH:96,tint:'#b87333'},
+    draconian_bozak:{type:'strip',imgs:{idle:'enemy_dragonborn_idle',run:'enemy_dragonborn_run'},frameW:80,frameH:96,tint:'#cd7f32'},
+    spectator:{type:'strip',imgs:{idle:'enemy_spectator_idle',attack:'enemy_spectator_attack'},frameH:96},
+    mimic:{type:'strip',imgs:{idle:'enemy_mimic_idle',attack:'enemy_mimic_activate'},frameW:72,frameH:48},
+    ogre:{type:'strip',imgs:{idle:'enemy_mudman_idle'},frameH:48},
+    boilerdrak:{type:'strip',imgs:{idle:'enemy_boilerdrak_idle'},frameH:48},
+    goblin:{type:'strip',imgs:{idle:'enemy_orc_warrior_idle',run:'enemy_orc_warrior_run'},frameW:32,frameH:32},
+    kansaldi:{type:'meta',img:'enemy_kansaldi',meta:'enemy_kansaldi',stateMap:{idle:'idle',run:'run',attack:'attack_A',skill:'attack_B'}},
+  }
+};
+
+const HERO_STATS={
+  // TANK: High HP, solid defense, reliable damage, shorter range
+  minerva: {hp:170,spd:1.8,jf:-8.5,atkDmg:26,skillMult:1.8,dashDur:0.20,atkRange:32,skillRange:48},
+  // RELIABLE DPS: Balanced and consistent, never wastes a hit
+  elber:   {hp:115,spd:2.1,jf:-9.0,atkDmg:32,skillMult:2.5,dashDur:0.14,atkRange:34,skillRange:55},
+  // GLASS CANNON: Highest burst damage, lowest HP
+  kote:    {hp:70, spd:2.7,jf:-10, atkDmg:42,skillMult:3.2,dashDur:0.09,atkRange:28,skillRange:44},
+  // HEALER: Skill heals party instead of dealing damage. Low offense.
+  nick:    {hp:105,spd:1.9,jf:-8.5,atkDmg:18,skillMult:0,  dashDur:0.18,atkRange:30,skillRange:0,isHealer:true,healAmt:30},
+  // RANGED GLASS CANNON: Huge skill range, very low HP, fast
+  nesta:   {hp:65, spd:2.9,jf:-10, atkDmg:30,skillMult:2.8,dashDur:0.07,atkRange:28,skillRange:130,ranged:true},
+  bakaris: {hp:100,spd:2.1,jf:-9.0,atkDmg:24,skillMult:2.0,dashDur:0.12,atkRange:30,skillRange:50},
+};
+
+// ═══ FX CONFIG (per-character attack effects) ═══
+const FXConfig={
+  heroes:{
+    kote:  {atk:'fx_kote_atk',  skill:'fx_kote_skill'},
+    minerva:{atk:'fx_minerva_atk',skill:'fx_minerva_skill'},
+    elber: {atk:'fx_elber_atk', skill:'fx_elber_skill'},
+    nesta: {atk:'fx_nesta_atk', skill:'fx_nesta_skill'},
+    nick:  {atk:'fx_nick_atk',  skill:'fx_nick_heal'},
+  },
+  dash:'fx_dash',
+  enemyDeath:'fx_enemy_death',
+};
+
+// ═══ ANIMATED FX PLAYER ═══
+const FX={
+  active:[], // {img,fW,fH,numF,frame,timer,x,y,size,flip,speed}
+  play(key,x,y,size,flip,speed){
+    const img=Assets.images[key];
+    if(!img)return;
+    const fH=img.height;
+    const fW=fH; // Square frames by default
+    const numF=Math.max(1,Math.floor(img.width/fW));
+    this.active.push({img,fW,fH,numF,frame:0,timer:0,x,y,size:size||fH,flip:!!flip,speed:speed||0.05});
+  },
+  up(dt){
+    this.active=this.active.filter(f=>{
+      f.timer+=dt;
+      if(f.timer>=f.speed){f.timer=0;f.frame++;}
+      return f.frame<f.numF;
+    });
+  },
+  draw(){
+    const ctx=R.x;
+    this.active.forEach(f=>{
+      const px=f.x-R.cam.x-f.size/2,py=f.y-R.cam.y-f.size/2;
+      ctx.save();
+      if(f.flip){
+        ctx.translate(f.x-R.cam.x+f.size/2,py);
+        ctx.scale(-1,1);
+        ctx.drawImage(f.img,f.frame*f.fW,0,f.fW,f.fH,0,0,f.size,f.size);
+      }else{
+        ctx.drawImage(f.img,f.frame*f.fW,0,f.fW,f.fH,px,py,f.size,f.size);
+      }
+      ctx.restore();
+    });
+  }
+};
+
+// ═══ PARTICLES ═══
+const P={ps:[],
+  emit(x,y,n,col,sp,lf,sz){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=Math.random()*sp;this.ps.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1,l:lf,ml:lf,c:col,s:sz||2})}},
+  up(dt){this.ps=this.ps.filter(p=>{p.x+=p.vx*dt*60;p.y+=p.vy*dt*60;p.vy+=0.08*dt*60;p.l-=dt;return p.l>0})},
+  draw(){this.ps.forEach(p=>{R.a(Math.max(0,p.l/p.ml));R.rect(p.x,p.y,p.s,p.s,p.c)});R.ra()}
+};
+
+// ═══ TILEMAP ═══
+class TM{
+  constructor(w,h){this.w=w;this.h=h;this.d=new Uint8Array(w*h)}
+  set(x,y,v){if(x>=0&&x<this.w&&y>=0&&y<this.h)this.d[y*this.w+x]=v}
+  get(x,y){if(x<0||x>=this.w)return 1;if(y<0)return 0;if(y>=this.h)return 1;return this.d[y*this.w+x]}
+  sol(x,y){const v=this.get(x,y);return v>=1&&v<=5}
+  // Solid ceiling check: platforms (3) are one-way, passable from below
+  solUp(x,y){const v=this.get(x,y);return v>=1&&v<=5&&v!==3}
+
+  draw(tilesetKey){
+    const timg=Assets.images[tilesetKey];
+    const sx=Math.max(0,(R.cam.x/T)|0),sy=Math.max(0,(R.cam.y/T)|0);
+    const ex=Math.min(this.w,sx+((CW/T)|0)+2),ey=Math.min(this.h,sy+((CH/T)|0)+2);
+
+    for(let y=sy;y<ey;y++)for(let x=sx;x<ex;x++){
+      const v=this.get(x,y);
+      const dx=x*T-R.cam.x,dy=y*T-R.cam.y;
+
+      if(timg){
+        if(v===0){
+          const tx=((x*7+y*3)%6)*T, ty=((x*3+y*7)%2)*T;
+          R.x.drawImage(timg,tx,ty,T,T,dx,dy,T,T);
+          R.x.fillStyle='rgba(0,0,10,0.55)';R.x.fillRect(dx,dy,T,T);
+        }else if(v===1){
+          const tx=((x*5+y*11)%8)*T;
+          R.x.drawImage(timg,tx,0,T,T,dx,dy,T,T);
+        }else if(v===2){
+          const tx=((x*3+y*7)%8)*T;
+          R.x.drawImage(timg,tx,T,T,T,dx,dy,T,T);
+        }else if(v===3){
+          const tx=((x*11+y*5)%6)*T;
+          R.x.drawImage(timg,tx,T*2,T,T,dx,dy,T,T);
+        }else if(v===4){
+          R.x.drawImage(timg,0,T*4,T,T,dx,dy,T,T);
+        }else if(v===5){
+          const tx=((x*3+y)%4)*T;
+          R.x.drawImage(timg,tx,T*3,T,T,dx,dy,T,T);
+        }
+      }else{
+        const cols={0:'#1a1a2a',1:'#4a4a6a',2:'#3a3a5a',3:'#5a4a3a',4:'#c8a84e',5:'#6a4a3a'};
+        R.x.fillStyle=cols[v]||'#222';R.x.fillRect(dx,dy,T,T);
+      }
+    }
+  }
+}
+
+// ═══ MAP BUILDER ═══
+// Jump physics: jf=-9, GR=0.6 → single jump ~4.5 tiles, double ~9 tiles
+// P2: 4 tiles above ground (single jump), P3: 7 tiles up (double from ground or single from P2), P4: 10 tiles up
+function buildCastleArena(tm,W,H){
+  // 3-tile thick ground
+  for(let x=0;x<W;x++){tm.set(x,H-3,1);tm.set(x,H-2,1);tm.set(x,H-1,1)}
+  // Left guard tower base (solid, 8 tiles wide, 3 tiles tall)
+  for(let x=0;x<8;x++)for(let y=H-6;y<H-3;y++)tm.set(x,y,1)
+  // Right balcony for Bakaris (solid, 3-tile thick)
+  for(let x=Math.floor(W*0.7);x<W;x++){tm.set(x,H-6,1);tm.set(x,H-5,1);tm.set(x,H-4,1)}
+  // Stair steps connecting to balcony
+  const bs=Math.floor(W*0.7)
+  for(let x=bs-4;x<bs;x++){tm.set(x,H-5,1);tm.set(x,H-4,1)}
+  for(let x=bs-8;x<bs-4;x++)tm.set(x,H-4,1)
+  // Left side platform (one-way, single jump from ground)
+  const lp=Math.floor(W*0.22)
+  for(let i=0;i<7;i++)tm.set(lp+i,H-7,3)
+  // Center platform (one-way, single jump)
+  const mid=Math.floor(W/2)
+  for(let i=-4;i<5;i++)tm.set(mid+i,H-7,3)
+  // High center perch (one-way, double-jump from center platform)
+  for(let i=-3;i<4;i++)tm.set(mid+i,H-12,3)
+}
+
+function buildGardenPath(tm,W,H){
+  // 3-tile thick ground
+  for(let x=0;x<W;x++){tm.set(x,H-3,1);tm.set(x,H-2,1);tm.set(x,H-1,1)}
+  // Hill bump left (2-tile tall)
+  for(let x=18;x<30;x++){tm.set(x,H-4,1);tm.set(x,H-3,1)}
+  for(let x=20;x<28;x++)tm.set(x,H-5,1)
+  // Hill bump right
+  const rh=Math.floor(W*0.6)
+  for(let x=rh;x<rh+12;x++){tm.set(x,H-4,1);tm.set(x,H-3,1)}
+  for(let x=rh+2;x<rh+10;x++)tm.set(x,H-5,1)
+  // Left platform (single jump from left hill top)
+  const lp=Math.floor(W*0.15)
+  for(let i=0;i<7;i++)tm.set(lp+i,H-8,3)
+  // Center platform (wide, single jump from flat ground)
+  const mid=Math.floor(W/2)
+  for(let i=-5;i<5;i++)tm.set(mid+i,H-8,3)
+  // Right platform
+  const rp=Math.floor(W*0.72)
+  for(let i=0;i<7;i++)tm.set(rp+i,H-8,3)
+  // High banner platform (double jump from center)
+  for(let i=-3;i<4;i++)tm.set(mid+i,H-13,3)
+}
+
+function buildLibraryHalls(tm,W,H){
+  // 3-tile thick ground
+  for(let x=0;x<W;x++){tm.set(x,H-3,1);tm.set(x,H-2,1);tm.set(x,H-1,1)}
+  // Bookshelf alcove walls (2 tiles wide, 6 tall — gap at ground for pathing)
+  const walls=[Math.floor(W*0.22),Math.floor(W*0.48),Math.floor(W*0.74)]
+  walls.forEach(wx=>{
+    for(let y=H-9;y<H-3;y++){tm.set(wx,y,1);tm.set(wx+1,y,1)}
+  })
+  // Mid-span platforms above wall tops (double-jump from ground)
+  for(let x=walls[0]+2;x<walls[1]-1;x++)tm.set(x,H-11,3)
+  for(let x=walls[1]+2;x<walls[2]-1;x++)tm.set(x,H-11,3)
+  // High reading balcony (double jump from mid platforms)
+  const mid=Math.floor(W/2)
+  for(let i=-10;i<11;i++)tm.set(mid+i,H-15,3)
+}
+
+function buildMasqueradeHall(tm,W,H){
+  // 3-tile thick ground
+  for(let x=0;x<W;x++){tm.set(x,H-3,1);tm.set(x,H-2,1);tm.set(x,H-1,1)}
+  // Ornate pillars (2-tile solid columns evenly spaced)
+  const step=Math.floor(W/5)
+  for(let p=1;p<5;p++){
+    const px=p*step
+    for(let y=H-3;y>H-10;y--){tm.set(px,y,1);tm.set(px+1,y,1)}
+  }
+  // Symmetrical side balconies (single jump from ground)
+  const balW=Math.floor(W*0.12)
+  for(let x=0;x<balW;x++){tm.set(x,H-6,1);tm.set(x,H-5,1);tm.set(x,H-4,1)}
+  for(let x=W-balW;x<W;x++){tm.set(x,H-6,1);tm.set(x,H-5,1);tm.set(x,H-4,1)}
+  // Center chandelier platform (double jump from balcony)
+  const mid=Math.floor(W/2)
+  for(let i=-3;i<4;i++)tm.set(mid+i,H-11,3)
+}
+
+function buildRuinsField(tm,W,H){
+  // 3-tile thick ground
+  for(let x=0;x<W;x++){tm.set(x,H-3,1);tm.set(x,H-2,1);tm.set(x,H-1,1)}
+  // Rubble clusters (tile type 2, varied heights)
+  ;[[12,3],[28,4],[48,3],[70,4],[88,3]].forEach(([cx,h])=>{
+    for(let di=-Math.floor(h/2);di<=Math.floor(h/2);di++){
+      const ht=h-Math.abs(di)
+      for(let j=0;j<ht;j++)tm.set(cx+di,H-3-j,2)
+    }
+  })
+  // Collapsed wall pillars
+  ;[Math.floor(W*0.25),Math.floor(W*0.55),Math.floor(W*0.8)].forEach(x=>{
+    for(let j=0;j<6;j++)tm.set(x,H-3-j,1)
+  })
+  // Ruined battlements (platforms, stepping-stone spacing)
+  const p1=Math.floor(W*0.08),p2=Math.floor(W*0.38),p3=Math.floor(W*0.62),p4=Math.floor(W*0.85)
+  ;[[p1,H-8,5],[p2,H-10,5],[p3,H-8,5],[p4,H-10,4]].forEach(([sx,py,pw])=>{
+    for(let i=0;i<pw;i++)tm.set(sx+i,py,3)
+  })
+}
+
+
+// ═══ BACKGROUND LAYER (pixel-art parallax) ═══
+function drawBgLayer(ctx,cam,theme,W,H){
+  const ox=Math.floor(cam.x*0.3);
+  ctx.save();
+  if(theme==='castle'){
+    ctx.fillStyle='#0a1e35';
+    for(let i=0;i<20;i++){
+      const bx=((i*180-ox)%((W*T)+200))-100;
+      ctx.fillRect(bx,CH-220,40,160);
+      for(let j=0;j<3;j++)ctx.fillRect(bx+j*14,CH-240,10,20);
+      ctx.fillStyle='#ff9944';ctx.fillRect(bx+14,CH-190,12,18);ctx.fillStyle='#0a1e35';
+    }
+    ctx.fillStyle='rgba(255,255,200,0.6)';
+    for(let i=0;i<40;i++){
+      const sx=((i*137+ox*0.1)%(CW+200))-100;
+      const sy=(i*73)%120;
+      ctx.fillRect(sx,sy,2,2);
+    }
+  }else if(theme==='garden'){
+    ctx.fillStyle='#0a2a18';
+    for(let i=0;i<8;i++){
+      const bx=((i*220-ox)%((W*T)+300))-150;
+      ctx.beginPath();ctx.arc(bx+80,CH-60,90,Math.PI,0);ctx.fill();
+      ctx.fillStyle='#2a1a0a';ctx.fillRect(bx+70,CH-130,8,40);
+      ctx.fillStyle='#0a2a18';ctx.beginPath();ctx.arc(bx+74,CH-150,28,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#0a2a18';
+    }
+    ctx.fillStyle='#0d3a22';
+    ctx.beginPath();ctx.moveTo(0,CH-100);
+    for(let i=0;i<10;i++){ctx.lineTo(i*100+((ox*0.2)%100)-50,CH-100-Math.sin(i*1.3)*60-40);}
+    ctx.lineTo(CW,CH-100);ctx.fill();
+  }else if(theme==='library'){
+    ctx.fillStyle='#05050c';
+    for(let i=0;i<12;i++){
+      const bx=((i*160-ox)%((W*T)+200))-100;
+      ctx.fillStyle='#1a1008';ctx.fillRect(bx,CH-280,120,220);
+      const bookColors=['#6a2020','#205820','#202058','#585820','#582058','#205858'];
+      for(let r=0;r<4;r++){
+        for(let b=0;b<8;b++){
+          ctx.fillStyle=bookColors[(r+b+i)%bookColors.length];
+          ctx.fillRect(bx+4+b*14,CH-260+r*44,12,40);
+        }
+      }
+    }
+    ctx.fillStyle='#ffcc44';
+    for(let i=0;i<6;i++){
+      const lx=((i*240-ox*0.5)%((W*T)+200))-100;
+      ctx.fillRect(lx,20,4,12);ctx.fillRect(lx-6,32,16,20);
+      ctx.fillStyle='rgba(255,200,50,0.15)';
+      ctx.beginPath();ctx.arc(lx+2,48,30,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ffcc44';
+    }
+  }else if(theme==='dungeon'){
+    ctx.fillStyle='#080808';
+    for(let row=0;row<8;row++){
+      for(let col=0;col<30;col++){
+        const bx=((col*80+(row%2)*40-ox*0.4)%(CW+160))-80;
+        const by=row*40;
+        ctx.fillStyle=row%2===0?'#111':'#0d0d0d';
+        ctx.fillRect(bx,by,76,36);
+        ctx.fillStyle='#0a0a0a';ctx.fillRect(bx,by+34,76,4);
+      }
+    }
+    for(let i=0;i<5;i++){
+      const tx=((i*320-ox*0.6)%(CW+200))-100;
+      ctx.fillStyle='#ff6600';ctx.fillRect(tx,60,6,20);
+      ctx.fillStyle='rgba(255,100,0,0.2)';ctx.beginPath();ctx.arc(tx+3,55,25,0,Math.PI*2);ctx.fill();
+    }
+  }
+  ctx.fillStyle='rgba(0,0,0,0.5)';
+  ctx.fillRect(0,CH-(H-4)*T-cam.y,CW,4);
+  ctx.restore();
+}
+
+// ═══ DECORATION GENERATOR ═══
+const DecoThemes={
+  castle:{
+    ground:['deco_barrel','deco_pot','deco_bench','deco_rock_sm'],
+    wall:['deco_banner_red','deco_banner_blue','deco_window','deco_candelabra'],
+    bg:['deco_weapons','deco_planter']
+  },
+  garden:{
+    ground:['deco_tree','deco_bush','deco_rock_lg','deco_rock_md','deco_mushroom'],
+    wall:['deco_tree','deco_dead_tree'],
+    bg:['deco_grass','deco_bush','deco_rock_sm']
+  },
+  library:{
+    ground:['deco_barrel','deco_pot','deco_candle','deco_potion','deco_bookshelf','deco_chest'],
+    wall:['deco_candelabra','deco_banner_blue','deco_window','deco_banner_green'],
+    bg:['deco_potion','deco_candle','deco_mushroom','deco_potion_red']
+  },
+  dungeon:{
+    ground:['deco_rock_lg','deco_rock_md','deco_barrel','deco_weapons'],
+    wall:['deco_chain','deco_candelabra','deco_banner_red'],
+    bg:['deco_rock_sm','deco_candle','deco_pot']
+  }
+};
+
+function genDecos(W,H,theme,seed){
+  const rng=(()=>{let s=seed*9301+49297;return()=>{s=(s*9301+49297)%233280;return s/233280;}})();
+  const th=DecoThemes[theme]||DecoThemes.castle;
+  const decos=[];
+  const floorY=(H-4)*T;
+
+  function getImg(key){return Assets.images[key]||null;}
+
+  // BG layer decos
+  const bgKeys=th.bg||[];
+  for(let i=0;i<Math.floor(W/5);i++){
+    const key=bgKeys[Math.floor(rng()*bgKeys.length)];
+    const img=getImg(key);
+    if(!img)continue;
+    const rawX=(rng()*W*T);
+    const minX=img.width/2+16;
+    const maxX=W*T-img.width/2-16;
+    const x=Math.max(minX,Math.min(maxX,rawX));
+    const y=rng()<0.5?(floorY-img.height-(rng()*40)):rng()*((H-6)*T-img.height);
+    decos.push({x,y,img,a:0.15,layer:'bg'});
+  }
+
+  // Wall decos
+  const wallKeys=th.wall||[];
+  for(let i=0;i<Math.floor(W/8);i++){
+    const key=wallKeys[Math.floor(rng()*wallKeys.length)];
+    const img=getImg(key);
+    if(!img)continue;
+    const rawX=rng()*W*T;
+    const minX=img.width+8;
+    const maxX=W*T-img.width-8;
+    const x=Math.max(minX,Math.min(maxX,rawX));
+    const y=rng()*(floorY*0.5)+T*2;
+    decos.push({x,y,img,a:0.35,layer:'wall'});
+  }
+
+  // Ground decos
+  const groundKeys=th.ground||[];
+  for(let i=0;i<Math.floor(W/6);i++){
+    const key=groundKeys[Math.floor(rng()*groundKeys.length)];
+    const img=getImg(key);
+    if(!img)continue;
+    const rawX=rng()*W*T;
+    const minX=img.width+8;
+    const maxX=W*T-img.width-8;
+    const x=Math.max(minX,Math.min(maxX,rawX));
+    const y=floorY-img.height;
+    decos.push({x,y,img,a:0.9,layer:'ground'});
+  }
+
+  return decos;
+}
+
+// ═══ ENTITY BASE ═══
+class Ent{
+  constructor(x,y,w,h){this.x=x;this.y=y;this.w=w;this.h=h;this.vx=0;this.vy=0;this.gnd=false;this.rt=true;this.hp=100;this.mhp=100;this.on=true;this.inv=0;this.animFrame=0}
+  hits(o){return this.x<o.x+o.w&&this.x+this.w>o.x&&this.y<o.y+o.h&&this.y+this.h>o.y}
+  // Snap entity down to nearest solid surface below current position
+  snapGnd(tm){
+    // Search from entity TOP to find the first solid tile below — ensures we land on
+    // the ground surface, not deeper layers when spawned partially inside thick ground
+    let startY=Math.max(0,Math.floor(this.y/T));
+    for(let y=startY;y<tm.h;y++){
+      const bx1=Math.floor((this.x+4)/T),bx2=Math.floor((this.x+this.w-4)/T);
+      if(tm.sol(bx1,y)||tm.sol(bx2,y)){this.y=y*T-this.h;this.gnd=true;this.vy=0;return}
+    }
+  }
+
+  onSolid(tm){
+    const bx1=Math.floor((this.x+4)/T),bx2=Math.floor((this.x+this.w-4)/T);
+    const by=Math.floor((this.y+this.h)/T);
+    return tm.sol(bx1,by)||tm.sol(bx2,by);
+  }
+  blockedH(tm,dx){
+    const nx=this.x+dx;
+    const tx=dx>0?Math.floor((nx+this.w-2)/T):Math.floor((nx+2)/T);
+    const ty1=Math.floor((this.y+6)/T),ty2=Math.floor((this.y+this.h-2)/T);
+    // Use solUp so platforms don't block horizontal movement
+    return tm.solUp(tx,ty1)||tm.solUp(tx,ty2);
+  }
+  blockedUp(tm){
+    const tx1=Math.floor((this.x+4)/T),tx2=Math.floor((this.x+this.w-4)/T);
+    const ty=Math.floor((this.y-1)/T);
+    return tm.solUp(tx1,ty)||tm.solUp(tx2,ty);
+  }
+
+  mv(tm){
+    if(this.vx!==0){
+      if(!this.blockedH(tm,this.vx))this.x+=this.vx;
+      else{
+        if(this.vx>0)this.x=Math.floor((this.x+this.w-2)/T)*T-(this.w-2);
+        else this.x=Math.ceil((this.x+2)/T)*T-2;
+        this.vx=0;
+      }
+    }
+    if(this.vy<0){
+      if(this.blockedUp(tm)){this.vy=0;this.y=Math.ceil(this.y/T)*T}
+      else this.y+=this.vy;
+      this.gnd=false;
+    }else{
+      if(this.vy>0&&this.onSolid(tm)){
+        this.y=Math.floor((this.y+this.h)/T)*T-this.h;
+        this.vy=0;this.gnd=true;
+      }else if(this.vy===0&&!this.onSolid(tm)){
+        this.gnd=false;this.vy+=GR;this.y+=this.vy;
+      }else{
+        this.y+=this.vy;this.gnd=false;
+      }
+    }
+  }
+  hurt(n){if(this.inv>0)return;this.hp-=n;this.inv=0.4;P.emit(this.x+this.w/2,this.y+this.h/2,8,'#f44',4,0.4,2);if(this.hp<=0){this.hp=0;this.die()}}
+  die(){this.on=false;P.emit(this.x+this.w/2,this.y+this.h/2,15,'#f44',5,0.6,3)}
+}
+
+// ═══ HERO ═══
+class Hero extends Ent{
+  constructor(nm,x,y,col,customType){
+    super(x,y,20,36);
+    this.nm=nm;this.col=col;this.customType=customType;
+    this.spd=2.1;this.jf=-9;this.ctrl=false;
+    this.st='idle';this.atkT=0;this.atkCD=0;this.dashCD=0;this.dshT=0;
+    this.atkDmg=24;this.skillCD=0;this.skillT=0;
+    this.jumps=0;this.maxJumps=2;
+    this.animFrame=0;this.animTimer=0;
+  }
+  update(dt,tm){
+    if(!this.on)return;
+    if(this.inv>0)this.inv-=dt;
+    if(this.atkCD>0)this.atkCD-=dt;
+    if(this.dashCD>0)this.dashCD-=dt;
+    if(this.skillCD>0)this.skillCD-=dt;
+
+    this.vy=Math.min(this.vy+GR,MF);
+
+    if(this.gnd)this.jumps=0;
+
+    if(!this.ctrl){
+      this.vx=0;
+      this.st='idle';
+      this.animTimer+=dt;
+      if(this.animTimer>=0.08){this.animTimer=0;this.animFrame=(this.animFrame+1)%4}
+      this.mv(tm);
+      return;
+    }
+
+    let mov=false;
+    if(this.st!=='attack'&&this.st!=='skill'){
+      if(I.down('ArrowLeft')||I.down('KeyA')){this.vx=-this.spd;this.rt=false;mov=true}
+      else if(I.down('ArrowRight')||I.down('KeyD')){this.vx=this.spd;this.rt=true;mov=true}
+      else this.vx=0;
+
+      if((I.pr('ArrowUp')||I.pr('KeyW')||I.pr('Space'))&&this.jumps<this.maxJumps){
+        this.vy=this.jf;this.gnd=false;this.jumps++;
+        P.emit(this.x+this.w/2,this.y+this.h,8,'#d4c4a0',2.5,0.25,2.5);
+        if(this.jumps>1)P.emit(this.x+this.w/2,this.y+this.h,6,this.col,2,0.2,1);
+      }
+      if((I.pr('KeyZ')||I.pr('KeyJ'))&&this.atkCD<=0){
+        this.st='attack';this.atkCD=0.4;this.atkT=0.3;this.animFrame=0;this.animTimer=0;
+        // Attack VFX — sprite-based effect per character
+        const ax=this.rt?this.x+this.w+8:this.x-8;
+        const cfg=FXConfig.heroes[this.customType];
+        if(cfg)FX.play(cfg.atk,ax,this.y+this.h*0.4,40,!this.rt,0.04);
+        P.emit(ax,this.y+this.h*0.3,4,this.col,2,0.2,1.5);
+        // Ranged: fire HeroProj immediately on attack press
+        if(this._ranged){
+          this._projFired=false;
+        }
+      }
+      if((I.pr('KeyQ')||I.pr('KeyL'))&&this.skillCD<=0){
+        this.skillCD=3.0;
+        this.animFrame=0;
+        this.animTimer=0;
+        const sx=this.x+this.w/2,sy=this.y+this.h/2;
+
+        if(this._isHealer){
+          this.st='skill';this.skillT=0.5;
+          const amt=this._healAmt||25;
+          const scene=G.sc;
+          if(scene&&scene.heroes){
+            scene.heroes.forEach(h=>{
+              if(h.on&&h.hp>0){
+                const prev=h.hp;
+                h.hp=Math.min(h.mhp,h.hp+amt);
+                const actual=h.hp-prev;
+                const hx=h.x+h.w/2,hy=h.y;
+                if(actual>0){
+                  P.emit(hx,hy,25,'#22ee66',5,1.0,3);
+                  P.emit(hx,hy,10,'#aaffcc',3,0.7,2);
+                  if(!G._floats)G._floats=[];
+                  G._floats.push({x:hx,y:hy-8,txt:'+'+actual,life:1.4,col:'#22ee66'});
+                }else{
+                  if(!G._floats)G._floats=[];
+                  G._floats.push({x:hx,y:hy-8,txt:'FULL',life:0.9,col:'#ffcc00'});
+                }
+              }
+            });
+          }
+          P.emit(sx,sy,20,'#88ffaa',4,0.8,3);
+          P.emit(sx,sy,15,'#ffffff',2,0.5,2);
+          if(!G._rings)G._rings=[];
+          G._rings.push({x:sx,y:sy,r:5,life:0.8,col:'#22ee66'});
+          G._rings.push({x:sx,y:sy,r:5,life:1.1,col:'#88ffaa'});
+          if(G.sc)G.sc._healFlash=1.5;
+          const cfg=FXConfig.heroes[this.customType];
+          if(cfg)FX.play(cfg.skill,sx,sy,56,!this.rt,0.04);
+        }else{
+          this.st='skill';this.skillT=0.5;
+          const cfg=FXConfig.heroes[this.customType];
+          if(cfg)FX.play(cfg.skill,sx,sy,56,!this.rt,0.04);
+          P.emit(sx,sy,8,this.col,4,0.5,3);
+        }
+      }
+      if((I.pr('KeyX')||I.pr('KeyK'))&&this.dashCD<=0){
+        this.dshT=this.dashDur||0.12;this.dashCD=0.6;this.vx=(this.rt?1:-1)*7;this.inv=0.15;
+        FX.play(FXConfig.dash,this.x+this.w/2,this.y+this.h/2,32,this.rt,0.03);
+      }
+    }
+    if(this.dshT>0)this.dshT-=dt;
+
+    // Ranged attack projectile firing
+    if(this._ranged&&this.st==='attack'&&!this._projFired){
+      this._projFired=true;
+      const dir=this.rt?1:-1;
+      const sc=G.sc;
+      if(sc&&sc.projectiles!==undefined){
+        sc.projectiles.push(new HeroProj(
+          this.x+(this.rt?this.w+4:-4),
+          this.y+this.h*0.35,
+          dir*9,0,
+          this.atkDmg,
+          this
+        ));
+        P.emit(this.x+(this.rt?this.w:0),this.y+this.h*0.35,6,'#88aaff',3,0.3,2);
+      }
+    }
+    if(this.st!=='attack')this._projFired=false;
+    // Ranged skill: fire stronger projectile
+    if(this._ranged&&this.st==='skill'&&!this._skillProjFired){
+      this._skillProjFired=true;
+      const dir=this.rt?1:-1;
+      const sc=G.sc;
+      if(sc&&sc.projectiles!==undefined){
+        sc.projectiles.push(new HeroProj(
+          this.x+(this.rt?this.w+4:-4),
+          this.y+this.h*0.35,
+          dir*12,0,
+          Math.floor(this.atkDmg*(this._skillMult||2)),
+          this
+        ));
+        P.emit(this.x+(this.rt?this.w:0),this.y+this.h*0.35,10,'#4488ff',4,0.5,3);
+      }
+    }
+    if(this.st!=='skill')this._skillProjFired=false;
+    if(this.st==='attack'){this.atkT-=dt;if(this.atkT<=0){this.st='idle'}}
+    else if(this.st==='skill'){this.skillT-=dt;if(this.skillT<=0){this.st='idle'}}
+    else if(!this.gnd&&this.vy<0){this.st='jump'}
+    else if(!this.gnd){this.st='fall'}
+    else if(mov){this.st='run'}
+    else{this.st='idle'}
+
+    this.animTimer+=dt;
+    const frameCount={idle:4,run:6,jump:2,fall:2,attack:4,skill:6,dash:3}[this.st]||4;
+    const frameSpeed={idle:0.08,run:0.08,jump:0.08,fall:0.08,attack:0.08,skill:0.08,dash:0.08}[this.st]||0.08;
+    if(this.animTimer>=frameSpeed){
+      this.animTimer=0;
+      if(this.st==='attack'||this.st==='skill'){
+        if(this.animFrame<frameCount-1)this.animFrame++;
+      }else{
+        this.animFrame=(this.animFrame+1)%frameCount;
+      }
+    }
+
+    const wasGnd=this.gnd;
+    const _prevVy=this.vy;
+    this.mv(tm);
+    if(!wasGnd&&this.gnd&&this.vy===0){
+      P.emit(this.x+this.w/2,this.y+this.h,10,'#c8b898',3,0.3,3);
+      if(this.ctrl&&Math.abs(_prevVy)>6){if(G.sc){G.sc.shk=0.2;G.sc.shi=2;}}
+    }
+
+    const tx=this.x+this.w/2-CW/2,ty=this.y+this.h/2-CH/2;
+    R.cam.x+=(tx-R.cam.x)*0.08;R.cam.y+=(ty-R.cam.y)*0.08;
+  }
+  atkBox(){
+    if(this.st!=='attack'&&this.st!=='skill')return null;
+    if(this.st==='skill'&&this._isHealer)return null;
+    if(this._ranged&&this.st==='attack')return null;
+    const r=this.st==='skill'?(this._skillRange||50):(this._atkRange||30);const dmg=this.st==='skill'?this.atkDmg*(this._skillMult||2):this.atkDmg;
+    return this.rt?{x:this.x+this.w,y:this.y-4,w:r,h:this.h+8,dmg}:{x:this.x-r,y:this.y-4,w:r,h:this.h+8,dmg};
+  }
+  draw(){
+    if(!this.on)return;if(this.inv>0&&((this.inv*12)|0)%2)return;
+    R.drawHero(this.customType,this.st,this.animFrame,this.x,this.y,this.w,this.h,!this.rt);
+    if(this.ctrl)R.txt(this.nm,this.x+this.w/2-R.cam.x,this.y-8-R.cam.y,this.col,9,'center');
+    if(this.ctrl&&this.skillCD>0){R.a(0.6);R.txt('Q:'+this.skillCD.toFixed(1)+'s',this.x+this.w/2-R.cam.x,this.y-18-R.cam.y,'#aaa',8,'center');R.ra()}
+    if(this.ctrl&&!this.gnd&&this.jumps<this.maxJumps){R.a(0.5);R.txt('\u2191',this.x+this.w/2-R.cam.x,this.y-28-R.cam.y,'#8cf',10,'center');R.ra()}
+  }
+  applyStats(type){
+    const s=HERO_STATS[type];
+    if(!s)return;
+    this.hp=s.hp;this.mhp=s.hp;
+    this.spd=s.spd;this.jf=s.jf;
+    this.atkDmg=s.atkDmg;
+    this._skillMult=s.skillMult||2;
+    this._atkRange=s.atkRange||30;
+    this._skillRange=s.skillRange||50;
+    this.dashDur=s.dashDur||0.12;
+    this._isHealer=s.isHealer||false;
+    this._healAmt=s.healAmt||0;
+    this._ranged=s.ranged||false;
+  }
+}
+
+// ═══ COMPANION ═══
+class Companion{
+  constructor(hero){this.hero=hero;this.followSpeed=hero.spd*0.85}
+  update(dt,active,tm,enemies){
+    if(!this.hero.on||this.hero.ctrl)return;
+    if(!this._atkCD)this._atkCD=0;
+    if(!this._atkT)this._atkT=0;
+    this._atkCD=Math.max(0,this._atkCD-dt);
+    this._atkT=Math.max(0,this._atkT-dt);
+    if(this._atkT<=0&&this.hero.st==='attack')this.hero.st='idle';
+
+    const dx=active.x-this.hero.x,dist=Math.abs(dx);
+    if(dist>60){
+      this.hero.vx=(dx>0?1:-1)*(this.hero.spd||2.1)*0.85;
+      this.hero.rt=dx>0;
+      this.hero.st='run';
+    }else if(dist>25){
+      this.hero.vx=(dx>0?1:-1)*(this.hero.spd||2.1)*0.35;
+      this.hero.st='run';
+    }else{
+      this.hero.vx=0;
+      if(this._atkT<=0)this.hero.st='idle';
+    }
+
+    // Auto-attack nearby enemies
+    if(enemies&&this._atkCD<=0){
+      const ne=enemies.find(e=>e.on&&Math.abs(e.x-this.hero.x)<80&&Math.abs(e.y-this.hero.y)<40);
+      if(ne){
+        this.hero.rt=(ne.x>this.hero.x);
+        this.hero.st='attack';
+        this._atkCD=0.8;
+        this._atkT=0.3;
+        const aDmg=Math.floor((this.hero.atkDmg||24)*0.6);
+        const ax=this.hero.rt?this.hero.x+this.hero.w:this.hero.x-30;
+        if(ne.x<ax+30&&ne.x+ne.w>ax&&ne.y<this.hero.y+this.hero.h+8&&ne.y+ne.h>this.hero.y-4){
+          ne.hurt(aDmg);
+          P.emit(ax,this.hero.y+this.hero.h*0.3,4,this.hero.col||'#888',2,0.2,1.5);
+        }
+      }
+    }
+
+    // Animation
+    this.hero.animTimer+=dt;
+    if(this.hero.animTimer>=0.08){
+      this.hero.animTimer=0;
+      const fc=this.hero.st==='run'?6:4;
+      this.hero.animFrame=(this.hero.animFrame+1)%fc;
+    }
+    this.hero.vy=Math.min((this.hero.vy||0)+GR,MF);
+    this.hero.mv(tm);
+  }
+}
+
+// ═══ ENEMY (with custom drawing) ═══
+class Enem extends Ent{
+  constructor(x,y,w,h,nm,col,hp,dmg,ai,customType){
+    super(x,y,w,h);this.nm=nm;this.col=col;this.hp=hp;this.mhp=hp;this.dmg=dmg;this.ai=ai;
+    this.dir=1;this.pt=0;this.akt=0;this.spd=0.7;this.ag=130;
+    this.customType=customType;this.animFrame=0;this.animTimer=0;this.st='idle';
+  }
+  update(dt,tm,heroes){
+    if(!this.on)return;if(this.inv>0)this.inv-=dt;this.akt-=dt;
+    // Charge-target override: enemy directly pursues the hero who shot them
+    if(this._chargeTarget){
+      const ct=this._chargeTarget;
+      if(!ct||!ct.on||ct.hp<=0){
+        this._chargeTarget=null;
+      } else {
+        const dx=ct.x-this.x;
+        this.rt=dx>0;
+        const spd=this._chargeSpeed||this.spd*1.6;
+        this.x+=Math.sign(dx)*spd;
+        this.ai='chase';
+        if(this.akt>0)this.akt-=dt;
+        if(Math.abs(dx)<this.w+ct.w+4&&Math.abs((ct.y+ct.h/2)-(this.y+this.h/2))<this.h&&this.akt<=0){
+          ct.hurt(this.dmg);this.akt=1.0;
+          P.emit(ct.x+ct.w/2,ct.y+ct.h/2,6,'#ff4400',3,0.4,2);
+        }
+        this.vy=Math.min(this.vy+GR,MF);
+        if(this.vx!==0&&!this.blockedH(tm,this.vx))this.x+=this.vx;
+        if(this.vy>0&&this.onSolid(tm)){
+          this.y=Math.floor((this.y+this.h)/T)*T-this.h;this.vy=0;this.gnd=true;
+        }else{this.y+=this.vy;this.gnd=false}
+        this.animTimer+=dt;
+        const frameCount={idle:4,run:6,attack:4}[this.st]||4;
+        if(this.animTimer>=0.1){this.animTimer=0;this.animFrame=(this.animFrame+1)%frameCount}
+        return; // Skip normal AI while charging
+      }
+    }
+    const h=heroes.find(h=>h.ctrl&&h.on);if(!h)return;
+    // Universal jump: leap up if a living hero is above and nearby
+    if(this._jumpTimer===undefined&&!this.dead){
+      if(this._jumpCool===undefined)this._jumpCool=0.5+Math.random()*1.5;
+      this._jumpCool=Math.max(0,this._jumpCool-dt);
+      if(this.gnd&&this._jumpCool<=0&&heroes){
+        const above=heroes.find(hh=>hh.on&&hh.hp>0&&
+          Math.abs(hh.x-this.x)<240&&hh.y<this.y-T*1.5&&hh.y>this.y-T*8);
+        if(above){this.vy=this.jf||-9;this.gnd=false;this._jumpCool=2.5+Math.random()*2.0;}
+      }
+    }
+    const d=Math.abs(this.x-h.x);
+    if(this.ai==='boss'){
+      this.vx=(h.x>this.x?1:-1)*this.spd*1.8;this.rt=this.vx>0;this.st='run';
+      if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1.2;this.st='attack';
+        P.emit(h.x+h.w/2,h.y+h.h/2,10,'#f66',5,0.3,3);P.emit(this.x+(this.rt?this.w:0),this.y+this.h*0.3,8,'#fa0',4,0.25,2);}
+      // Phase 2 trigger (Bakaris-style)
+      if(this._phase2===false&&this.hp<=this.mhp*0.5){
+        this._phase2=true;
+        this.spd*=1.4;
+        P.emit(this.x+this.w/2,this.y+this.h/2,30,'#ff4400',8,1.0,4);
+        P.emit(this.x+this.w/2,this.y+this.h/2,20,'#ffcc00',6,0.8,3);
+        P.emit(this.x+this.w/2,this.y+this.h/2,15,'#ffffff',4,0.6,2);
+      }
+      // Projectile firing
+      if(this._projTimer!==undefined){
+        this._projTimer-=dt;
+        if(this._projTimer<=0&&this._phase2){
+          this._projTimer=2.5;
+          const dir=this.rt?1:-1;
+          if(this._scene&&this._scene.projectiles){
+            this._scene.projectiles.push(new Proj(
+              this.x+(this.rt?this.w+2:-2),
+              this.y+this.h*0.3,
+              dir*4,
+              -3,
+              Math.floor(this.dmg*0.6)
+            ));
+          }
+        }
+      }
+      // Platform jumping (Kapak-style)
+      if(this._jumpTimer!==undefined){
+        this._jumpTimer-=dt;
+        if(this._jumpTimer<=0&&this.gnd){
+          this._jumpTimer=2.0+Math.random()*1.5;
+          this.vy=this.jf||-9;
+          this.gnd=false;
+        }
+      }
+      // AOE stomp (Sivak-style)
+      if(this._stompTimer!==undefined){
+        this._stompTimer-=dt;
+        if(this._stompTimer<=0&&this.gnd){
+          this._stompTimer=3.5;
+          P.emit(this.x+this.w/2,this.y+this.h,20,'#ff6600',5,0.5,3);
+          for(const hero of heroes){
+            if(hero.on&&Math.abs(hero.x-this.x)<90)hero.hurt(Math.floor(this.dmg*0.7));
+          }
+        }
+        // Enrage at 30%
+        if(this._enraged===false&&this.hp<=this.mhp*0.3){
+          this._enraged=true;
+          this.spd*=1.6;
+          this.dmg=Math.floor(this.dmg*1.5);
+          P.emit(this.x+this.w/2,this.y+this.h/2,30,'#ff4400',8,0.8,4);
+        }
+      }
+    }else if(this.ai==='patrol'){
+      this.pt+=dt;if(this.pt>2.5){this.dir*=-1;this.pt=0}
+      this.vx=this.spd*this.dir;this.rt=this.dir>0;
+      if(d<this.ag)this.ai='chase';
+      this.st='run';
+    }else if(this.ai==='chase'){
+      if(d>280){this.ai='patrol';return}
+      this.vx=(h.x>this.x?1:-1)*this.spd*1.4;this.rt=this.vx>0;
+      this.st='run';
+      if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1;this.st='attack';
+        P.emit(h.x+h.w/2,h.y+h.h/2,8,'#f44',4,0.25,2);}
+    }else if(this.ai==='static'){
+      this.vx=0;this.st=d<60?'attack':'idle';
+      if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1.2;
+        P.emit(h.x+h.w/2,h.y+h.h/2,6,'#f44',3,0.2,2);}
+      // Teleport mechanic (Spectator-style)
+      if(this._teleTimer!==undefined){
+        this._teleTimer-=dt;
+        if(this._teleTimer<=0&&d<(this._tpMinDist||80)){
+          this._teleTimer=4.0;
+          const offset=(Math.random()>0.5?1:-1)*(200+Math.random()*50);
+          const newX=Math.max(50,Math.min(1800,h.x+offset));
+          this.x=newX;
+          P.emit(this.x+this.w/2,this.y+this.h/2,12,'#9944ff',4,0.4,2);
+        }
+      }
+      // Fire breath (Kansaldi-style)
+      if(this._breathTimer!==undefined){
+        this._breathTimer-=dt;
+        if(this._breathTimer<=0&&!this._breathActive){
+          this._breathTimer=6.0;
+          this._breathActive=true;
+          this._breathDur=1.2;
+          P.emit(this.x+(this.rt?this.w:0),this.y+this.h*0.4,25,'#ff4400',8,0.5,3);
+        }
+        if(this._breathActive){
+          this._breathDur-=dt;
+          if(this._breathDur<=0)this._breathActive=false;
+          else{
+            const dir=this.rt?1:-1;
+            const bx=this.x+(this.rt?this.w+4:-4);
+            P.emit(bx,this.y+this.h*0.3,6,'#ff2200',6*(dir),0.4,4);
+            P.emit(bx+dir*30,this.y+this.h*0.3,4,'#ff8800',5*(dir),0.3,3);
+            P.emit(bx+dir*60,this.y+this.h*0.3,3,'#ffcc00',4*(dir),0.2,2);
+            if(Math.random()<0.15){
+              for(const hero of heroes){
+                if(hero.on&&Math.abs(hero.x-this.x)<300)hero.hurt(8);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    this.vy=Math.min(this.vy+GR,MF);
+    if(this.vx!==0&&!this.blockedH(tm,this.vx))this.x+=this.vx;
+    else this.vx=0;
+    if(this.vy>0&&this.onSolid(tm)){
+      this.y=Math.floor((this.y+this.h)/T)*T-this.h;this.vy=0;this.gnd=true;
+    }else{this.y+=this.vy;this.gnd=false}
+    this.cull(tm);
+
+    this.animTimer+=dt;
+    const frameCount={idle:4,run:6,attack:4}[this.st]||4;
+    if(this.animTimer>=0.1){this.animTimer=0;this.animFrame=(this.animFrame+1)%frameCount}
+  }
+  cull(tm){if(tm&&this.y>tm.h*16+200){this.on=false;}}
+  hurt(n){if(this.inv>0)return;this.hp-=n;this.inv=0.4;P.emit(this.x+this.w/2,this.y+this.h/2,8,'#f44',4,0.4,2);if(this.hp<=0){this.hp=0;this.on=false;FX.play(FXConfig.enemyDeath,this.x+this.w/2,this.y+this.h/2,48,false,0.04);P.emit(this.x+this.w/2,this.y+this.h/2,15,this.col,5,0.6,3)}}
+  draw(){
+    if(!this.on)return;if(this.inv>0&&((this.inv*12)|0)%2)return;
+    const cx=this.x+this.w/2,cy=this.y+this.h;
+    R.drawEnemy(this.customType,this.st,this.animFrame,cx-this.w/2,cy-this.h,this.w,this.h,!this.rt);
+    if(this.hp<this.mhp){R.rect(this.x,this.y-5,this.w,3,'#333');R.rect(this.x,this.y-5,this.w*(this.hp/this.mhp),3,this.hp/this.mhp>0.5?'#4a4':'#f44')}
+    R.txt(this.nm,this.x+this.w/2-R.cam.x,this.y-9-R.cam.y,'#faa',8,'center');
+  }
+}
+
+// ═══ NPC ═══
+class NPC{
+  constructor(x,y,nm,customType,dlgs){
+    this.x=x;this.y=y;this.nm=nm;this.customType=customType;this.dlgs=dlgs;this.tk=false;
+  }
+  up(dt){}
+  update(dt){}
+  draw(){
+    const h=36;
+    if(this.customType){
+      R.drawHero(this.customType,'idle',0,this.x-10,this.y-h+10,20,h,false);
+    }
+    R.txt(this.nm,this.x-R.cam.x,this.y-42-R.cam.y,'#aaa',8,'center');
+  }
+}
+
+// ═══ DIALOGUE ═══
+const D={on:false,dlgs:[],idx:0,cb:null,_advance:false,
+  show(dlgs,cb){
+    this.dlgs=dlgs;this.idx=0;this.cb=cb;this.on=true;this._advance=false;
+    document.getElementById('dlg').style.display='block';
+    this.upd();
+  },
+  upd(){
+    if(!this.on)return;
+    const el=document.getElementById('dlg');
+    el.style.display='block';
+    const sp=el.querySelector('.sp');
+    const tx=el.querySelector('.tx');
+    if(this.idx<this.dlgs.length){
+      const dlg=this.dlgs[this.idx];
+      sp.textContent=dlg.sp||'';
+      tx.textContent=dlg.tx||'';
+    }
+  },
+  advance(){
+    if(!this.on)return;
+    this.idx++;
+    if(this.idx>=this.dlgs.length){
+      this.on=false;
+      document.getElementById('dlg').style.display='none';
+      if(this.cb)this.cb();
+    }else{
+      this.upd();
+    }
+  },
+  up(dt){
+    if(!this.on)return;
+    if(I.pr('Space')||I.pr('Enter')||this._advance){
+      this._advance=false;
+      this.advance();
+    }
+  }
+};
+
+function d(sp,tx){return{sp,tx}}
+
+// ═══ HERO PROJECTILE ═══
+class HeroProj{
+  constructor(x,y,vx,vy,dmg,shooter){
+    this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.dmg=dmg;
+    this.shooter=shooter;this.on=true;this.r=5;this.life=3.0;
+  }
+  update(dt,tm,enemies){
+    if(!this.on)return;
+    this.life-=dt;
+    if(this.life<=0){this.on=false;return}
+    this.x+=this.vx;this.y+=this.vy;
+    const tx=Math.floor(this.x/T),ty=Math.floor(this.y/T);
+    if(tm&&tm.sol&&tm.sol(tx,ty)){
+      this.on=false;P.emit(this.x,this.y,6,'#88aaff',3,0.3,2);return;
+    }
+    if(enemies){
+      for(const e of enemies){
+        if(e.on&&Math.abs(e.x+e.w/2-this.x)<18&&Math.abs(e.y+e.h/2-this.y)<18){
+          e.hurt(this.dmg);
+          e.ai='chase';
+          e._chargeTarget=this.shooter;
+          e._chargeSpeed=e.spd*1.6;
+          this.on=false;
+          P.emit(this.x,this.y,10,'#4488ff',4,0.5,2.5);
+          break;
+        }
+      }
+    }
+  }
+  draw(){
+    if(!this.on)return;
+    R.x.save();
+    R.x.fillStyle='#aaddff';
+    R.x.shadowColor='#4488ff';R.x.shadowBlur=8;
+    R.x.fillRect(this.x-R.cam.x-7,this.y-R.cam.y-2,14,4);
+    R.x.fillStyle='#ffffff';
+    R.x.fillRect(this.x-R.cam.x-3,this.y-R.cam.y-1,6,2);
+    R.x.restore();
+  }
+}
+
+// ═══ PROJECTILE ═══
+class Proj{
+  constructor(x,y,vx,vy,dmg){
+    this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.dmg=dmg;
+    this.on=true;this.r=5;this.life=3.5;
+  }
+  update(dt,tm,heroes){
+    if(!this.on)return;
+    this.life-=dt;
+    if(this.life<=0){this.on=false;return}
+    this.x+=this.vx;this.y+=this.vy;
+    this.vy=Math.min(this.vy+GR*0.4,MF*0.6);
+    const tx=Math.floor(this.x/T),ty=Math.floor(this.y/T);
+    if(tm&&tm.sol&&tm.sol(tx,ty)){this.on=false;P.emit(this.x,this.y,5,'#ff8800',3,0.3,2);return}
+    for(const h of heroes){
+      if(h.on&&Math.abs(h.x+h.w/2-this.x)<14&&Math.abs(h.y+h.h/2-this.y)<14){
+        h.hurt(this.dmg);this.on=false;P.emit(this.x,this.y,4,'#ff4400',2,0.2,1.5);break;
+      }
+    }
+  }
+  draw(){
+    if(!this.on)return;
+    R.rect(this.x-this.r,this.y-this.r,this.r*2,this.r*2,'#ff8844');
+    R.rect(this.x-this.r+1,this.y-this.r+1,(this.r-1)*2,(this.r-1)*2,'#ffcc44');
+  }
+}
+
+// ═══ GAME STATE ═══
+class Lv1{
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tut=false;this.exit=null;this.shk=0;this.shi=0;this.tileset='tiles_castle';this.fox={x:200,y:100,b:0,alive:true};this.stealthFailed=false;this.decos=[];this._alertTimer=0;this._stealthAlert=false;this._healFlash=0;this.projectiles=[]}
+
+  createHeroes(x,y,includeNesta){
+    const heroes=[
+      new Hero('Kote',x,y,'#40aa88','kote'),
+      new Hero('Minerva',x+30,y,'#cc44cc','minerva'),
+      new Hero('Elber',x+60,y,'#44aa44','elber'),
+    ];
+    if(includeNesta)heroes.push(new Hero('Nesta',x+90,y,'#4488cc','nesta'));
+    heroes.push(new Hero('Nick',x+120,y,'#d0a066','nick'));
+    heroes.forEach(h=>h.applyStats(h.customType));
+    return heroes;
+  }
+
+  rebuildCompanions(){
+    this.companions=[];
+    for(let i=0;i<this.heroes.length;i++){
+      if(i!==this.ai)this.companions.push(new Companion(this.heroes[i]));
+    }
+    // Snap all entities to nearest ground/platform surface
+    if(this.tm){
+      for(const h of this.heroes)h.snapGnd(this.tm);
+      if(this.enemies)for(const e of this.enemies)e.snapGnd(this.tm);
+      // Snap NPCs to ground (NPC.y is reference point; drawn bottom = y+10)
+      if(this.npcs)for(const n of this.npcs){
+        const bx=Math.floor(n.x/T);
+        for(let yy=Math.floor(n.y/T);yy<this.tm.h;yy++){
+          if(this.tm.sol(bx,yy)){n.y=yy*T-10;break}
+        }
+      }
+    }
+  }
+
+  enter(){
+    this.bAct1();
+  }
+
+  // ACT 1: THE FINAL EXAM - Tutorial + Arena combat
+  bAct1(){
+    this.act=1;this.tileset='tiles_castle';
+    const W=240,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+    this.tut=false;
+
+    buildCastleArena(this.tm,W,H);
+    this.decos=genDecos(W,H,'castle',this.act);
+
+    this.heroes=this.createHeroes(50,(H-4)*T,true);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    const bakaris=new Enem(1800,(H-4)*T,24,36,'Bakaris','#aa5533',150,13,'boss','bakaris');
+    bakaris._phase2=false;
+    bakaris._projTimer=3.0;
+    bakaris._scene=this;
+    this.projectiles=[];
+    this.enemies=[
+      bakaris,
+      new Enem(1120,(H-4)*T,28,40,'Ayik Ur','#4466aa',88,11,'chase','castle_soldier'),
+      new Enem(1400,(H-4)*T,28,40,'Hrigg','#668877',88,11,'patrol','castle_archer'),
+      new Enem(1600,(H-4)*T,28,40,'Iriad','#8a7a5a',79,11,'chase','hideout_fighter'),
+      new Enem((240-15)*T,(H-7)*T,28,40,'Tower Guard','#446688',79,11,'static','castle_archer'),
+    ];
+    this.enemies[1].spd=0.9;this.enemies[2].spd=0.9;this.enemies[3].spd=0.9;this.enemies[4].spd=0.9;
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('hint').textContent='Act 1: Final Exam - Defeat Bakaris and his students!';
+    D.show([
+      d('Narrator','Azurerune Fortress - The Tribunal watches from above.'),
+      d('Narrator','This is the final exam. Survive!'),
+      d('Tutorial','Use ARROW KEYS to move, Z to attack, Q for skills, TAB to swap heroes.'),
+      d('Bakaris','"You think you can beat me?"'),
+      d('Narrator','Defeat Bakaris and his crew to advance!')
+    ],()=>{this.tut=true});
+  }
+
+  // ACT 2: BLOOD AND GRUDGE - Cutscene (pure dialogue)
+  bAct2(){
+    this.act=2;
+    document.getElementById('hud').style.display='none';
+    document.getElementById('hint').textContent='Act 2: Blood and Grudge';
+    this.tm=null;
+    this.enemies=[];this.npcs=[];
+    D.show([
+      d('Narrator','The exam ends. Bakaris falls to one knee.'),
+      d('Bakaris','You... you beat me...'),
+      d('Nesta','You hurt my familiar. You sealed your fate!'),
+      d('Narrator','Nesta draws a blade. Blood spills.'),
+      d('Narrator','Bakaris screams as a scar tears across his face.'),
+      d('Narrator','The tribunal above shifts uneasily.'),
+      d('Narrator','This was no simple exam anymore.')
+    ],()=>{this._act2done=true;this.bAct3()});
+  }
+
+  // ACT 3: HALLWAY RUMORS - Exploration/social (walk right, talk to NPCs)
+  bAct3(){
+    this.act=3;this.tileset='tiles_castle';
+    const W=300,H=16;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+    this._act3done=false;
+
+    buildCastleArena(this.tm,W,H);
+    this.decos=genDecos(W,H,'castle',this.act);
+
+    this.heroes=this.createHeroes(50,(H-4)*T,true);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.npcs=[
+      new NPC(600,(H-4)*T,'Levna Drakehorn','minerva',[
+        d('Levna','That mark on Bakaris... I\'ve seen something like it in my uncle\'s bestiary.'),
+        d('Levna','A spiral wound pattern. Like a talon that carries memory.'),
+        d('Levna','Blue dragons leave marks that don\'t fade. Not on skin, not on stone.'),
+        d('Levna','Whatever Nesta did \u2014 she\'s written herself into history whether she wanted to or not.'),
+      ]),
+      new NPC(800,(H-4)*T,'Clystran','elber',[
+        d('Clystran','Dragons are supposed to be extinct. The Cataclysm supposedly ended all of that.'),
+        d('Clystran','But that wound on Bakaris \u2014 I\'ve studied metallurgy. No blade makes that spiral.'),
+        d('Clystran','Living things make spiral wounds. Something channeled through Nesta\'s hand.'),
+        d('Clystran','I don\'t know what it means. But I intend to find out.'),
+      ]),
+      new NPC(1000,(H-4)*T,'Darrett','nesta',[
+        d('Darrett','Did you see it? Bakaris went down like he\'d been struck by lightning.'),
+        d('Darrett','A real knight fights for others. I don\'t think Bakaris ever understood that.'),
+        d('Darrett','I want to serve someone who does. Someone like... well. Like all of you.'),
+        d('Darrett','If you ever need someone to carry your gear \u2014 I\'m serious. Call on me.'),
+      ]),
+      new NPC(1200,(H-4)*T,'Andir','nick',[
+        d('Andir','The old gods watch this school more closely than its masters believe.'),
+        d('Andir','Bakaris comes from a powerful family. This wound to his pride will fester.'),
+        d('Andir','Pride is the wound that never heals without humility \u2014 and he has none.'),
+        d('Andir','I will pray for you. I think you have made an enemy who remembers.'),
+      ]),
+    ];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('hint').textContent='Act 3: Hallway Rumors - Walk right to progress, press Z to talk to NPCs';
+    D.show([
+      d('Narrator','Azurerune corridors. Whispers of the exam echo.'),
+      d('Narrator','Talk to the other students. What do they know?')
+    ],()=>{});
+  }
+
+  // ACT 4: NIGHT INFILTRATION - Stealth + Combat in the library
+  bAct4(){
+    this.act=4;this.tileset='tiles_library';
+    const W=300,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+    this.stealthFailed=false;
+
+    buildCastleArena(this.tm,W,H);
+    this.decos=genDecos(W,H,'library',this.act);
+
+    this.heroes=this.createHeroes(40,(H-4)*T,true);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    // Guard NPC with patrol — touching it restarts the act
+    this.enemies=[
+      new Enem(800,(H-4)*T,28,40,'Guard','#4466aa',70,11,'patrol','castle_knight'),
+      new Enem(1200,(H-5)*T,16,20,'Mimic Book','#8844aa',35,8,'static','mimic'),
+      new Enem(1400,(H-5)*T,16,20,'Mimic Book','#8844aa',35,8,'static','mimic'),
+    ];
+    this.enemies[0].spd=0.8;
+    this.enemies[1].spd=0.9;
+    this.enemies[2].spd=0.9;
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('hint').textContent='Act 4: Night Infiltration - Avoid the Guard! Defeat the Mimic Books and reach x>700!';
+    D.show([
+      d('Narrator','Under cover of night, the group sneaks into the library.'),
+      d('Narrator','A guard patrols the halls. Avoid detection!'),
+      d('Narrator','Defeat the Mimic Books and reach the far side.')
+    ],()=>{this.tut=true});
+  }
+
+  // ACT 5: DIVERGING PATHS - Story cutscene (pure dialogue, then to Lv2)
+  bAct5(){
+    this.act=5;
+    document.getElementById('hud').style.display='none';
+    document.getElementById('hint').textContent='Act 5: Diverging Paths';
+    this.tm=null;
+    this.enemies=[];this.npcs=[];
+    D.show([
+      d('Narrator','The library holds many secrets.'),
+      d('Narrator','The group gathers to discuss their findings.'),
+      d('Ispin','The Kingfisher Festival is in Vogler. Join us!'),
+      d('Narrator','Vogler: the trading hub of the realm.'),
+      d('Narrator','But first, they must understand the scar.'),
+      d('Narrator','A blue dragon. A connection. A journey begins.'),
+      d('Narrator','Next stop: Vogler.')
+    ],()=>{G.sc=new Lv2();G.sc.enter()});
+  }
+
+  swap(idx){
+    if(idx===this.ai||!this.heroes[idx]||!this.heroes[idx].on)return;
+    const cur=this.heroes[this.ai],nxt=this.heroes[idx];
+    const tx=nxt.x,ty=nxt.y;
+    nxt.x=cur.x;nxt.y=cur.y;nxt.vx=0;nxt.vy=0;nxt.gnd=cur.gnd;
+    cur.x=tx;cur.y=ty;cur.vx=0;cur.vy=0;
+    cur.ctrl=false;cur.st='idle';nxt.ctrl=true;
+    this.ai=idx;
+    this.rebuildCompanions();
+    P.emit(nxt.x+nxt.w/2,nxt.y+nxt.h/2,8,nxt.col,3,0.3,2);
+    this.hud();
+  }
+
+  hud(){
+    let h='';
+    this.heroes.forEach((hero,i)=>{
+      const a=i===this.ai?'act':'';const pct=Math.max(0,hero.hp/hero.mhp*100);
+      const col=pct>50?'#4a4':pct>25?'#aa4':'#a44';
+      h+=`<div class="hs ${a}" onclick="G.sc.swap(${i})"><div style="width:28px;height:28px;background:${hero.col}33;border-radius:2px;display:flex;align-items:center;justify-content:center"><span style="color:${hero.col};font-size:13px;font-weight:bold">${hero.nm[0]}</span></div><div class="hp-bar"><div class="hp-fill" style="width:${pct}%;background:${col}"></div></div><div class="nm">${hero.nm}</div></div>`;
+    });
+    document.getElementById('hud').innerHTML=h;
+    const al=this.enemies.filter(e=>e.on).length;
+    const el=document.getElementById('ecount');
+    if(this.enemies.length)el.textContent=`Enemies: ${al}/${this.enemies.length}`;
+    else el.textContent='';
+  }
+
+  update(dt){
+    if(D.on){D.up(dt);return}
+    if(this.shk>0){this.shk-=dt;R.cam.x+=(Math.random()-0.5)*this.shi;R.cam.y+=(Math.random()-0.5)*this.shi}
+    if(!this.tm){P.up(dt);return}
+
+    if(I.pr('Tab')){
+      let n=(this.ai+1)%this.heroes.length,c=0;
+      while((!this.heroes[n]||!this.heroes[n].on)&&c<this.heroes.length){n=(n+1)%this.heroes.length;c++}
+      this.swap(n);
+    }
+    for(let i=0;i<this.heroes.length;i++)if(I.pr('Digit'+(i+1)))this.swap(i);
+
+    // Act 3: NPC interaction via Z/J key
+    if(this.act===3){
+      if(I.pr('KeyZ')||I.pr('KeyJ')){
+        const h=this.heroes[this.ai];
+        this.npcs.forEach(n=>{
+          if(!n.tk&&n.dlgs&&Math.abs(n.x-h.x)<50&&Math.abs(n.y-h.y)<40){
+            n.tk=true;
+            D.show(n.dlgs,()=>{});
+          }
+        });
+      }
+      // Auto-progress when walking right past x=900
+      if(this.heroes[this.ai].x>1800&&!this._act3done){
+        this._act3done=true;
+        D.show([d('Narrator','The truth becomes clearer with each step...')],()=>{this.bAct4()});
+      }
+      this.heroes[this.ai].update(dt,this.tm);
+      this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
+      P.up(dt);this.hud();
+      if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
+      return;
+    }
+
+    this.heroes[this.ai].update(dt,this.tm);
+    this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
+    this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
+
+    // Act 4: Guard detection (2-stage stealth)
+    if(this.act===4&&this.tut){
+      const h=this.heroes[this.ai];
+      let anyAlert=false;
+      this.enemies.forEach(e=>{
+        if(e.customType==='castle_knight'&&e.on){
+          const dist=Math.sqrt((e.x-h.x)**2+(e.y-h.y)**2);
+          const ALERT_R=180,CAUGHT_R=70;
+          if(dist<CAUGHT_R&&!this.stealthFailed){
+            this.stealthFailed=true;this._stealthAlert=false;this._alertTimer=0;
+            D.show([d('Guard','Intruder! Stop right there!')],()=>{this.stealthFailed=false;this.bAct4()});
+          } else if(dist<ALERT_R){
+            anyAlert=true;
+            if(!this._stealthAlert){this._stealthAlert=true;this._alertTimer=2.5;}
+            e.rt=(h.x>e.x);
+          }
+        }
+      });
+      if(!anyAlert){this._stealthAlert=false;this._alertTimer=0;}
+      if(this._stealthAlert){
+        this._alertTimer-=dt;
+        if(this._alertTimer<=0&&!this.stealthFailed){
+          this.stealthFailed=true;this._stealthAlert=false;
+          D.show([d('Guard','I see you! Sound the alarm!')],()=>{this.stealthFailed=false;this.bAct4()});
+        }
+      }
+    }
+
+    this.heroes.forEach(hero=>{
+      const ab=hero.atkBox();if(!ab)return;
+      this.enemies.forEach(e=>{if(e.on&&e.x<ab.x+ab.w&&e.x+e.w>ab.x&&e.y<ab.y+ab.h&&e.y+e.h>ab.y)e.hurt(ab.dmg||hero.atkDmg)});
+    });
+
+    // Projectile updates
+    if(this.projectiles){this.projectiles.forEach(p=>{if(p instanceof HeroProj)p.update(dt,this.tm,this.enemies);else p.update(dt,this.tm,this.heroes);});this.projectiles=this.projectiles.filter(p=>p.on);}
+
+    P.up(dt);
+    this.hud();
+
+    // Act 1: Defeat all enemies
+    if(this.act===1&&this.tut&&this.enemies.every(e=>!e.on)){
+      this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#c8a84e',6,0.8,3);
+      this._act1done=true;
+      D.show([d('Narrator','Victory in the exam!')],()=>{this.bAct2()});
+    }
+
+    // Act 4: Defeat all mimics AND reach x>700
+    if(this.act===4&&this.tut&&this.enemies.every(e=>!e.on)&&this.heroes[this.ai].x>1400){
+      this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#00aa44',6,0.8,3);
+      this._act4done=true;
+      D.show([d('Narrator','The library secrets are revealed!')],()=>{this.bAct5()});
+    }
+
+    if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
+  }
+
+  draw(){
+    const g=R.x.createLinearGradient(0,0,0,CH);
+    g.addColorStop(0,'#0d2847');g.addColorStop(1,'#1a3a5a');
+    R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
+    drawBgLayer(R.x,R.cam,'castle',240,18);
+
+    if(this.tm)this.tm.draw(this.tileset);
+    R.drawDecos(this.decos);
+
+    this.npcs.forEach(n=>n.draw());
+    this.enemies.forEach(e=>e.draw());
+    // Guard detection rings
+    this.enemies.forEach(e=>{
+      if(e.customType==='castle_knight'&&e.on){
+        const sx=e.x+e.w/2-R.cam.x,sy=e.y+e.h/2-R.cam.y;
+        R.x.save();
+        R.x.strokeStyle=this._stealthAlert?'rgba(255,220,0,0.7)':'rgba(255,220,0,0.2)';
+        R.x.lineWidth=2;R.x.beginPath();R.x.arc(sx,sy,180,0,Math.PI*2);R.x.stroke();
+        R.x.strokeStyle='rgba(255,60,0,0.45)';R.x.lineWidth=1.5;
+        R.x.beginPath();R.x.arc(sx,sy,70,0,Math.PI*2);R.x.stroke();
+        if(this._stealthAlert&&this._alertTimer>0){
+          R.x.fillStyle='rgba(0,0,0,0.5)';R.x.fillRect(sx-30,sy-95,60,8);
+          R.x.fillStyle='rgba(255,200,0,0.9)';R.x.fillRect(sx-30,sy-95,60*(this._alertTimer/2.5),8);
+        }
+        R.x.restore();
+      }
+    });
+    if(this.projectiles)this.projectiles.forEach(p=>p.draw());
+    this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
+    this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
+    // Heal flash
+    if(this._healFlash>0){
+      this._healFlash-=1/60;
+      R.x.save();
+      R.x.globalAlpha=Math.min(1,this._healFlash*2);
+      R.x.fillStyle='#22ee66';R.x.font='bold 22px monospace';R.x.textAlign='center';
+      R.x.shadowColor='#22ee66';R.x.shadowBlur=12;
+      R.x.fillText('PARTY HEALED!',CW/2,CH/2-60);
+      R.x.restore();R.x.textAlign='left';
+    }
+    P.draw();
+  }
+}
+
+// ═══ LEVEL 2 ═══
+class Lv2{
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_garden';this.exit=null;this.shk=0;this.shi=0;this.fishing=false;this.fishRound=0;this.fishCaught=0;this.fishBar=0;this.fishMarker=0;this.fishDir=1;this.tut=false;this.decos=[];this._healFlash=0;this.projectiles=[]}
+
+  createHeroes(x,y){
+    const heroes=[
+      new Hero('Kote',x,y,'#40aa88','kote'),
+      new Hero('Minerva',x+30,y,'#cc44cc','minerva'),
+      new Hero('Elber',x+60,y,'#44aa44','elber'),
+      new Hero('Nick',x+120,y,'#d0a066','nick'),
+    ];
+    heroes.forEach(h=>h.applyStats(h.customType));
+    return heroes;
+  }
+
+  rebuildCompanions(){
+    this.companions=[];
+    for(let i=0;i<this.heroes.length;i++){
+      if(i!==this.ai)this.companions.push(new Companion(this.heroes[i]));
+    }
+    // Snap all entities to nearest ground/platform surface
+    if(this.tm){
+      for(const h of this.heroes)h.snapGnd(this.tm);
+      if(this.enemies)for(const e of this.enemies)e.snapGnd(this.tm);
+      // Snap NPCs to ground (NPC.y is reference point; drawn bottom = y+10)
+      if(this.npcs)for(const n of this.npcs){
+        const bx=Math.floor(n.x/T);
+        for(let yy=Math.floor(n.y/T);yy<this.tm.h;yy++){
+          if(this.tm.sol(bx,yy)){n.y=yy*T-10;break}
+        }
+      }
+    }
+  }
+
+  enter(){
+    this.bAct1();
+  }
+
+  bAct1(){
+    this.act=1;
+    const W=300,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    buildGardenPath(this.tm,W,H);
+    this.decos=genDecos(W,H,'garden',this.act);
+
+    this.heroes=this.createHeroes(40,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.enemies=[
+      new Enem(800,(H-5)*T,20,24,'Darkmantle','#334',105,17,'chase','darkmantle'),
+      new Enem(1000,(H-8)*T,20,24,'Darkmantle','#334',105,17,'patrol','darkmantle'),
+      new Enem(1300,(H-9)*T,20,24,'Darkmantle','#334',123,20,'chase','darkmantle'),
+      new Enem(1760,(H-8)*T,20,24,'Darkmantle','#442266',105,17,'static','darkmantle'),
+    ];
+    this.enemies.forEach(e=>{e.spd=0.9;});
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('hint').textContent='River Ambush: Defeat the Darkmantles!';
+    D.show([d('Narrator','The Kingfisher Festival celebration...'),d('Narrator','Suddenly, Darkmantles emerge from the darkness!'),d('Tutorial','Defeat them!')],()=>{this.tut=true});
+  }
+
+  bAct2(){
+    this.act=2;
+    const W=300,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    buildGardenPath(this.tm,W,H);
+    this.decos=genDecos(W,H,'garden',this.act);
+
+    this.heroes=this.createHeroes(50,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.npcs=[
+      new NPC(800,(H-4)*T,'Mayor','bakaris',[d('Mayor','Welcome to Vogler village!')]),
+      new NPC(1000,(H-4)*T,'Ispin','minerva',[d('Ispin','The fishing competition awaits!')]),
+    ];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='Festival Sabotage: Explore and talk to NPCs';
+    D.show([d('Narrator','Vogler village - the festival center'),d('Mayor','Welcome, heroes! But darkness clouds our joy...'),d('Ispin','The sabotage must be revealed!')],()=>{});
+  }
+
+  bAct3(){
+    this.act=3;
+    this.fishing=true;
+    this.fishRound=0;
+    this.fishCaught=0;
+    document.getElementById('hud').style.display='none';
+    document.getElementById('hint').textContent='Fishing Minigame: Catch the fish!';
+    D.show([d('Narrator','The Kingfisher Fishing Competition begins!'),d('Narrator','Time to prove your skills with the line.')],()=>{});
+  }
+
+  bAct4(){
+    this.act=4;
+    this.fishing=false;
+    const W=300,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    buildGardenPath(this.tm,W,H);
+    this.decos=genDecos(W,H,'garden',this.act);
+
+    this.heroes=this.createHeroes(50,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    const kapak=new Enem(1000,(H-5)*T,28,56,'Draconian Kapak','#4a6622',180,20,'boss','draconian_kapak');
+    kapak._jumpTimer=2.0;
+    this.enemies=[kapak];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('hint').textContent='Shadow on the Road: Defeat the Draconian Kapak!';
+    D.show([d('Narrator','Shadow on the Road...'),d('Narrator','A Draconian Kapak blocks the path!'),d('Tutorial','Defeat it!')],()=>{this.tut=true});
+  }
+
+  swap(idx){
+    if(idx===this.ai||!this.heroes[idx]||!this.heroes[idx].on)return;
+    const cur=this.heroes[this.ai],nxt=this.heroes[idx];
+    const tx=nxt.x,ty=nxt.y;
+    nxt.x=cur.x;nxt.y=cur.y;nxt.vx=0;nxt.vy=0;nxt.gnd=cur.gnd;
+    cur.x=tx;cur.y=ty;cur.vx=0;cur.vy=0;
+    cur.ctrl=false;cur.st='idle';nxt.ctrl=true;
+    this.ai=idx;
+    this.rebuildCompanions();
+    P.emit(nxt.x+nxt.w/2,nxt.y+nxt.h/2,8,nxt.col,3,0.3,2);
+    this.hud();
+  }
+
+  hud(){
+    let h='';
+    this.heroes.forEach((hero,i)=>{
+      const a=i===this.ai?'act':'';const pct=Math.max(0,hero.hp/hero.mhp*100);
+      const col=pct>50?'#4a4':pct>25?'#aa4':'#a44';
+      h+=`<div class="hs ${a}" onclick="G.sc.swap(${i})"><div style="width:28px;height:28px;background:${hero.col}33;border-radius:2px;display:flex;align-items:center;justify-content:center"><span style="color:${hero.col};font-size:13px;font-weight:bold">${hero.nm[0]}</span></div><div class="hp-bar"><div class="hp-fill" style="width:${pct}%;background:${col}"></div></div><div class="nm">${hero.nm}</div></div>`;
+    });
+    document.getElementById('hud').innerHTML=h;
+    const al=this.enemies.filter(e=>e.on).length;
+    const el=document.getElementById('ecount');
+    if(this.enemies.length)el.textContent=`Enemies: ${al}/${this.enemies.length}`;
+  }
+
+  update(dt){
+    if(D.on){D.up(dt);return}
+    if(this.shk>0){this.shk-=dt;R.cam.x+=(Math.random()-0.5)*this.shi;R.cam.y+=(Math.random()-0.5)*this.shi}
+
+    if(this.fishing){
+      this.fishMarker+=this.fishDir*2*dt;
+      if(this.fishMarker>1)this.fishDir=-1;
+      if(this.fishMarker<0)this.fishDir=1;
+      if(I.pr('Space')){
+        const sweetSpot=this.fishRound===0?0.3:this.fishRound===1?0.2:0.1;
+        const inZone=Math.abs(this.fishMarker-0.5)<sweetSpot;
+        if(inZone){
+          this.fishCaught++;
+          D.show([d('Narrator',`Fish ${this.fishCaught} Caught!`)],()=>{
+            this.fishRound++;
+            if(this.fishRound>=3){
+              this.bAct4();
+            }
+          });
+        }else{
+          D.show([d('Narrator','Missed! Try again.')],()=>{});
+        }
+      }
+      P.up(dt);
+      return;
+    }
+
+    if(!this.tm){P.up(dt);return}
+
+    if(I.pr('Tab')){
+      let n=(this.ai+1)%this.heroes.length,c=0;
+      while((!this.heroes[n]||!this.heroes[n].on)&&c<this.heroes.length){n=(n+1)%this.heroes.length;c++}
+      this.swap(n);
+    }
+    for(let i=0;i<this.heroes.length;i++)if(I.pr('Digit'+(i+1)))this.swap(i);
+
+    if(this.act===2){
+      // NPC interaction — press Z/J near an NPC to talk
+      if(I.pr('KeyZ')||I.pr('KeyJ')){
+        const h=this.heroes[this.ai];
+        this.npcs.forEach(n=>{
+          if(!n.tk&&n.dlgs&&Math.abs(n.x-h.x)<50&&Math.abs(n.y-h.y)<40){
+            n.tk=true;
+            D.show(n.dlgs,()=>{});
+          }
+        });
+      }
+      // Auto-progress when hero walks past x=800 (right side of village)
+      if(this.heroes[this.ai].x>1600&&!this._act2done){
+        this._act2done=true;
+        D.show([d('Narrator','The fishing competition is about to start!'),d('Ispin','Head to the river — it\'s time to fish!')],()=>{this.bAct3()});
+      }
+      this.heroes[this.ai].update(dt,this.tm);
+      this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
+      P.up(dt);this.hud();
+      if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
+      return;
+    }
+
+    this.heroes[this.ai].update(dt,this.tm);
+    this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
+    this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
+
+    this.heroes.forEach(hero=>{
+      const ab=hero.atkBox();if(!ab)return;
+      this.enemies.forEach(e=>{if(e.on&&e.x<ab.x+ab.w&&e.x+e.w>ab.x&&e.y<ab.y+ab.h&&e.y+e.h>ab.y)e.hurt(ab.dmg||hero.atkDmg)});
+    });
+
+    if(this.projectiles){this.projectiles.forEach(p=>{if(p instanceof HeroProj)p.update(dt,this.tm,this.enemies);else p.update(dt,this.tm,this.heroes);});this.projectiles=this.projectiles.filter(p=>p.on);}
+
+    P.up(dt);
+    this.hud();
+
+    if(this.act===1&&this.tut&&this.enemies.every(e=>!e.on)){
+      this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#c8a84e',6,0.8,3);
+      D.show([d('Narrator','The ambush is defeated!')],()=>{this.bAct2()});
+    }
+
+    if(this.act===4&&this.tut&&this.enemies.every(e=>!e.on)){
+      this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#00aa44',6,0.8,3);
+      P.emit(this.enemies[0].x,this.enemies[0].y,20,'#00dd44',5,0.6,3);
+      D.show([d('Narrator','The Draconian Kapak falls in acid!')],()=>{G.sc=new Lv3();G.sc.enter()});
+    }
+
+    if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
+  }
+
+  draw(){
+    const g=R.x.createLinearGradient(0,0,0,CH);
+    g.addColorStop(0,'#0d4a2a');g.addColorStop(1,'#1a5a3a');
+    R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
+    drawBgLayer(R.x,R.cam,'garden',300,18);
+
+    if(this.fishing){
+      R.x.fillStyle='rgba(0,100,50,0.3)';
+      for(let i=0;i<20;i++){
+        const ox=Math.sin(Date.now()*0.001+i)*30;
+        R.x.fillRect(CW/2+ox,Math.random()*CH,10,10);
+      }
+      const barW=40,barH=200;
+      const barX=CW-60,barY=(CH-barH)/2;
+      R.x.strokeStyle='#fff';R.x.lineWidth=2;
+      R.x.strokeRect(barX,barY,barW,barH);
+      R.x.fillStyle='#00aa44';
+      const sw=this.fishRound===0?0.3:this.fishRound===1?0.2:0.1;const sweetStart=barY+(barH*(0.5-sw)),sweetHeight=barH*sw*2;
+      R.x.fillRect(barX,sweetStart,barW,sweetHeight);
+      const markerY=barY+this.fishMarker*barH;
+      R.x.fillStyle='#ffff00';
+      R.x.fillRect(barX-5,markerY-10,barW+10,20);
+      R.x.fillStyle='#fff';
+      R.x.font='bold 16px monospace';
+      R.x.textAlign='center';
+      R.x.fillText(`Fish: ${this.fishCaught+1}/3`,CW/2,50);
+      R.x.fillText('Press SPACE',CW/2,CH-50);
+      P.draw();
+      return;
+    }
+
+    if(this.tm)this.tm.draw(this.tileset);
+    R.drawDecos(this.decos);
+
+    this.npcs.forEach(n=>n.draw());
+    this.enemies.forEach(e=>e.draw());
+    if(this.projectiles)this.projectiles.forEach(p=>p.draw());
+    this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
+    this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
+    // Heal flash
+    if(this._healFlash>0){
+      this._healFlash-=1/60;
+      R.x.save();
+      R.x.globalAlpha=Math.min(1,this._healFlash*2);
+      R.x.fillStyle='#22ee66';R.x.font='bold 22px monospace';R.x.textAlign='center';
+      R.x.shadowColor='#22ee66';R.x.shadowBlur=12;
+      R.x.fillText('PARTY HEALED!',CW/2,CH/2-60);
+      R.x.restore();R.x.textAlign='left';
+    }
+    P.draw();
+  }
+}
+
+// ═══ LEVEL 3 ═══
+class Lv3{
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_library';this.exit=null;this.shk=0;this.shi=0;this.tut=false;this.stealthFailed=false;this.decos=[];this._alertTimer=0;this._stealthAlert=false;this._healFlash=0;this.projectiles=[]}
+
+  createHeroes(x,y){
+    const heroes=[
+      new Hero('Kote',x,y,'#40aa88','kote'),
+      new Hero('Minerva',x+30,y,'#cc44cc','minerva'),
+      new Hero('Elber',x+60,y,'#44aa44','elber'),
+      new Hero('Nick',x+120,y,'#d0a066','nick'),
+    ];
+    heroes.forEach(h=>h.applyStats(h.customType));
+    return heroes;
+  }
+
+  rebuildCompanions(){
+    this.companions=[];
+    for(let i=0;i<this.heroes.length;i++){
+      if(i!==this.ai)this.companions.push(new Companion(this.heroes[i]));
+    }
+    // Snap all entities to nearest ground/platform surface
+    if(this.tm){
+      for(const h of this.heroes)h.snapGnd(this.tm);
+      if(this.enemies)for(const e of this.enemies)e.snapGnd(this.tm);
+      // Snap NPCs to ground (NPC.y is reference point; drawn bottom = y+10)
+      if(this.npcs)for(const n of this.npcs){
+        const bx=Math.floor(n.x/T);
+        for(let yy=Math.floor(n.y/T);yy<this.tm.h;yy++){
+          if(this.tm.sol(bx,yy)){n.y=yy*T-10;break}
+        }
+      }
+    }
+  }
+
+  enter(){
+    this.bAct1();
+  }
+
+  bAct1(){
+    this.act=1;
+    const W=240,H=20;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+    this.stealthFailed=false;
+
+    buildLibraryHalls(this.tm,W,H);
+    this.decos=genDecos(W,H,'library',this.act);
+
+    this.heroes=this.createHeroes(40,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    // Guard in corridor between walls 15 and 32 (center ~x=23*T=368)
+    this.enemies=[new Enem(736,(H-4)*T,28,40,'Library Censor','#4466aa',70,11,'patrol','lib_censor')];
+    this.enemies[0].spd=0.8;
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('hint').textContent='Silence Threshold: Avoid the Guard!';
+    D.show([d('Narrator','Inside the Library of Secrets...'),d('Narrator','A guard patrols the halls.'),d('Tutorial','Avoid detection and reach the end!')],()=>{this.tut=true});
+  }
+
+  bAct2(){
+    this.act=2;
+    const W=240,H=20;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    buildLibraryHalls(this.tm,W,H);
+    this.decos=genDecos(W,H,'library',this.act);
+
+    this.heroes=this.createHeroes(40,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='Descent to the Forbidden: Platforming challenge!';
+    D.show([d('Narrator','Descending into the depths...'),d('Narrator','Watch for trap platforms!')],()=>{});
+  }
+
+  bAct3(){
+    this.act=3;
+    const W=240,H=20;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    buildLibraryHalls(this.tm,W,H);
+    this.decos=genDecos(W,H,'library',this.act);
+
+    this.heroes=this.createHeroes(50,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    // Cursed Sword in corridor between walls 32 and 52 (center ~x=42*T=672)
+    this.enemies=[
+      new Enem(1344,(H-4)*T,28,40,'Corrupted Librarian','#9944ff',140,14,'static','lib_cataloguer'),
+      new Enem(800,(H-8)*T,24,36,'Corrupted Archivist','#443322',96,13,'static','lib_director'),
+    ];
+    this.enemies.forEach(e=>{e.spd=0.9;});
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='Echoes of the Past: Defeat the Cursed Sword!';
+    D.show([d('Narrator','The chamber echoes with ancient magic...'),d('Narrator','A sword moves on its own!'),d('Tutorial','Defeat it!')],()=>{this.tut=true});
+  }
+
+  bAct4(){
+    this.act=4;
+    const W=240,H=20;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    buildLibraryHalls(this.tm,W,H);
+    this.decos=genDecos(W,H,'library',this.act);
+
+    this.heroes=this.createHeroes(50,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    // Spectator in corridor between walls 52 and 72 (center ~x=62*T=992)
+    const spectator=new Enem(1984,(H-8)*T,24,32,'The Spectator','#6644aa',165,16,'static','spectator');
+    spectator._teleTimer=4.0;
+    spectator._tpMinDist=80;
+    this.enemies=[spectator];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='Deceptions and Depths: Defeat the Spectator!';
+    D.show([d('Narrator','A figure floats above the abyss...'),d('Narrator','The Spectator observes all who enter.'),d('Tutorial','Defeat it!')],()=>{this.tut=true});
+  }
+
+  bAct5(){
+    this.act=5;
+    const W=240,H=20;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    buildLibraryHalls(this.tm,W,H);
+    this.decos=genDecos(W,H,'library',this.act);
+
+    this.heroes=this.createHeroes(50,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    // Becklin in last corridor between walls 92 and 108 (center ~x=100*T=1600)
+    this.npcs=[new NPC(3200,(H-4)*T,'Becklin','bakaris',[d('Becklin','You made it through the library.')])];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='Escape: Reach the exit!';
+    D.show([d('Narrator','The exit corridor lies ahead.')],()=>{});
+  }
+
+  swap(idx){
+    if(idx===this.ai||!this.heroes[idx]||!this.heroes[idx].on)return;
+    const cur=this.heroes[this.ai],nxt=this.heroes[idx];
+    const tx=nxt.x,ty=nxt.y;
+    nxt.x=cur.x;nxt.y=cur.y;nxt.vx=0;nxt.vy=0;nxt.gnd=cur.gnd;
+    cur.x=tx;cur.y=ty;cur.vx=0;cur.vy=0;
+    cur.ctrl=false;cur.st='idle';nxt.ctrl=true;
+    this.ai=idx;
+    this.rebuildCompanions();
+    P.emit(nxt.x+nxt.w/2,nxt.y+nxt.h/2,8,nxt.col,3,0.3,2);
+    this.hud();
+  }
+
+  hud(){
+    let h='';
+    this.heroes.forEach((hero,i)=>{
+      const a=i===this.ai?'act':'';const pct=Math.max(0,hero.hp/hero.mhp*100);
+      const col=pct>50?'#4a4':pct>25?'#aa4':'#a44';
+      h+=`<div class="hs ${a}" onclick="G.sc.swap(${i})"><div style="width:28px;height:28px;background:${hero.col}33;border-radius:2px;display:flex;align-items:center;justify-content:center"><span style="color:${hero.col};font-size:13px;font-weight:bold">${hero.nm[0]}</span></div><div class="hp-bar"><div class="hp-fill" style="width:${pct}%;background:${col}"></div></div><div class="nm">${hero.nm}</div></div>`;
+    });
+    document.getElementById('hud').innerHTML=h;
+    const al=this.enemies.filter(e=>e.on).length;
+    const el=document.getElementById('ecount');
+    if(this.enemies.length)el.textContent=`Enemies: ${al}/${this.enemies.length}`;
+  }
+
+  update(dt){
+    if(D.on){D.up(dt);return}
+    if(this.shk>0){this.shk-=dt;R.cam.x+=(Math.random()-0.5)*this.shi;R.cam.y+=(Math.random()-0.5)*this.shi}
+    if(!this.tm){P.up(dt);return}
+
+    if(I.pr('Tab')){
+      let n=(this.ai+1)%this.heroes.length,c=0;
+      while((!this.heroes[n]||!this.heroes[n].on)&&c<this.heroes.length){n=(n+1)%this.heroes.length;c++}
+      this.swap(n);
+    }
+    for(let i=0;i<this.heroes.length;i++)if(I.pr('Digit'+(i+1)))this.swap(i);
+
+    if(this.act===1){
+      const guard=this.enemies[0];
+      const hero=this.heroes[this.ai];
+      if(guard&&guard.on){
+        const dist=Math.sqrt((hero.x-guard.x)**2+(hero.y-guard.y)**2);
+        const ALERT_R=180,CAUGHT_R=70;
+        if(dist<CAUGHT_R&&this.tut&&!this.stealthFailed){
+          this.stealthFailed=true;this._stealthAlert=false;this._alertTimer=0;
+          D.show([d('Narrator','Detected! The guard spots you!')],()=>{this.stealthFailed=false;this.bAct1()});
+          return;
+        } else if(dist<ALERT_R&&this.tut){
+          if(!this._stealthAlert){this._stealthAlert=true;this._alertTimer=2.5;}
+          guard.rt=(hero.x>guard.x);
+        } else {
+          this._stealthAlert=false;this._alertTimer=0;
+        }
+        if(this._stealthAlert){
+          this._alertTimer-=dt;
+          if(this._alertTimer<=0&&!this.stealthFailed&&this.tut){
+            this.stealthFailed=true;this._stealthAlert=false;
+            D.show([d('Narrator','The guard noticed you! Fall back!')],()=>{this.stealthFailed=false;this.bAct1()});
+            return;
+          }
+        }
+      }
+      if(hero.x>2000&&this.tut&&!this._stealthDone){
+        this._stealthDone=true;
+        D.show([d('Narrator','Stealth successful!')],()=>{this.bAct2()});
+        return;
+      }
+    }
+
+    if(this.act===2&&!this._act2done){
+      if(this.heroes[this.ai].y<100){
+        this._act2done=true;
+        D.show([d('Narrator','You have descended to the forbidden chamber.')],()=>{this.bAct3()});
+        return;
+      }
+    }
+
+    if(this.act===5&&!this._act5done){
+      if(this.heroes[this.ai].x>3000){
+        this._act5done=true;
+        D.show([d('Narrator','You escaped the library!')],()=>{G.sc=new Lv4();G.sc.enter()});
+        return;
+      }
+    }
+
+    this.heroes[this.ai].update(dt,this.tm);
+    this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
+    this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
+    this.npcs.forEach(n=>n.update(dt,this.heroes[this.ai]));
+
+    this.heroes.forEach(hero=>{
+      const ab=hero.atkBox();if(!ab)return;
+      this.enemies.forEach(e=>{if(e.on&&e.x<ab.x+ab.w&&e.x+e.w>ab.x&&e.y<ab.y+ab.h&&e.y+e.h>ab.y)e.hurt(ab.dmg||hero.atkDmg)});
+    });
+
+    if(this.projectiles){this.projectiles.forEach(p=>{if(p instanceof HeroProj)p.update(dt,this.tm,this.enemies);else p.update(dt,this.tm,this.heroes);});this.projectiles=this.projectiles.filter(p=>p.on);}
+
+    P.up(dt);
+    this.hud();
+
+    if(this.act===3&&this.tut&&this.enemies.every(e=>!e.on)){
+      this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#9944ff',6,0.8,3);
+      D.show([d('Narrator','The curse breaks!')],()=>{this.bAct4()});
+    }
+
+    if(this.act===4&&this.tut&&this.enemies.every(e=>!e.on)){
+      this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#c8a84e',6,0.8,3);
+      D.show([d('Narrator','The Spectator falls!')],()=>{this.bAct5()});
+    }
+
+    if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
+  }
+
+  draw(){
+    const g=R.x.createLinearGradient(0,0,0,CH);
+    g.addColorStop(0,'#050510');g.addColorStop(1,'#080818');
+    R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
+    drawBgLayer(R.x,R.cam,'library',240,20);
+
+    if(this.tm)this.tm.draw(this.tileset);
+    R.drawDecos(this.decos);
+
+    this.npcs.forEach(n=>n.draw());
+    this.enemies.forEach(e=>e.draw());
+    // Guard detection rings (stealth)
+    if(this.act===1){
+      this.enemies.forEach(e=>{
+        if(e.customType==='lib_censor'&&e.on){
+          const sx=e.x+e.w/2-R.cam.x,sy=e.y+e.h/2-R.cam.y;
+          R.x.save();
+          R.x.strokeStyle=this._stealthAlert?'rgba(255,220,0,0.7)':'rgba(255,220,0,0.2)';
+          R.x.lineWidth=2;R.x.beginPath();R.x.arc(sx,sy,180,0,Math.PI*2);R.x.stroke();
+          R.x.strokeStyle='rgba(255,60,0,0.45)';R.x.lineWidth=1.5;
+          R.x.beginPath();R.x.arc(sx,sy,70,0,Math.PI*2);R.x.stroke();
+          if(this._stealthAlert&&this._alertTimer>0){
+            R.x.fillStyle='rgba(0,0,0,0.5)';R.x.fillRect(sx-30,sy-95,60,8);
+            R.x.fillStyle='rgba(255,200,0,0.9)';R.x.fillRect(sx-30,sy-95,60*(this._alertTimer/2.5),8);
+          }
+          R.x.restore();
+        }
+      });
+    }
+    if(this.projectiles)this.projectiles.forEach(p=>p.draw());
+    this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
+    this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
+    // Heal flash
+    if(this._healFlash>0){
+      this._healFlash-=1/60;
+      R.x.save();
+      R.x.globalAlpha=Math.min(1,this._healFlash*2);
+      R.x.fillStyle='#22ee66';R.x.font='bold 22px monospace';R.x.textAlign='center';
+      R.x.shadowColor='#22ee66';R.x.shadowBlur=12;
+      R.x.fillText('PARTY HEALED!',CW/2,CH/2-60);
+      R.x.restore();R.x.textAlign='left';
+    }
+    P.draw();
+  }
+}
+
+// ═══ LEVEL 4 ═══
+class Lv4{
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_castle';this.exit=null;this.shk=0;this.shi=0;this.decos=[];this._healFlash=0;this.projectiles=[]}
+
+  createHeroes(x,y){
+    const heroes=[
+      new Hero('Kote',x,y,'#40aa88','kote'),
+      new Hero('Minerva',x+30,y,'#cc44cc','minerva'),
+      new Hero('Elber',x+60,y,'#44aa44','elber'),
+      new Hero('Nesta',x+90,y,'#4488cc','nesta'),
+      new Hero('Nick',x+120,y,'#d0a066','nick'),
+    ];
+    heroes.forEach(h=>h.applyStats(h.customType));
+    return heroes;
+  }
+
+  rebuildCompanions(){
+    this.companions=[];
+    for(let i=0;i<this.heroes.length;i++){
+      if(i!==this.ai)this.companions.push(new Companion(this.heroes[i]));
+    }
+    // Snap all entities to nearest ground/platform surface
+    if(this.tm){
+      for(const h of this.heroes)h.snapGnd(this.tm);
+      if(this.enemies)for(const e of this.enemies)e.snapGnd(this.tm);
+      // Snap NPCs to ground (NPC.y is reference point; drawn bottom = y+10)
+      if(this.npcs)for(const n of this.npcs){
+        const bx=Math.floor(n.x/T);
+        for(let yy=Math.floor(n.y/T);yy<this.tm.h;yy++){
+          if(this.tm.sol(bx,yy)){n.y=yy*T-10;break}
+        }
+      }
+    }
+  }
+
+  enter(){
+    this.bAct1();
+  }
+
+  bAct1(){
+    this.act=1;
+    const W=360,H=16;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    buildMasqueradeHall(this.tm,W,H);
+    this.decos=genDecos(W,H,'castle',this.act);
+
+    this.heroes=this.createHeroes(60,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.npcs=[
+      new NPC(300,(H-4)*T,'Bakaris','bakaris',[d('Bakaris','The time has come.')]),
+      new NPC(500,(H-4)*T,'Levna','minerva',[d('Levna','The destiny awaits us.')]),
+      new NPC(700,(H-4)*T,'Clystran','elber',[d('Clystran','Our bonds are tested.')]),
+      new NPC(900,(H-4)*T,'Becklin','nesta',[d('Becklin','What lies ahead?')]),
+      new NPC(1100,(H-4)*T,'Cudgel','nick',[d('Cudgel','The choice is ours.')]),
+      new NPC(1300,(H-4)*T,'Tem Temble','kote',[d('Tem Temble','Magic flows through us all.')]),
+    ];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('hint').textContent='The Yurthgreen Masquerade: Explore and talk';
+    D.show([d('Narrator','The Yurthgreen Masquerade begins...'),d('Narrator','A grand celebration of heroes and legends.')],()=>{});
+  }
+
+  bAct2(){
+    this.act=2;
+    document.getElementById('hint').textContent='The Legacy: Minerva receives Solamnic armor';
+    D.show([
+      d('Narrator','The great hall grows quiet. A herald calls Minerva forward.'),
+      d('Lord Regent','Minerva Amberfall. Step forward and kneel.'),
+      d('Minerva','I... yes, my lord.'),
+      d('Lord Regent','This armor was worn by Helena Starmantle, Knight of the Rose. She fell at Neraka.'),
+      d('Lord Regent','She named no successor. The armor has waited \u2014 for the one it would choose.'),
+      d('Minerva','Why me? I\'m a scholar. I study things. I don\'t...'),
+      d('Lord Regent','The knights of old understood that wisdom and courage are not opposites.'),
+      d('Narrator','The armor settles onto Minerva\'s shoulders with a sound like a long-held breath released.'),
+      d('Narrator','Something ancient and patient has finally found its purpose.'),
+    ],()=>{this.bAct3()});
+  }
+
+  bAct3(){
+    this.act=3;
+    document.getElementById('hint').textContent='The Masquerade: A Test of Shadows';
+    D.show([
+      d('Narrator','A masked figure peels away from the dancing crowd — unseen by all others.'),
+      d('Lohezet','Nesta. The girl who scarred the unbeatable Bakaris.'),
+      d('Nesta','Who are you?'),
+      d('Lohezet','Someone who recognizes power when she sees it. And power needs direction.'),
+      d('Lohezet','The Dragon Armies are moving. Your little trick won\'t be enough.'),
+      d('Lohezet','I can teach you what the school won\'t. Real shadow magic.'),
+      d('Nesta','At what cost?'),
+      d('Lohezet','Your trust. And your silence. For now.'),
+      d('Nesta','I\'ll think about it.'),
+      d('Lohezet','Don\'t think too long. Events move faster than most realize.'),
+    ],()=>{this._startAct3Combat()});
+  }
+  _startAct3Combat(){
+    const W=300,H=18;
+    this.tm=new TM(W,H);
+    buildMasqueradeHall(this.tm,W,H);
+    this.decos=genDecos(W,H,'castle',3);
+    this.heroes=this.createHeroes(60,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+    this.enemies=[
+      new Enem(760,(H-4)*T,24,36,'Shadow Agent','#222244',105,14,'chase','hideout_fighter'),
+      new Enem(1160,(H-4)*T,24,36,'Shadow Agent','#222244',105,14,'patrol','hideout_fighter'),
+      new Enem(1560,(H-4)*T,16,24,'Shadow Scout','#334455',61,10,'chase','castle_archer'),
+    ];
+    this.enemies.forEach(e=>{e.spd=0.9;});
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('hint').textContent='Defeat the shadow agents!';
+    D.show([d('Lohezet',"Prove yourself.")],()=>{this._act3combat=true;});
+  }
+
+  bAct4(){
+    this.act=4;
+    document.getElementById('hint').textContent='Ispin\'s Ritual: Magic and memory';
+    P.emit(CW/2,CH/2,30,'#d4af37',4,1,3);
+    P.emit(CW/2,CH/2,20,'#ffff88',3,0.8,2);
+    D.show([
+      d('Narrator','Ispin draws the heroes into a private alcove behind a tapestry.'),
+      d('Ispin','I shouldn\'t do this here. But I\'ve run out of time to wait.'),
+      d('Ispin','These pearls belonged to my grandmother. She was a scryer \u2014 she saw paths.'),
+      d('Narrator','Ispin arranges the pearls in a circle on the floor. They begin to glow.'),
+      d('Kote','I see... a woman. Standing in fire. She\'s not afraid of it.'),
+      d('Ispin','Your mother, Kote. She was Solamnic. Did you know?'),
+      d('Kote','She never told me. She never talked about where she came from.'),
+      d('Ispin','She was protecting you from what comes with that name. But that time is ending.'),
+      d('Narrator','The pearls dim. The vision fades. The moons shift overhead.'),
+      d('Narrator','Something has been set in motion that cannot be undone.'),
+    ],()=>{this.bAct5()});
+  }
+
+  bAct5(){
+    this.act=5;
+    document.getElementById('hint').textContent='Library Discoveries: The path forward';
+    D.show([
+      d('Narrator','The ritual fades...'),
+      d('Becklin','There is much we have learned.'),
+      d('Becklin','The Golden Museum holds secrets.'),
+      d('Becklin','There, you will find the answers you seek.'),
+      d('Narrator','The masquerade concludes.'),
+      d('Narrator','But the true test lies ahead...'),
+    ],()=>{G.sc=new Lv5();G.sc.enter()});
+  }
+
+  swap(idx){
+    if(idx===this.ai||!this.heroes[idx]||!this.heroes[idx].on)return;
+    const cur=this.heroes[this.ai],nxt=this.heroes[idx];
+    const tx=nxt.x,ty=nxt.y;
+    nxt.x=cur.x;nxt.y=cur.y;nxt.vx=0;nxt.vy=0;nxt.gnd=cur.gnd;
+    cur.x=tx;cur.y=ty;cur.vx=0;cur.vy=0;
+    cur.ctrl=false;cur.st='idle';nxt.ctrl=true;
+    this.ai=idx;
+    this.rebuildCompanions();
+    P.emit(nxt.x+nxt.w/2,nxt.y+nxt.h/2,8,nxt.col,3,0.3,2);
+    this.hud();
+  }
+
+  hud(){
+    let h='';
+    this.heroes.forEach((hero,i)=>{
+      const a=i===this.ai?'act':'';const pct=Math.max(0,hero.hp/hero.mhp*100);
+      const col=pct>50?'#4a4':pct>25?'#aa4':'#a44';
+      h+=`<div class="hs ${a}" onclick="G.sc.swap(${i})"><div style="width:28px;height:28px;background:${hero.col}33;border-radius:2px;display:flex;align-items:center;justify-content:center"><span style="color:${hero.col};font-size:13px;font-weight:bold">${hero.nm[0]}</span></div><div class="hp-bar"><div class="hp-fill" style="width:${pct}%;background:${col}"></div></div><div class="nm">${hero.nm}</div></div>`;
+    });
+    document.getElementById('hud').innerHTML=h;
+    const el=document.getElementById('ecount');
+    if(this.enemies&&this.enemies.length){const al=this.enemies.filter(e=>e.on).length;el.textContent=`Enemies: ${al}/${this.enemies.length}`;}
+    else el.textContent='';
+  }
+
+  update(dt){
+    if(D.on){D.up(dt);return}
+    if(!this.tm){P.up(dt);return}
+
+    if(I.pr('Tab')){
+      let n=(this.ai+1)%this.heroes.length,c=0;
+      while((!this.heroes[n]||!this.heroes[n].on)&&c<this.heroes.length){n=(n+1)%this.heroes.length;c++}
+      this.swap(n);
+    }
+    for(let i=0;i<this.heroes.length;i++)if(I.pr('Digit'+(i+1)))this.swap(i);
+
+    this.heroes[this.ai].update(dt,this.tm);
+    this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
+    this.npcs.forEach(n=>n.update(dt,this.heroes[this.ai]));
+
+    if(this.enemies&&this.enemies.length){
+      this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
+      // Hit detection
+      this.heroes.forEach(hero=>{
+        const ab=hero.atkBox();if(!ab)return;
+        this.enemies.forEach(e=>{
+          if(e.on&&e.x<ab.x+ab.w&&e.x+e.w>ab.x&&e.y<ab.y+ab.h&&e.y+e.h>ab.y)
+            e.hurt(ab.dmg||hero.atkDmg);
+        });
+      });
+    }
+    if(this.projectiles){this.projectiles.forEach(p=>{if(p instanceof HeroProj)p.update(dt,this.tm,this.enemies);else p.update(dt,this.tm,this.heroes);});this.projectiles=this.projectiles.filter(p=>p.on);}
+    // Act 3 win condition
+    if(this.act===3&&this._act3combat&&this.enemies&&this.enemies.every(e=>!e.on)){
+      this._act3combat=false;
+      this.shk=0.5;this.shi=4;
+      P.emit(CW/2,CH/2,20,'#4466aa',5,0.6,3);
+      D.show([
+        d('Lohezet','Impressive. The pact is sealed.'),
+        d('Nesta','What have I agreed to...?'),
+      ],()=>{this.bAct4()});
+    }
+
+    P.up(dt);
+    this.hud();
+
+    if(this.act===1&&this.heroes[this.ai].x>1600&&!this._act1done){
+      this._act1done=true;
+      D.show([d('Narrator','Moving deeper into the masquerade...')],()=>{this.bAct2()});
+    }
+
+    if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
+  }
+
+  draw(){
+    const g=R.x.createLinearGradient(0,0,0,CH);
+    g.addColorStop(0,'#0d2847');g.addColorStop(1,'#1a3a5a');
+    R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
+    drawBgLayer(R.x,R.cam,'castle',360,16);
+
+    if(this.tm)this.tm.draw(this.tileset);
+    R.drawDecos(this.decos);
+
+    this.npcs.forEach(n=>n.draw());
+    if(this.enemies)this.enemies.forEach(e=>e.draw());
+    if(this.projectiles)this.projectiles.forEach(p=>p.draw());
+    this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
+    this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
+    // Heal flash
+    if(this._healFlash>0){
+      this._healFlash-=1/60;
+      R.x.save();
+      R.x.globalAlpha=Math.min(1,this._healFlash*2);
+      R.x.fillStyle='#22ee66';R.x.font='bold 22px monospace';R.x.textAlign='center';
+      R.x.shadowColor='#22ee66';R.x.shadowBlur=12;
+      R.x.fillText('PARTY HEALED!',CW/2,CH/2-60);
+      R.x.restore();R.x.textAlign='left';
+    }
+    P.draw();
+  }
+}
+
+// ═══ LEVEL 5 ═══
+class Lv5{
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_dungeon';this.shk=0;this.shi=0;this.escapeTimer=0;this.decos=[];this._healFlash=0;this.projectiles=[]}
+
+  createHeroes(x,y){
+    const heroes=[
+      new Hero('Kote',x,y,'#40aa88','kote'),
+      new Hero('Minerva',x+30,y,'#cc44cc','minerva'),
+      new Hero('Elber',x+60,y,'#44aa44','elber'),
+      new Hero('Nesta',x+90,y,'#4488cc','nesta'),
+      new Hero('Nick',x+120,y,'#d0a066','nick'),
+    ];
+    heroes.forEach(h=>h.applyStats(h.customType));
+    return heroes;
+  }
+
+  rebuildCompanions(){
+    this.companions=[];
+    for(let i=0;i<this.heroes.length;i++){
+      if(i!==this.ai)this.companions.push(new Companion(this.heroes[i]));
+    }
+    // Snap all entities to nearest ground/platform surface
+    if(this.tm){
+      for(const h of this.heroes)h.snapGnd(this.tm);
+      if(this.enemies)for(const e of this.enemies)e.snapGnd(this.tm);
+      // Snap NPCs to ground (NPC.y is reference point; drawn bottom = y+10)
+      if(this.npcs)for(const n of this.npcs){
+        const bx=Math.floor(n.x/T);
+        for(let yy=Math.floor(n.y/T);yy<this.tm.h;yy++){
+          if(this.tm.sol(bx,yy)){n.y=yy*T-10;break}
+        }
+      }
+    }
+  }
+
+  enter(){
+    this.bAct1();
+  }
+
+  bAct1(){
+    this.act=1;
+    const W=300,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    buildRuinsField(this.tm,W,H);
+    this.decos=genDecos(W,H,'dungeon',this.act);
+
+    this.heroes=this.createHeroes(60,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.npcs=[new NPC(600,(H-4)*T,'Armory Master','nick',[d('Armory Master','Arm yourselves. War comes.')])];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('hint').textContent='Calm Before Storm: Prepare for battle';
+    D.show([d('Narrator','The home burns...'),d('Narrator','When the home burns, all must rise.'),d('Narrator','Walk forward to face the mercenaries.')],()=>{});
+  }
+
+  bAct2(){
+    this.act=2;
+    const W=300,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    buildRuinsField(this.tm,W,H);
+    this.decos=genDecos(W,H,'dungeon',this.act);
+
+    this.heroes=this.createHeroes(60,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.enemies=[
+      new Enem(800,(H-4)*T,28,40,'Soldier 1','#888',88,13,'chase','castle_soldier'),
+      new Enem(1000,(H-4)*T,28,40,'Soldier 2','#999',88,13,'chase','castle_knight'),
+      new Enem(2600,(H-4)*T,28,40,'Soldier 3','#777',88,13,'patrol','castle_archer'),
+      new Enem(2800,(H-4)*T,28,40,'Soldier 4','#aaa',88,13,'chase','hideout_fighter'),
+      new Enem(400,(H-9)*T,28,40,'Battlement Guard','#446688',88,13,'static','castle_soldier'),
+    ];
+    this.enemies.forEach(e=>{e.spd=0.9;});
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='Broken Illusion: Mercenaries attack!';
+    D.show([d('Narrator','The mercenaries reveal their true weapons!'),d('Narrator','This is no illusion - this is real war!'),d('Tutorial','Defeat all soldiers!')],()=>{this.tut=true});
+  }
+
+  bAct3(){
+    this.act=3;
+    const W=300,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    buildRuinsField(this.tm,W,H);
+    this.decos=genDecos(W,H,'dungeon',this.act);
+
+    this.heroes=this.createHeroes(60,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.enemies=[
+      new Enem(1000,(H-5)*T,24,56,'Draconian Kapak','#b87333',123,17,'chase','draconian_kapak'),
+      new Enem(2600,(H-5)*T,24,56,'Draconian Kapak','#b87333',123,17,'chase','draconian_kapak'),
+    ];
+    this.enemies.forEach(e=>{e.spd=0.9;});
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='La Ruina Roja: Draconians reinforce!';
+    D.show([d('Kansaldi','La Ruina Roja - the Red Ruin has come!'),d('Kansaldi','You cannot stop us all!'),d('Tutorial','Defeat the draconians!')],()=>{this.tut=true});
+  }
+
+  bAct4(){
+    this.act=4;
+    const W=300,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    buildRuinsField(this.tm,W,H);
+    this.decos=genDecos(W,H,'dungeon',this.act);
+
+    this.heroes=this.createHeroes(60,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    const sivak=new Enem(900,(H-7)*T,32,60,'Sivak Draconian','#556633',225,18,'boss','draconian_sivak');
+    sivak._stompTimer=3.5;
+    sivak._enraged=false;
+    this.enemies=[sivak];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='First Wave: Sivak Draconian boss!';
+    D.show([d('Narrator','A towering Sivak Draconian emerges!'),d('Narrator','Its wings spread wide, blocking the sun.'),d('Tutorial','This foe is formidable!')],()=>{this.tut=true});
+  }
+
+  bAct5(){
+    this.act=5;
+    const W=300,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    buildRuinsField(this.tm,W,H);
+    this.decos=genDecos(W,H,'dungeon',this.act);
+
+    this.heroes=this.createHeroes(60,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    this.enemies=[
+      new Enem(900,(H-4)*T,28,36,'Boilerdrak','#ff6633',300,21,'boss','boilerdrak'),
+    ];
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='Iron and Fire: Boilerdrak awakes!';
+    D.show([d('Narrator','From the flames, the Boilerdrak emerges!'),d('Narrator','Its armor glows with terrible heat!'),d('Tutorial','Stand firm!')],()=>{this.tut=true});
+  }
+
+  bAct6(){
+    this.act=6;
+    const W=300,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    buildRuinsField(this.tm,W,H);
+    this.decos=genDecos(W,H,'dungeon',this.act);
+
+    this.heroes=this.createHeroes(60,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    const ogre=new Enem(800,(H-5)*T,28,40,'Ogre','#aa8855',270,17,'boss','ogre');
+    const goblin=new Enem(800,(H-5)*T,16,20,'Goblin Chief','#44cc44',120,10,'static','goblin');
+    goblin.inv=999;
+    this.enemies=[ogre,goblin];
+    this._ogreDead=false;
+
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='Last Stand: Ogre and Goblin Chief!';
+    D.show([d('Narrator','A towering Ogre appears, bearing a Goblin Chief!'),d('Narrator','The final defense of the enemy forces!'),d('Tutorial','Defeat them!')],()=>{this.tut=true});
+  }
+
+  bAct7(){
+    this.act=7;
+    const W=300,H=18;
+    this.tm=new TM(W,H);
+    this.enemies=[];this.npcs=[];
+
+    buildRuinsField(this.tm,W,H);
+    this.decos=genDecos(W,H,'dungeon',this.act);
+
+    this.heroes=this.createHeroes(60,(H-4)*T);
+    this.heroes[0].ctrl=true;
+    this.ai=0;
+
+    const kansaldi=new Enem(1000,(H-5)*T,40,48,'Kansaldi','#1a0a0a',1500,33,'static','kansaldi');
+    kansaldi._breathTimer=4.0;
+    kansaldi._breathActive=false;
+    kansaldi._breathDur=0;
+    this.enemies=[kansaldi];
+
+    this.escapeTimer=10;
+    this.rebuildCompanions();
+    this.hud();
+    document.getElementById('hint').textContent='Sin Esperanza: The Dragon Commander!';
+    D.show([d('Narrator','The ground shakes...'),d('Narrator','Kansaldi, the Dragon Commander, emerges!'),d('Kansaldi','Your struggle ends now!'),d('Narrator','This battle cannot be won. Escape!')],()=>{this.tut=true});
+  }
+
+  swap(idx){
+    if(idx===this.ai||!this.heroes[idx]||!this.heroes[idx].on)return;
+    const cur=this.heroes[this.ai],nxt=this.heroes[idx];
+    const tx=nxt.x,ty=nxt.y;
+    nxt.x=cur.x;nxt.y=cur.y;nxt.vx=0;nxt.vy=0;nxt.gnd=cur.gnd;
+    cur.x=tx;cur.y=ty;cur.vx=0;cur.vy=0;
+    cur.ctrl=false;cur.st='idle';nxt.ctrl=true;
+    this.ai=idx;
+    this.rebuildCompanions();
+    P.emit(nxt.x+nxt.w/2,nxt.y+nxt.h/2,8,nxt.col,3,0.3,2);
+    this.hud();
+  }
+
+  hud(){
+    let h='';
+    this.heroes.forEach((hero,i)=>{
+      const a=i===this.ai?'act':'';const pct=Math.max(0,hero.hp/hero.mhp*100);
+      const col=pct>50?'#4a4':pct>25?'#aa4':'#a44';
+      h+=`<div class="hs ${a}" onclick="G.sc.swap(${i})"><div style="width:28px;height:28px;background:${hero.col}33;border-radius:2px;display:flex;align-items:center;justify-content:center"><span style="color:${hero.col};font-size:13px;font-weight:bold">${hero.nm[0]}</span></div><div class="hp-bar"><div class="hp-fill" style="width:${pct}%;background:${col}"></div></div><div class="nm">${hero.nm}</div></div>`;
+    });
+    document.getElementById('hud').innerHTML=h;
+    const al=this.enemies.filter(e=>e.on).length;
+    const el=document.getElementById('ecount');
+    if(this.enemies.length)el.textContent=`Enemies: ${al}/${this.enemies.length}`;
+  }
+
+  update(dt){
+    if(D.on){D.up(dt);return}
+    if(this.shk>0){this.shk-=dt;R.cam.x+=(Math.random()-0.5)*this.shi;R.cam.y+=(Math.random()-0.5)*this.shi}
+    if(!this.tm){P.up(dt);return}
+
+    if(I.pr('Tab')){
+      let n=(this.ai+1)%this.heroes.length,c=0;
+      while((!this.heroes[n]||!this.heroes[n].on)&&c<this.heroes.length){n=(n+1)%this.heroes.length;c++}
+      this.swap(n);
+    }
+    for(let i=0;i<this.heroes.length;i++)if(I.pr('Digit'+(i+1)))this.swap(i);
+
+    if(this.act===1&&!this._act1done){
+      if(this.heroes[this.ai].x>1000){
+        this._act1done=true;
+        D.show([d('Narrator','The battle of High Hill begins...'),d('Narrator','But something is wrong with the actors...')],()=>{this.bAct2()});
+      }
+    }
+
+    this.heroes[this.ai].update(dt,this.tm);
+    this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
+    this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
+    this.npcs.forEach(n=>n.update(dt,this.heroes[this.ai]));
+
+    // Handle ogre-goblin mechanic for act 6
+    if(this.act===6&&this.enemies.length>=2){
+      const ogre=this.enemies[0];
+      const goblin=this.enemies[1];
+      if(ogre.on&&!this._ogreDead){
+        // Goblin rides on ogre
+        goblin.x=ogre.x;
+        goblin.y=ogre.y-ogre.h;
+        goblin.inv=999;
+      }else if(!ogre.on&&!this._ogreDead){
+        // Ogre dies - goblin falls and becomes vulnerable
+        this._ogreDead=true;
+        D.show([d('Narrator','The Goblin Chief falls!')],()=>{this.tut=true});
+        goblin.ai='chase';
+        goblin.inv=0;
+        P.emit(ogre.x+ogre.w/2,ogre.y+ogre.h/2,20,'#44cc44',6,0.8,3);
+      }
+    }
+
+    this.heroes.forEach(hero=>{
+      const ab=hero.atkBox();if(!ab)return;
+      this.enemies.forEach(e=>{if(e.on&&e.x<ab.x+ab.w&&e.x+e.w>ab.x&&e.y<ab.y+ab.h&&e.y+e.h>ab.y)e.hurt(ab.dmg||hero.atkDmg)});
+    });
+
+    if(this.projectiles){this.projectiles.forEach(p=>{if(p instanceof HeroProj)p.update(dt,this.tm,this.enemies);else p.update(dt,this.tm,this.heroes);});this.projectiles=this.projectiles.filter(p=>p.on);}
+
+    P.up(dt);
+    this.hud();
+
+    if(this.act===2&&this.tut&&this.enemies.every(e=>!e.on)){
+      this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#c8a84e',6,0.8,3);
+      D.show([d('Narrator','The soldiers fall!')],()=>{this.bAct3()});
+    }
+
+    if(this.act===3&&this.tut&&this.enemies.every(e=>!e.on)){
+      this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#00aa44',6,0.8,3);
+      D.show([d('Narrator','The draconians retreat!')],()=>{this.bAct4()});
+    }
+
+    if(this.act===4&&this.tut&&this.enemies.every(e=>!e.on)){
+      this.shk=0.8;this.shi=6;P.emit(this.enemies[0].x,this.enemies[0].y,40,'#ff8833',6,0.8,3);
+      D.show([d('Narrator','The Sivak falls!')],()=>{this.bAct5()});
+    }
+
+    if(this.act===5&&this.tut&&this.enemies.every(e=>!e.on)){
+      this.shk=0.8;this.shi=6;P.emit(this.enemies[0].x,this.enemies[0].y,50,'#ff4400',7,1,4);
+      D.show([d('Narrator','The Boilerdrak is vanquished!')],()=>{this.bAct6()});
+    }
+
+    if(this.act===6&&this.tut&&this.enemies.every(e=>!e.on)){
+      this.shk=0.6;this.shi=5;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,30,'#d4a574',6,0.8,3);
+      D.show([d('Narrator','The last defenders fall!')],()=>{this.bAct7()});
+    }
+
+    if(this.act===7&&this.tut){
+      this.escapeTimer-=dt;
+      if(this.escapeTimer<=0){
+        D.show([
+          d('Narrator','Becklin stands in the doorway as the walls ignite around her.'),
+          d('Becklin','"Don\'t look back! Run \u2014 all of you! Run and don\'t stop!"'),
+          d('Kote','"Becklin \u2014 NO\u2014"'),
+          d('Minerva','"We can\'t leave her, we have to\u2014"'),
+          d('Arturito','"I will hold the line. This is what I was made for."'),
+          d('Narrator','Arturito charges into the inferno. Kansaldi turns from the fleeing heroes.'),
+          d('Narrator','The heroes run through walls of fire, through collapsing stone, through choking smoke.'),
+          d('Narrator','Behind them: a roar that shakes the earth. Then silence. Then nothing.'),
+          d('Narrator','They emerge into cold night air, lungs burning, eyes streaming.'),
+          d('Nesta','"We lost them both."'),
+          d('Nick','"We\'re alive. They made sure of that."'),
+          d('Narrator','Vogler village. Dawn. The survivors count what they\'ve saved and what they\'ve lost.'),
+          d('Narrator','Chronicles of Azurerune. Book One: Complete.'),
+        ],()=>{G.sc=new Lv1();G.sc.enter()});
+      }
+    }
+
+    if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
+  }
+
+  draw(){
+    const g=R.x.createLinearGradient(0,0,0,CH);
+    g.addColorStop(0,'#2a0a0a');g.addColorStop(1,'#3a1a1a');
+    R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
+    drawBgLayer(R.x,R.cam,'dungeon',300,18);
+
+    if(this.act>=5){
+      for(let i=0;i<15;i++){
+        const x=Math.random()*CW;
+        const y=Math.random()*CH;
+        R.x.fillStyle=`rgba(255,${100+Math.random()*100},0,${Math.random()*0.2})`;
+        R.x.fillRect(x,y,20+Math.random()*40,20+Math.random()*40);
+      }
+    }
+
+    if(this.tm)this.tm.draw(this.tileset);
+    R.drawDecos(this.decos);
+
+    this.npcs.forEach(n=>n.draw());
+    this.enemies.forEach(e=>e.draw());
+    if(this.projectiles)this.projectiles.forEach(p=>p.draw());
+    this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
+    this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
+    // Heal flash
+    if(this._healFlash>0){
+      this._healFlash-=1/60;
+      R.x.save();
+      R.x.globalAlpha=Math.min(1,this._healFlash*2);
+      R.x.fillStyle='#22ee66';R.x.font='bold 22px monospace';R.x.textAlign='center';
+      R.x.shadowColor='#22ee66';R.x.shadowBlur=12;
+      R.x.fillText('PARTY HEALED!',CW/2,CH/2-60);
+      R.x.restore();R.x.textAlign='left';
+    }
+    P.draw();
+  }
+}
+
+// ═══ MAIN GAME LOOP ═══
+const G={sc:null,_floats:[],_rings:[],
+  init(){
+    I.init();
+    R.init();
+    const manifest=[
+      {type:'image',key:'tiles_castle',path:'assets/env/castle/tiles.png'},
+      {type:'image',key:'tiles_library',path:'assets/env/library/tiles.png'},
+      {type:'image',key:'tiles_garden',path:'assets/env/garden/tiles.png'},
+      {type:'image',key:'tiles_dungeon',path:'assets/env/dungeon/dungeon_tiles.png'},
+      // Hero sprite assets
+      {type:'image',key:'hero_kote',path:'assets/chars/kote.png'},
+      {type:'meta',key:'hero_kote',path:'assets/chars/kote.txt'},
+      {type:'image',key:'hero_minerva',path:'assets/chars/minerva.png'},
+      {type:'meta',key:'hero_minerva',path:'assets/chars/minerva.txt'},
+      {type:'image',key:'hero_elber',path:'assets/chars/elber.png'},
+      {type:'meta',key:'hero_elber',path:'assets/chars/elber.txt'},
+      {type:'image',key:'hero_nesta',path:'assets/chars/nesta.png'},
+      {type:'meta',key:'hero_nesta',path:'assets/chars/nesta.txt'},
+      {type:'image',key:'hero_nick',path:'assets/chars/nick.png'},
+      {type:'meta',key:'hero_nick',path:'assets/chars/nick.txt'},
+      {type:'image',key:'hero_bakaris',path:'assets/chars/bakaris.png'},
+      {type:'meta',key:'hero_bakaris',path:'assets/chars/bakaris.txt'},
+      // Enemy sprite assets - castle enemies (strips)
+      {type:'image',key:'enemy_castle_knight_idle',path:'assets/enemies/castle_knight/idle.png'},
+      {type:'image',key:'enemy_castle_knight_run',path:'assets/enemies/castle_knight/run.png'},
+      {type:'image',key:'enemy_castle_archer_idle',path:'assets/enemies/castle_archer/idle.png'},
+      {type:'image',key:'enemy_castle_archer_run',path:'assets/enemies/castle_archer/run.png'},
+      {type:'image',key:'enemy_castle_priest_idle',path:'assets/enemies/castle_priest/idle.png'},
+      {type:'image',key:'enemy_castle_priest_run',path:'assets/enemies/castle_priest/run.png'},
+      {type:'image',key:'enemy_castle_soldier_idle',path:'assets/enemies/castle_soldier/idle.png'},
+      {type:'image',key:'enemy_castle_soldier_run',path:'assets/enemies/castle_soldier/run.png'},
+      {type:'image',key:'enemy_hideout_fighter_idle',path:'assets/enemies/hideout_fighter/idle.png'},
+      {type:'image',key:'enemy_hideout_fighter_run',path:'assets/enemies/hideout_fighter/run.png'},
+      {type:'image',key:'enemy_orc_warrior_idle',path:'assets/enemies/orc_warrior/idle.png'},
+      {type:'image',key:'enemy_orc_warrior_run',path:'assets/enemies/orc_warrior/run.png'},
+      // Extracted sprites
+      {type:'image',key:'enemy_darkmantle_idle',path:'assets/sprites/darkmantle_idle.png'},
+      {type:'image',key:'enemy_spectator_idle',path:'assets/sprites/spectator_idle.png'},
+      {type:'image',key:'enemy_spectator_attack',path:'assets/sprites/spectator_attack.png'},
+      {type:'image',key:'enemy_mudman_idle',path:'assets/sprites/mudman_idle.png'},
+      {type:'image',key:'enemy_mudman_appear',path:'assets/sprites/mudman_appear.png'},
+      {type:'image',key:'enemy_boilerdrak_idle',path:'assets/sprites/boilerdrak_idle.png'},
+      {type:'image',key:'enemy_mimic_idle',path:'assets/sprites/mimic_idle.png'},
+      {type:'image',key:'enemy_mimic_activate',path:'assets/sprites/mimic_activate.png'},
+      {type:'image',key:'enemy_dragonborn_idle',path:'assets/sprites/dragonborn_idle.png'},
+      {type:'image',key:'enemy_dragonborn_run',path:'assets/sprites/dragonborn_run.png'},
+      {type:'image',key:'enemy_kansaldi',path:'assets/sprites/kansaldi.png'},
+      {type:'meta',key:'enemy_kansaldi',path:'assets/sprites/kansaldi.txt'},
+      // Attack/Skill FX per character
+      {type:'image',key:'fx_kote_atk',path:'assets/fx/kote_atk.png'},
+      {type:'image',key:'fx_kote_skill',path:'assets/fx/kote_skill.png'},
+      {type:'image',key:'fx_minerva_atk',path:'assets/fx/minerva_atk.png'},
+      {type:'image',key:'fx_minerva_skill',path:'assets/fx/minerva_skill.png'},
+      {type:'image',key:'fx_elber_atk',path:'assets/fx/elber_atk.png'},
+      {type:'image',key:'fx_elber_skill',path:'assets/fx/elber_skill.png'},
+      {type:'image',key:'fx_nesta_atk',path:'assets/fx/nesta_atk.png'},
+      {type:'image',key:'fx_nesta_skill',path:'assets/fx/nesta_skill.png'},
+      {type:'image',key:'fx_nick_atk',path:'assets/fx/nick_atk.png'},
+      {type:'image',key:'fx_nick_skill',path:'assets/fx/nick_skill.png'},
+      {type:'image',key:'fx_nick_heal',path:'assets/fx/nick_heal.png'},
+      {type:'image',key:'fx_dash',path:'assets/fx/dash_fx.png'},
+      {type:'image',key:'fx_enemy_death',path:'assets/fx/enemy_death.png'},
+      // Decoration props
+      {type:'image',key:'deco_tree',path:'assets/env/props/extracted/tree_green.png'},
+      {type:'image',key:'deco_bush',path:'assets/env/props/extracted/bush.png'},
+      {type:'image',key:'deco_dead_tree',path:'assets/env/props/extracted/dead_tree.png'},
+      {type:'image',key:'deco_grass',path:'assets/env/props/extracted/grass_tuft.png'},
+      {type:'image',key:'deco_rock_lg',path:'assets/env/props/extracted/rock_large.png'},
+      {type:'image',key:'deco_rock_md',path:'assets/env/props/extracted/rock_med.png'},
+      {type:'image',key:'deco_rock_sm',path:'assets/env/props/extracted/rock_small.png'},
+      {type:'image',key:'deco_banner_red',path:'assets/env/props/extracted/banner_red.png'},
+      {type:'image',key:'deco_banner_blue',path:'assets/env/props/extracted/banner_blue.png'},
+      {type:'image',key:'deco_candelabra',path:'assets/env/props/extracted/candelabra.png'},
+      {type:'image',key:'deco_barrel',path:'assets/env/props/extracted/barrel.png'},
+      {type:'image',key:'deco_pot',path:'assets/env/props/extracted/pot.png'},
+      {type:'image',key:'deco_bench',path:'assets/env/props/extracted/bench.png'},
+      {type:'image',key:'deco_window',path:'assets/env/props/extracted/window_arch.png'},
+      {type:'image',key:'deco_potion',path:'assets/env/props/extracted/potion_green.png'},
+      {type:'image',key:'deco_candle',path:'assets/env/props/extracted/candle.png'},
+      {type:'image',key:'deco_mushroom',path:'assets/env/props/extracted/mushroom.png'},
+      {type:'image',key:'deco_chain',path:'assets/env/props/extracted/chain_row.png'},
+      {type:'image',key:'deco_weapons',path:'assets/env/props/extracted/weapons_rack.png'},
+      {type:'image',key:'deco_planter',path:'assets/env/props/extracted/planter.png'},
+      // Library enemies
+      {type:'image',key:'enemy_lib_cataloguer_idle',path:'assets/enemies/lib_cataloguer/idle.png'},
+      {type:'image',key:'enemy_lib_cataloguer_run',path:'assets/enemies/lib_cataloguer/run.png'},
+      {type:'image',key:'enemy_lib_censor_idle',path:'assets/enemies/lib_censor/idle.png'},
+      {type:'image',key:'enemy_lib_censor_run',path:'assets/enemies/lib_censor/run.png'},
+      {type:'image',key:'enemy_lib_director_idle',path:'assets/enemies/lib_director/idle.png'},
+      {type:'image',key:'enemy_lib_director_run',path:'assets/enemies/lib_director/run.png'},
+      {type:'image',key:'enemy_lib_researcher_idle',path:'assets/enemies/lib_researcher/idle.png'},
+      {type:'image',key:'enemy_lib_researcher_run',path:'assets/enemies/lib_researcher/run.png'},
+      {type:'image',key:'enemy_hideout_scout_idle',path:'assets/enemies/hideout_scout/idle.png'},
+      {type:'image',key:'enemy_hideout_scout_run',path:'assets/enemies/hideout_scout/run.png'},
+      {type:'image',key:'enemy_skeleton_idle',path:'assets/enemies/skeleton/idle.png'},
+      {type:'image',key:'enemy_skeleton_run',path:'assets/enemies/skeleton/run.png'},
+      // Extra decorations
+      {type:'image',key:'deco_bookshelf',path:'assets/env/props/extracted/bookshelf_small.png'},
+      {type:'image',key:'deco_chest',path:'assets/env/props/extracted/chest_dung.png'},
+      {type:'image',key:'deco_banner_green',path:'assets/env/props/extracted/banner_green.png'},
+      {type:'image',key:'deco_potion_red',path:'assets/env/props/extracted/potion_red.png'},
+    ];
+    Assets.load(manifest).then(()=>{
+      document.getElementById('loadScr').style.display='none';
+      document.getElementById('title').style.display='flex';
+      document.getElementById('startBtn').onclick=()=>this.start(new Lv1());
+      document.getElementById('startBtn2').onclick=()=>this.start(new Lv2());
+      document.getElementById('startBtn3').onclick=()=>this.start(new Lv3());
+      document.getElementById('startBtn4').onclick=()=>this.start(new Lv4());
+      document.getElementById('startBtn5').onclick=()=>this.start(new Lv5());
+      document.getElementById('langEN').onclick=()=>{Lang.set('en');this.updateTitleText()};
+      document.getElementById('langES').onclick=()=>{Lang.set('es');this.updateTitleText()};
+      document.getElementById('langIT').onclick=()=>{Lang.set('it');this.updateTitleText()};
+      this.updateTitleText();
+    });
+  },
+  start(lvl){
+    document.getElementById('title').style.display='none';
+    document.getElementById('c').focus();
+    D.on=false;D.idx=0;D.dlgs=[];document.getElementById('dlg').style.display='none'; // Reset dialogue state
+    FX.active=[]; // Clear leftover FX
+    this.sc=lvl;
+    try{
+      this.sc.enter();
+    }catch(err){
+      console.error('Level enter() error:',err);
+      document.getElementById('hint').textContent='ERROR: '+err.message;
+    }
+    I.flush(); // clear any leftover key presses from button click
+    if(!this._looping){this._looping=true;this.loop()}
+  },
+  title(){
+    this.sc=null;
+    D.on=false;D.idx=0;D.dlgs=[];
+    document.getElementById('title').style.display='flex';
+    document.getElementById('hud').style.display='none';
+    document.getElementById('dlg').style.display='none';
+    document.getElementById('hint').textContent='';
+    document.getElementById('ecount').textContent='';
+  },
+  updateTitleText(){
+    document.querySelector('#title h1').textContent=Lang.t('title');
+    document.querySelector('#title h2').textContent=Lang.t('subtitle');
+    document.getElementById('startBtn').textContent=Lang.t('lvl1');
+    document.getElementById('startBtn2').textContent=Lang.t('lvl2');
+    document.getElementById('startBtn3').textContent=Lang.t('lvl3');
+    document.getElementById('startBtn4').textContent=Lang.t('lvl4');
+    document.getElementById('startBtn5').textContent=Lang.t('lvl5');
+    document.querySelector('#dlg .pr').textContent=Lang.t('press_space');
+    // Highlight active lang
+    ['EN','ES','IT'].forEach(l=>{
+      const el=document.getElementById('lang'+l);
+      el.style.borderColor=Lang.current===l.toLowerCase()?'#fff':'#c8a84e';
+    });
+  },
+  _looping:false,
+  loop(){
+    const dt=1/60;
+    try{
+      if(this.sc){
+        this.sc.update(dt);
+        FX.up(dt);
+        R.cls('#000');
+        this.sc.draw();
+        FX.draw();
+        // Floating heal/damage numbers
+        if(G._floats&&G._floats.length){
+          G._floats=G._floats.filter(f=>f.life>0);
+          R._floats=G._floats;
+          G._floats.forEach(f=>{
+            f.y-=0.7;f.life-=1/60;
+            const a=Math.min(1,f.life/0.5);
+            R.x.save();R.x.globalAlpha=a;
+            R.x.fillStyle=f.col||'#22ee66';
+            R.x.font='bold 18px monospace';
+            R.x.textAlign='center';
+            R.x.shadowColor=f.col||'#22ee66';R.x.shadowBlur=4;
+            R.x.fillText(f.txt,f.x-R.cam.x,f.y-R.cam.y);
+            R.x.restore();
+          });
+          R.x.textAlign='left';
+        }
+        // Expanding heal rings
+        if(G._rings&&G._rings.length){
+          G._rings=G._rings.filter(r=>r.life>0);
+          G._rings.forEach(r=>{
+            r.r+=4;r.life-=1/60;
+            const a=Math.min(1,r.life/0.6);
+            R.x.save();R.x.globalAlpha=a;
+            R.x.strokeStyle=r.col;R.x.lineWidth=2;
+            R.x.shadowColor=r.col;R.x.shadowBlur=8;
+            R.x.beginPath();R.x.arc(r.x-R.cam.x,r.y-R.cam.y,r.r,0,Math.PI*2);R.x.stroke();
+            R.x.restore();
+          });
+        }
+      }else{
+        R.cls('#0a1628');
+      }
+    }catch(err){
+      console.error('Game loop error:',err);
+      document.getElementById('hint').textContent='LOOP ERR: '+err.message;
+      // Even if draw crashes, keep the loop alive so dialogue still works
+      if(D.on) D.up(dt);
+    }
+    I.flush();
+    requestAnimationFrame(()=>this.loop());
+  }
+};
+
+G.init();
+</script>
+</body>
+</html>
