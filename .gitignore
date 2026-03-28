@@ -1,0 +1,24 @@
+# Development tools
+.claude/
+*.py
+
+# Documents & planning
+*.docx
+*.pdf
+*.pptx
+*.xlsx
+Sessions powerpoints/
+
+# Asset source packs (zips only — extracted PNGs in assets/ are kept)
+*.zip
+*.exe
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Old game versions (keep only root-level game files)
+game/
+game_v2/
+CLAUDE.md
