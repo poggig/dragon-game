@@ -1468,8 +1468,8 @@ class Enem extends Ent{
         P.emit(this.x+this.w/2,this.y+this.h/2,20,'#ffcc00',6,0.8,3);
         P.emit(this.x+this.w/2,this.y+this.h/2,15,'#ffffff',4,0.6,2);
       }
-      // Projectile firing
-      if(this._projTimer!==undefined){
+      // Projectile firing (Bakaris phase2 boss)
+      if(this._projTimer!==undefined&&this.customType!=='boilerdrak'){
         this._projTimer-=dt;
         if(this._projTimer<=0&&this._phase2){
           this._projTimer=2.5;
@@ -1532,7 +1532,7 @@ class Enem extends Ent{
       this._scene&&this._scene.heroes&&this._scene.heroes.forEach(h=>{
         if(h.on&&this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1;this.st='attack';
           P.emit(h.x+h.w/2,h.y+h.h/2,8,'#f44',4,0.25,2);
-          if(this.type==='darkmantle'&&!this._darkUsed&&this._scene._darkZones){
+          if(this.customType==='darkmantle'&&!this._darkUsed&&this._scene._darkZones){
             this._darkUsed=true;
             this._scene._darkZones.push(new DarkZone(this.x+this.w/2,this.y+this.h/2));
           }
@@ -1704,14 +1704,15 @@ function d(sp,tx){return{sp,tx}}
 class DarkZone{
   constructor(x,y){this.x=x;this.y=y;this.r=320;this.life=15.0;}
   update(dt){this.life-=dt;}
-  draw(ctx,cam){
+  draw(ctx,cam,camY){
     if(this.life<=0)return;
     let sx=this.x-cam;
+    let sy=this.y-(camY||0);
     ctx.save();
     ctx.fillStyle='rgba(0,0,0,0.93)';
     ctx.beginPath();
     ctx.rect(0,0,CW,CH);
-    ctx.arc(sx,this.y,this.r,0,Math.PI*2,true);
+    ctx.arc(sx,sy,this.r,0,Math.PI*2,true);
     ctx.fill('evenodd');
     ctx.restore();
   }
@@ -1944,7 +1945,7 @@ class Lv1{
 
   // ACT 4: NIGHT INFILTRATION - Stealth + Combat in the library
   bAct4(){
-    this.act=4;this.tileset='tiles_library';
+    this.act=4;this.tileset='tiles_castle';
     const W=300,H=18;
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
@@ -2487,7 +2488,7 @@ class Lv2{
       R.x.fillStyle='#fff';
       R.x.font='bold 16px monospace';
       R.x.textAlign='center';
-      R.x.fillText(`Fish: ${this.fishCaught+1}/3`,CW/2,50);
+      R.x.fillText(`Fish: ${this.fishCaught}/3`,CW/2,50);
       R.x.fillText('Press SPACE',CW/2,CH-50);
       P.draw();
       return;
@@ -2501,8 +2502,8 @@ class Lv2{
     if(this.projectiles)this.projectiles.forEach(p=>p.draw());
     this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
-    // Rising bubbles
-    if(this._bubbles){
+    // Rising bubbles (underwater act only)
+    if(this.act===1&&this._bubbles){
       const cam=R.cam.x;
       this._bubbles.forEach(b=>{
         R.x.beginPath();R.x.arc(b.x-cam,b.y,b.r,0,Math.PI*2);
@@ -2520,7 +2521,7 @@ class Lv2{
       R.x.textAlign='left';
     }
     // Dark zones
-    if(this._darkZones){const cam=R.cam.x;this._darkZones.forEach(dz=>dz.draw(R.x,cam));}
+    if(this._darkZones){const cam=R.cam.x,camY=R.cam.y||0;this._darkZones.forEach(dz=>dz.draw(R.x,cam,camY));}
     // Heal flash
     if(this._healFlash>0){
       R.x.save();
@@ -3123,6 +3124,19 @@ class Lv4{
 
     P.up(dt);
     this.hud();
+
+    // Act 1: NPC interaction via Z/J/SPACE key
+    if(this.act===1){
+      if(I.pr('KeyZ')||I.pr('KeyJ')||I.pr('Space')){
+        const h=this.heroes[this.ai];
+        this.npcs.forEach(n=>{
+          if(!n.tk&&!n._talked&&n.dlgs&&Math.abs(n.x-h.x)<100&&Math.abs(n.y-h.y)<60){
+            n.tk=true;n._talked=true;
+            D.show(n.dlgs,()=>{});
+          }
+        });
+      }
+    }
 
     if(this.act===1&&this.heroes[this.ai].x>1600&&!this._act1done){
       this._act1done=true;
