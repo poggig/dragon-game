@@ -614,7 +614,7 @@ const SpriteConfig={
     hideout_fighter:{type:'strip',imgs:{idle:'enemy_hideout_fighter_idle',run:'enemy_hideout_fighter_run'},frameH:64},
     bakaris:{type:'meta',img:'hero_bakaris',meta:'hero_bakaris',stateMap:{idle:'idle',run:'run',attack:'attack_A'}},
     darkmantle:{type:'strip',imgs:{idle:'enemy_darkmantle_idle'},frameW:24,frameH:16},
-    draconian:{type:'strip',imgs:{idle:'enemy_dragonborn_idle',run:'enemy_dragonborn_run'},frameW:128,frameH:128},
+    draconian:{type:'strip',imgs:{idle:'enemy_dragonborn_idle',run:'enemy_dragonborn_run'},frameW:82,frameH:54},
     spectator:{type:'strip',imgs:{idle:'enemy_spectator_idle',attack:'enemy_spectator_attack'},frameH:96},
     mimic:{type:'strip',imgs:{idle:'enemy_mimic_idle',attack:'enemy_mimic_activate'},frameW:72,frameH:48},
     ogre:{type:'strip',imgs:{idle:'enemy_mudman_idle'},frameH:48},
@@ -830,8 +830,10 @@ class Ent{
   hits(o){return this.x<o.x+o.w&&this.x+this.w>o.x&&this.y<o.y+o.h&&this.y+this.h>o.y}
   // Snap entity down to nearest solid surface below current position
   snapGnd(tm){
-    let by=Math.floor((this.y+this.h)/T);
-    for(let y=by;y<tm.h;y++){
+    // Search from entity TOP to find the first solid tile below — ensures we land on
+    // the ground surface, not deeper layers when spawned partially inside thick ground
+    let startY=Math.max(0,Math.floor(this.y/T));
+    for(let y=startY;y<tm.h;y++){
       const bx1=Math.floor((this.x+4)/T),bx2=Math.floor((this.x+this.w-4)/T);
       if(tm.sol(bx1,y)||tm.sol(bx2,y)){this.y=y*T-this.h;this.gnd=true;this.vy=0;return}
     }
@@ -1033,7 +1035,7 @@ class Enem extends Ent{
       this.pt+=dt;if(this.pt>2.5){this.dir*=-1;this.pt=0}
       this.vx=this.spd*this.dir;this.rt=this.dir>0;
       if(d<this.ag)this.ai='chase';
-      this.st='idle';
+      this.st='run';
     }else if(this.ai==='chase'){
       if(d>280){this.ai='patrol';return}
       this.vx=(h.x>this.x?1:-1)*this.spd*1.4;this.rt=this.vx>0;
