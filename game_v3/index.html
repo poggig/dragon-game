@@ -330,7 +330,7 @@ const R={c:null,x:null,cam:{x:0,y:0},
 
   // SPRITE-BASED ENEMY DRAWING (1.5x scale, feet anchored)
   drawEnemy(type,state,frame,x,y,w,h,flip){
-    if(type==='mimic'){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
+    if(type==='lib_cataloguer'){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
     const cfg=SpriteConfig.enemies[type];
     if(!cfg){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
 
@@ -550,6 +550,15 @@ const R={c:null,x:null,cam:{x:0,y:0},
       // Mouth
       ctx.fillStyle='#333';ctx.beginPath();ctx.ellipse(ox,py+w/1.8,w/3,w/8,0,0,Math.PI);ctx.fill();
     }
+    else if(type==='lib_cataloguer'){
+      // LIBRARY CATALOGUER - Robed scholar with sword
+      ctx.fillStyle='#c8a866';ctx.fillRect(ox-3*sc,py+6*sc,6*sc,5*sc); // head
+      ctx.fillStyle='#443355';ctx.fillRect(ox-2*sc,py+4*sc,4*sc,2*sc); // hood
+      ctx.fillStyle='#6644aa';ctx.fillRect(ox-6*sc,py+12*sc,12*sc,12*sc); // purple robe
+      ctx.fillStyle='#8866cc';ctx.fillRect(ox-6*sc,py+12*sc,12*sc,3*sc); // collar trim
+      ctx.fillStyle='#2a2a3a';ctx.fillRect(ox-4*sc,py+24*sc,3.5*sc,6*sc);ctx.fillRect(ox+0.5*sc,py+24*sc,3.5*sc,6*sc); // legs
+      if(state==='attack'||state==='hit'){ctx.fillStyle='#aaa';const da=flip?-7:7;ctx.fillRect(ox+da*sc,py+14*sc,1*sc,9*sc);} // sword
+    }
     else if(type==='mimic'){
       let sx2=x-this.cam.x, sy2=y, cx2=sx2+w/2, cy2=sy2+h/2;
       let glow=0.5+0.5*Math.sin(Date.now()/300);
@@ -660,7 +669,7 @@ const HERO_STATS={
   // TANK: High HP, solid defense, reliable damage, shorter range
   minerva: {hp:170,spd:1.8,jf:-8.5,atkDmg:26,buffDur:20,dashDur:0.20,atkRange:32,skillRange:48},
   // RELIABLE DPS: Balanced and consistent, never wastes a hit
-  elber:   {hp:115,spd:2.1,jf:-9.0,atkDmg:32,skillMult:2.5,dashDur:0.14,atkRange:34,skillRange:55},
+  elber:   {hp:115,spd:2.1,jf:-9.0,atkDmg:32,skillMult:2.5,dashDur:0.14,atkRange:34,skillRange:55,ranged:true},
   // GLASS CANNON: Highest burst damage, lowest HP
   kote:    {hp:70, spd:2.7,jf:-10, atkDmg:42,skillMult:3.2,dashDur:0.09,atkRange:28,skillRange:44},
   // HEALER: Skill heals party instead of dealing damage. Low offense.
@@ -1224,12 +1233,13 @@ class Hero extends Ent{
     if(this._ranged&&this.st==='attack'&&!this._projFired){
       this._projFired=true;
       const dir=this.rt?1:-1;
+      const pSpd=this.customType==='elber'?5.4:9;
       const sc=G.sc;
       if(sc&&sc.projectiles!==undefined){
         sc.projectiles.push(new HeroProj(
           this.x+(this.rt?this.w+4:-4),
           this.y+this.h*0.35,
-          dir*9,0,
+          dir*pSpd,0,
           this.atkDmg,
           this
         ));
@@ -1241,12 +1251,13 @@ class Hero extends Ent{
     if(this._ranged&&this.st==='skill'&&!this._skillProjFired){
       this._skillProjFired=true;
       const dir=this.rt?1:-1;
+      const sSpd=this.customType==='elber'?7.2:12;
       const sc=G.sc;
       if(sc&&sc.projectiles!==undefined){
         sc.projectiles.push(new HeroProj(
           this.x+(this.rt?this.w+4:-4),
           this.y+this.h*0.35,
-          dir*12,0,
+          dir*sSpd,0,
           Math.floor(this.atkDmg*(this._skillMult||2)),
           this
         ));
@@ -1341,8 +1352,9 @@ class Companion{
     this._atkT=Math.max(0,this._atkT-dt);
     if(this._atkT<=0&&this.hero.st==='attack')this.hero.st='idle';
 
-    const dx=active.x-this.hero.x,dist=Math.abs(dx);
-    if(dist>60){
+    const offset=50+(this.hero._compIdx||0)*55;
+    const dx=(active.x-offset*(active.rt?1:-1))-this.hero.x,dist=Math.abs(active.x-this.hero.x);
+    if(dist>60+offset){
       this.hero.vx=(dx>0?1:-1)*(this.hero.spd||2.1)*0.85;
       this.hero.rt=dx>0;
       this.hero.st='run';
@@ -1352,6 +1364,18 @@ class Companion{
     }else{
       this.hero.vx=0;
       if(this._atkT<=0)this.hero.st='idle';
+    }
+
+    // Auto-jump when blocked or hero is above
+    if(this.hero.gnd){
+      // Jump if blocked horizontally
+      if(Math.abs(this.hero.vx)>0.3){
+        let nextX=this.hero.x+Math.sign(this.hero.vx)*(this.hero.w+2);
+        let tileCol=Math.floor(nextX/T),tileRow=Math.floor((this.hero.y+this.hero.h-2)/T);
+        if(tm&&tm.sol&&tm.sol(tileCol,tileRow))this.hero.vy=this.hero.jf||-9;
+      }
+      // Jump if active hero is significantly above
+      if(active.y<this.hero.y-32)this.hero.vy=this.hero.jf||-9;
     }
 
     // Auto-attack nearby enemies
@@ -1393,6 +1417,7 @@ class Enem extends Ent{
   update(dt,tm,heroes){
     if(!this.on)return;if(this.inv>0)this.inv-=dt;this.akt-=dt;
     // Charge-target override: enemy directly pursues the hero who shot them
+    if(this._chargeDur!==undefined){this._chargeDur-=dt;if(this._chargeDur<=0){this._chargeTarget=null;this._chargeDur=undefined;}}
     if(this._chargeTarget){
       const ct=this._chargeTarget;
       if(!ct||!ct.on||ct.hp<=0){
@@ -1581,7 +1606,14 @@ class Enem extends Ent{
     if(this.animTimer>=0.1){this.animTimer=0;this.animFrame=(this.animFrame+1)%frameCount}
   }
   cull(tm){if(tm&&this.y>tm.h*16+200){this.on=false;}}
-  hurt(n){if(this.inv>0)return;this.hp-=n;this.inv=0.4;P.emit(this.x+this.w/2,this.y+this.h/2,8,'#f44',4,0.4,2);if(this.hp<=0){this.hp=0;this.on=false;FX.play(FXConfig.enemyDeath,this.x+this.w/2,this.y+this.h/2,48,false,0.04);P.emit(this.x+this.w/2,this.y+this.h/2,15,this.col,5,0.6,3)}}
+  hurt(n){if(this.inv>0)return;this.hp-=n;this.inv=0.4;P.emit(this.x+this.w/2,this.y+this.h/2,8,'#f44',4,0.4,2);
+    // Charge toward nearest hero on hit
+    if(this._scene&&this._scene.heroes){
+      const heroes=this._scene.heroes;
+      const nearest=heroes.filter(h=>h.on&&h.hp>0).reduce((a,b)=>Math.abs(b.x-this.x)<Math.abs(a.x-this.x)?b:a,heroes[0]);
+      if(nearest&&nearest.on){this._chargeTarget=nearest;this._chargeSpeed=this.spd*1.8;this._chargeDur=1.5;}
+    }
+    if(this.hp<=0){this.hp=0;this.on=false;FX.play(FXConfig.enemyDeath,this.x+this.w/2,this.y+this.h/2,48,false,0.04);P.emit(this.x+this.w/2,this.y+this.h/2,15,this.col,5,0.6,3)}}
   draw(){
     if(!this.on)return;if(this.inv>0&&((this.inv*12)|0)%2)return;
     const cx=this.x+this.w/2,cy=this.y+this.h;
@@ -1764,12 +1796,12 @@ class Lv1{
   rebuildCompanions(){
     this.companions=[];
     for(let i=0;i<this.heroes.length;i++){
-      if(i!==this.ai)this.companions.push(new Companion(this.heroes[i]));
+      if(i!==this.ai){this.heroes[i]._compIdx=this.companions.length;this.companions.push(new Companion(this.heroes[i]));}
     }
     // Snap all entities to nearest ground/platform surface
     if(this.tm){
       for(const h of this.heroes)h.snapGnd(this.tm);
-      if(this.enemies)for(const e of this.enemies)e.snapGnd(this.tm);
+      if(this.enemies)for(const e of this.enemies){e.snapGnd(this.tm);e._scene=this;}
       // Snap NPCs to ground (NPC.y is reference point; drawn bottom = y+10)
       if(this.npcs)for(const n of this.npcs){
         const bx=Math.floor(n.x/T);
@@ -2108,11 +2140,11 @@ class Lv1{
     if(this.act===4){
       const cam=R.cam.x;
       R.x.fillStyle='rgba(0,200,80,0.12)';
-      R.x.fillRect(0, (18-3)*T - R.cam.y, CW, T*2);
+      R.x.fillRect(0, (18-4)*T - R.cam.y, CW, T*2);
       let pulse = 0.5+0.5*Math.sin(Date.now()/400);
       R.x.fillStyle=`rgba(0,220,80,${pulse})`;
       R.x.font='20px monospace';
-      R.x.fillText('→ → → SNEAK THIS WAY → → →', 40, (18-2)*T - R.cam.y + 8);
+      R.x.fillText('→ → → SNEAK THIS WAY → → →', 40, (18-3)*T - R.cam.y + 8);
     }
     // Guard detection rings
     this.enemies.forEach(e=>{
@@ -2164,12 +2196,12 @@ class Lv2{
   rebuildCompanions(){
     this.companions=[];
     for(let i=0;i<this.heroes.length;i++){
-      if(i!==this.ai)this.companions.push(new Companion(this.heroes[i]));
+      if(i!==this.ai){this.heroes[i]._compIdx=this.companions.length;this.companions.push(new Companion(this.heroes[i]));}
     }
     // Snap all entities to nearest ground/platform surface
     if(this.tm){
       for(const h of this.heroes)h.snapGnd(this.tm);
-      if(this.enemies)for(const e of this.enemies)e.snapGnd(this.tm);
+      if(this.enemies)for(const e of this.enemies){e.snapGnd(this.tm);e._scene=this;}
       // Snap NPCs to ground (NPC.y is reference point; drawn bottom = y+10)
       if(this.npcs)for(const n of this.npcs){
         const bx=Math.floor(n.x/T);
@@ -2192,10 +2224,11 @@ class Lv2{
 
     buildUnderwaterArena(this.tm,W,H);
     this.decos=genDecos(W,H,'garden',this.act);
-    this._darkZones=[];
+    this._darkZones=[];this._timer=60.0;
     this._bubbles=Array.from({length:20},()=>({x:Math.random()*4800,y:480,r:2+Math.random()*3,spd:20+Math.random()*15}));
 
     this.heroes=this.createHeroes(40,(H-4)*T);
+    this.heroes.forEach(h=>{h._floatPhase=Math.random()*6.28;});
     this.heroes[0].ctrl=true;
     this.ai=0;
 
@@ -2220,7 +2253,7 @@ class Lv2{
     this.act=2;
     const W=300,H=18;
     this.tm=new TM(W,H);
-    this.enemies=[];this.npcs=[];
+    this.enemies=[];this.npcs=[];this._darkZones=[];
 
     buildGardenPath(this.tm,W,H);
     this.decos=genDecos(W,H,'garden',this.act);
@@ -2255,7 +2288,7 @@ class Lv2{
     this.fishing=false;
     const W=300,H=18;
     this.tm=new TM(W,H);
-    this.enemies=[];this.npcs=[];
+    this.enemies=[];this.npcs=[];this._darkZones=[];
 
     buildGardenPath(this.tm,W,H);
     this.decos=genDecos(W,H,'garden',this.act);
@@ -2373,7 +2406,24 @@ class Lv2{
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
     this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
     // Underwater buoyancy for heroes
-    if(this.act===1){this.heroes.forEach(h=>{if(h.vy>30)h.vy*=0.88;});}
+    if(this.act===1){
+      // Swim-jump: allow repeated upward push in water
+      if(K['z']||K['Z']||K['j']||K['J']){
+        this.heroes.forEach(h=>{if(!h._swimLatch){h.vy=-180;h._swimLatch=true;}});
+      }else{
+        this.heroes.forEach(h=>{h._swimLatch=false;});
+      }
+      this.heroes.forEach(h=>{
+        h.vy*=0.82;
+        if(h.vy>40)h.vy=40;
+        if(Math.abs(h.vy)<2&&Math.abs(h.vx)<2){
+          h.y+=Math.sin(Date.now()/600+(h._floatPhase||0))*0.3;
+        }
+      });
+      // Timer countdown
+      this._timer-=dt;
+      if(this._timer<=0){this.heroes.forEach(h=>{h.hp=0;h.on=false;});}
+    }
     // Bubble updates
     if(this._bubbles)this._bubbles.forEach(b=>{b.y-=b.spd*dt;if(b.y<0)b.y=480;});
     // Dark zone updates
@@ -2452,6 +2502,14 @@ class Lv2{
     }
     // Water tint
     if(this.act===1){R.x.fillStyle='rgba(0,60,180,0.18)';R.x.fillRect(0,0,CW,CH);}
+    // Timer display
+    if(this.act===1&&this._timer!==undefined){
+      let tRemain=Math.max(0,this._timer);
+      let tColor=tRemain<15?'#ff4444':tRemain<30?'#ffaa00':'#ffffff';
+      R.x.fillStyle=tColor;R.x.font='bold 18px monospace';R.x.textAlign='center';
+      R.x.fillText('ESCAPE: '+Math.ceil(tRemain)+'s',CW/2,28);
+      R.x.textAlign='left';
+    }
     // Dark zones
     if(this._darkZones){const cam=R.cam.x;this._darkZones.forEach(dz=>dz.draw(R.x,cam));}
     // Heal flash
@@ -2485,12 +2543,12 @@ class Lv3{
   rebuildCompanions(){
     this.companions=[];
     for(let i=0;i<this.heroes.length;i++){
-      if(i!==this.ai)this.companions.push(new Companion(this.heroes[i]));
+      if(i!==this.ai){this.heroes[i]._compIdx=this.companions.length;this.companions.push(new Companion(this.heroes[i]));}
     }
     // Snap all entities to nearest ground/platform surface
     if(this.tm){
       for(const h of this.heroes)h.snapGnd(this.tm);
-      if(this.enemies)for(const e of this.enemies)e.snapGnd(this.tm);
+      if(this.enemies)for(const e of this.enemies){e.snapGnd(this.tm);e._scene=this;}
       // Snap NPCs to ground (NPC.y is reference point; drawn bottom = y+10)
       if(this.npcs)for(const n of this.npcs){
         const bx=Math.floor(n.x/T);
@@ -2790,11 +2848,11 @@ class Lv3{
     if(this.act===1){
       const camY=R.cam.y;
       R.x.fillStyle='rgba(0,200,80,0.10)';
-      R.x.fillRect(0, (20-15)*T - camY, CW, T*2);
+      R.x.fillRect(0, (20-16)*T - camY, CW, T*2);
       let pulse2 = 0.5+0.5*Math.sin(Date.now()/400);
       R.x.fillStyle=`rgba(0,220,80,${pulse2})`;
       R.x.font='16px monospace';
-      R.x.fillText('→ UPPER PATH →', 40, (20-14)*T - camY + 8);
+      R.x.fillText('→ UPPER PATH →', 40, (20-15)*T - camY + 8);
     }
     // Guard detection rings (stealth)
     if(this.act===1){
@@ -2849,12 +2907,12 @@ class Lv4{
   rebuildCompanions(){
     this.companions=[];
     for(let i=0;i<this.heroes.length;i++){
-      if(i!==this.ai)this.companions.push(new Companion(this.heroes[i]));
+      if(i!==this.ai){this.heroes[i]._compIdx=this.companions.length;this.companions.push(new Companion(this.heroes[i]));}
     }
     // Snap all entities to nearest ground/platform surface
     if(this.tm){
       for(const h of this.heroes)h.snapGnd(this.tm);
-      if(this.enemies)for(const e of this.enemies)e.snapGnd(this.tm);
+      if(this.enemies)for(const e of this.enemies){e.snapGnd(this.tm);e._scene=this;}
       // Snap NPCs to ground (NPC.y is reference point; drawn bottom = y+10)
       if(this.npcs)for(const n of this.npcs){
         const bx=Math.floor(n.x/T);
@@ -3111,12 +3169,12 @@ class Lv5{
   rebuildCompanions(){
     this.companions=[];
     for(let i=0;i<this.heroes.length;i++){
-      if(i!==this.ai)this.companions.push(new Companion(this.heroes[i]));
+      if(i!==this.ai){this.heroes[i]._compIdx=this.companions.length;this.companions.push(new Companion(this.heroes[i]));}
     }
     // Snap all entities to nearest ground/platform surface
     if(this.tm){
       for(const h of this.heroes)h.snapGnd(this.tm);
-      if(this.enemies)for(const e of this.enemies)e.snapGnd(this.tm);
+      if(this.enemies)for(const e of this.enemies){e.snapGnd(this.tm);e._scene=this;}
       // Snap NPCs to ground (NPC.y is reference point; drawn bottom = y+10)
       if(this.npcs)for(const n of this.npcs){
         const bx=Math.floor(n.x/T);
