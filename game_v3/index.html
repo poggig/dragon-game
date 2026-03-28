@@ -1169,9 +1169,8 @@ class Hero extends Ent{
           if(!this._buffActive && !(this._buffCd>0)){
             this._buffActive=true; this._buffTimer=20.0;
             this._preBuffMaxHp=this.mhp; this._preBuffDmg=this.atkDmg;
-            this._preBuffW=this.w; this._preBuffH=this.h;
             this.mhp*=2; this.hp=Math.min(this.hp+this._preBuffMaxHp,this.mhp);
-            this.atkDmg*=2; this.w*=2; this.h*=2;
+            this.atkDmg*=2;
           }
           return;
         }
@@ -1224,7 +1223,7 @@ class Hero extends Ent{
       if(this._buffTimer<=0){
         this._buffActive=false; this._buffCd=30.0;
         this.mhp=this._preBuffMaxHp; this.hp=Math.min(this.hp,this.mhp);
-        this.atkDmg=this._preBuffDmg; this.w=this._preBuffW; this.h=this._preBuffH;
+        this.atkDmg=this._preBuffDmg;
       }
     }
     if(this._buffCd>0) this._buffCd-=dt;
@@ -1313,7 +1312,7 @@ class Hero extends Ent{
     if(this._buffActive) R.x.restore();
     if(this.ctrl)R.txt(this.nm,this.x+this.w/2-R.cam.x,this.y-8-R.cam.y,this.col,9,'center');
     if(this._buffActive){
-      const bx2=this.x-R.cam.x,by2=this.y+this.h+2-R.cam.y,bw2=this.w;
+      const bx2=this.x-R.cam.x,by2=this.y+this.h*1.5+4-R.cam.y,bw2=this.w;
       R.x.fillStyle='#00cc44';R.x.fillRect(bx2,by2,Math.round(bw2*this._buffTimer/20),5);
       R.x.strokeStyle='#ffffff';R.x.strokeRect(bx2,by2,bw2,5);
     }else if(this._buffCd>0){
@@ -1530,6 +1529,15 @@ class Enem extends Ent{
       this.vx=this.spd*this.dir;this.rt=this.dir>0;
       if(d<this.ag)this.ai='chase';
       this.st='run';
+      this._scene&&this._scene.heroes&&this._scene.heroes.forEach(h=>{
+        if(h.on&&this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1;this.st='attack';
+          P.emit(h.x+h.w/2,h.y+h.h/2,8,'#f44',4,0.25,2);
+          if(this.type==='darkmantle'&&!this._darkUsed&&this._scene._darkZones){
+            this._darkUsed=true;
+            this._scene._darkZones.push(new DarkZone(this.x+this.w/2,this.y+this.h/2));
+          }
+        }
+      });
     }else if(this.ai==='chase'){
       if(d>280){this.ai='patrol';return}
       this.vx=(h.x>this.x?1:-1)*this.spd*1.4;this.rt=this.vx>0;
@@ -2408,8 +2416,9 @@ class Lv2{
     // Underwater buoyancy for heroes
     if(this.act===1){
       // Swim-jump: allow repeated upward push in water
-      if(K['z']||K['Z']||K['j']||K['J']){
-        this.heroes.forEach(h=>{if(!h._swimLatch){h.vy=-180;h._swimLatch=true;}});
+      if(I.k['KeyZ']||I.k['KeyJ']){
+        this.heroes.forEach(h=>{if(!h._swimLatch){h.vy=h.jf||-9;h._swimLatch=true;}});
+        I.j['KeyZ']=false; I.j['KeyJ']=false;
       }else{
         this.heroes.forEach(h=>{h._swimLatch=false;});
       }
@@ -2848,11 +2857,11 @@ class Lv3{
     if(this.act===1){
       const camY=R.cam.y;
       R.x.fillStyle='rgba(0,200,80,0.10)';
-      R.x.fillRect(0, (20-16)*T - camY, CW, T*2);
+      R.x.fillRect(0, (20-11)*T - camY, CW, T*2);
       let pulse2 = 0.5+0.5*Math.sin(Date.now()/400);
       R.x.fillStyle=`rgba(0,220,80,${pulse2})`;
       R.x.font='16px monospace';
-      R.x.fillText('→ UPPER PATH →', 40, (20-15)*T - camY + 8);
+      R.x.fillText('→ UPPER PATH →', 40, (20-11)*T - camY + T + 8);
     }
     // Guard detection rings (stealth)
     if(this.act===1){
