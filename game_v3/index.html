@@ -330,7 +330,7 @@ const R={c:null,x:null,cam:{x:0,y:0},
 
   // SPRITE-BASED ENEMY DRAWING (1.5x scale, feet anchored)
   drawEnemy(type,state,frame,x,y,w,h,flip){
-    if(type==='lib_cataloguer'){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
+    if(type==='lib_cataloguer'||type==='gauntlet'||type==='animated_sword'){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
     const cfg=SpriteConfig.enemies[type];
     if(!cfg){this._drawEnemyFallback(type,state,frame,x,y,w,h,flip);return;}
 
@@ -624,6 +624,49 @@ const R={c:null,x:null,cam:{x:0,y:0},
       ctx.fillStyle='#ffff88';ctx.fillRect(ox-w/5.5,py+w/3.2,w/6,w/5);ctx.fillRect(ox+w/12,py+w/3.2,w/6,w/5);
       if(state==='attack'||state==='skill'){ctx.fillStyle='#aaa';const da=flip?-w/3:w/3;ctx.fillRect(ox+da,py+w/2.5,w/12,w/2);}
     }
+    else if(type==='gauntlet'){
+      let cx2=ox, cy2=py+h/2;
+      let gl=0.5+0.5*Math.sin(Date.now()/250);
+      ctx.save(); ctx.translate(cx2,cy2);
+      ctx.rotate(Math.sin(Date.now()/500)*0.2);
+      ctx.fillStyle='rgba(160,80,255,'+(0.8+0.2*gl)+')';
+      ctx.fillRect(-w*0.35,-h*0.45,w*0.7,h*0.7);
+      for(let fi=0;fi<4;fi++){
+        ctx.fillStyle='rgba(200,120,255,'+gl+')';
+        ctx.fillRect(-w*0.3+fi*w*0.18,-h*0.45,w*0.14,h*0.2);
+      }
+      let gg=ctx.createRadialGradient(0,0,2,0,0,w);
+      gg.addColorStop(0,'rgba(160,0,255,'+(gl*0.4)+')');
+      gg.addColorStop(1,'rgba(160,0,255,0)');
+      ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(0,0,w,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+    else if(type==='animated_sword'){
+      let cx3=ox, cy3=py+h/2;
+      let sw=0.5+0.5*Math.sin(Date.now()/200);
+      ctx.save(); ctx.translate(cx3,cy3);
+      ctx.rotate(Math.sin(Date.now()/400)*0.4+Math.PI/6);
+      // Blade
+      ctx.fillStyle='rgba(200,210,220,'+(0.85+0.15*sw)+')';
+      ctx.fillRect(-2,-h*0.5,4,h*0.7);
+      ctx.fillStyle='rgba(255,255,255,0.9)';
+      ctx.fillRect(-0.5,-h*0.5,1,h*0.7);
+      // Crossguard
+      ctx.fillStyle='#c8a040';
+      ctx.fillRect(-8,h*0.15,16,3);
+      // Grip
+      ctx.fillStyle='#5a3a1a';
+      ctx.fillRect(-2,h*0.18,4,h*0.2);
+      // Pommel
+      ctx.fillStyle='#c8a040';
+      ctx.beginPath();ctx.arc(0,h*0.4,3,0,Math.PI*2);ctx.fill();
+      // Glow
+      let sg=ctx.createRadialGradient(0,0,2,0,0,w*0.8);
+      sg.addColorStop(0,'rgba(180,200,255,'+(sw*0.3)+')');
+      sg.addColorStop(1,'rgba(180,200,255,0)');
+      ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(0,0,w*0.8,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
   }
 };
 
@@ -794,14 +837,15 @@ function buildCastleArena(tm,W,H){
   const bs=Math.floor(W*0.7)
   for(let x=bs-4;x<bs;x++){tm.set(x,H-5,1);tm.set(x,H-4,1)}
   for(let x=bs-8;x<bs-4;x++)tm.set(x,H-4,1)
-  // Left side platform (one-way, single jump from ground)
-  const lp=Math.floor(W*0.22)
-  for(let i=0;i<7;i++)tm.set(lp+i,H-7,3)
+  // Left side platform (one-way, full span from x=0)
+  for(let i=0;i<Math.floor(W*0.22)+7;i++)tm.set(i,H-7,3)
   // Center platform (one-way, single jump)
   const mid=Math.floor(W/2)
   for(let i=-4;i<5;i++)tm.set(mid+i,H-7,3)
   // High center perch (one-way, double-jump from center platform)
   for(let i=-3;i<4;i++)tm.set(mid+i,H-12,3)
+  // Left entry staircase to upper path
+  for(let step=0;step<5;step++){tm.set(2+step,(H-4-step),1);}
 }
 
 function buildGardenPath(tm,W,H){
@@ -838,9 +882,10 @@ function buildLibraryHalls(tm,W,H){
   // Mid-span platforms above wall tops (double-jump from ground)
   for(let x=walls[0]+2;x<walls[1]-1;x++)tm.set(x,H-11,3)
   for(let x=walls[1]+2;x<walls[2]-1;x++)tm.set(x,H-11,3)
-  // High reading balcony (double jump from mid platforms)
-  const mid=Math.floor(W/2)
-  for(let i=-10;i<11;i++)tm.set(mid+i,H-15,3)
+  // High reading balcony (full width)
+  for(let x=2;x<W-2;x++)tm.set(x,H-15,3)
+  // Left staircase to balcony
+  for(let step=0;step<12;step++){tm.set(2+step,(H-3-step),1);}
 }
 
 function buildMasqueradeHall(tm,W,H){
@@ -1250,17 +1295,27 @@ class Hero extends Ent{
     if(this._ranged&&this.st==='skill'&&!this._skillProjFired){
       this._skillProjFired=true;
       const dir=this.rt?1:-1;
-      const sSpd=this.customType==='elber'?7.2:12;
       const sc=G.sc;
-      if(sc&&sc.projectiles!==undefined){
-        sc.projectiles.push(new HeroProj(
-          this.x+(this.rt?this.w+4:-4),
-          this.y+this.h*0.35,
-          dir*sSpd,0,
-          Math.floor(this.atkDmg*(this._skillMult||2)),
-          this
-        ));
-        P.emit(this.x+(this.rt?this.w:0),this.y+this.h*0.35,10,'#4488ff',4,0.5,3);
+      if(this.customType==='nesta'&&sc){
+        // Nesta skill: mega dark orb
+        let ne=sc.enemies;
+        let tgt=ne&&ne.filter(e=>e.on).reduce((a,b)=>Math.abs(b.x-this.x)<Math.abs(a.x-this.x)?b:a,{x:this.x+(this.rt?500:-500),y:this.y});
+        let dx2=tgt.x-this.x,dy2=tgt.y-this.y,dn2=Math.sqrt(dx2*dx2+dy2*dy2)||1;
+        let mp=new MegaProj(this.x+this.w/2,this.y+this.h/2,(dx2/dn2)*3,(dy2/dn2)*3,Math.floor(this.atkDmg*(this._skillMult||2.8)));
+        if(sc.megaProjs)sc.megaProjs.push(mp);
+        P.emit(this.x+(this.rt?this.w:0),this.y+this.h*0.35,12,'#8800ff',5,0.6,3);
+      }else{
+        const sSpd=this.customType==='elber'?7.2:12;
+        if(sc&&sc.projectiles!==undefined){
+          sc.projectiles.push(new HeroProj(
+            this.x+(this.rt?this.w+4:-4),
+            this.y+this.h*0.35,
+            dir*sSpd,0,
+            Math.floor(this.atkDmg*(this._skillMult||2)),
+            this
+          ));
+          P.emit(this.x+(this.rt?this.w:0),this.y+this.h*0.35,10,'#4488ff',4,0.5,3);
+        }
       }
     }
     if(this.st!=='skill')this._skillProjFired=false;
@@ -1327,6 +1382,7 @@ class Hero extends Ent{
     const s=HERO_STATS[type];
     if(!s)return;
     this.hp=s.hp;this.mhp=s.hp;
+    if(G.heroHPs&&G.heroHPs[type]!==undefined){this.hp=Math.max(1,Math.min(G.heroHPs[type],this.mhp));}
     this.spd=s.spd;this.jf=s.jf;
     this.atkDmg=s.atkDmg;
     this._skillMult=s.skillMult||2;
@@ -1718,11 +1774,88 @@ class DarkZone{
   }
 }
 
+// ═══ FOX FAMILIAR ═══
+class Fox{
+  constructor(x,y){this.x=x;this.y=y;this._flip=false;this._visible=false;this._bob=0;}
+  update(dt,nesta){
+    if(!nesta||!nesta.on){this._visible=false;return;}
+    this._visible=true;
+    let tx=nesta.x+(nesta.rt?-30:30),ty=nesta.y+nesta.h-12;
+    let dx=tx-this.x,dy=ty-this.y;
+    let spd=Math.min(200,Math.sqrt(dx*dx+dy*dy)*6);
+    if(Math.abs(dx)>3){this.x+=Math.sign(dx)*Math.min(Math.abs(dx),spd*dt);this._flip=dx<0;}
+    if(Math.abs(dy)>3)this.y+=Math.sign(dy)*Math.min(Math.abs(dy),spd*dt);
+    this._bob+=dt;
+  }
+  draw(ctx,cam,camY){
+    if(!this._visible)return;
+    let sx=this.x-cam,sy=this.y-(camY||0)+Math.sin(this._bob*4)*1.5;
+    ctx.save();
+    if(this._flip){ctx.translate(sx*2,0);ctx.scale(-1,1);}
+    // Body
+    ctx.fillStyle='#e06010';ctx.fillRect(sx-5,sy-3,10,7);
+    // Tail
+    let ta=Math.sin(this._bob*3)*0.5;
+    ctx.save();ctx.translate(sx-5,sy+1);ctx.rotate(ta);
+    ctx.fillStyle='#e06010';ctx.fillRect(-5,-3,6,6);
+    ctx.fillStyle='#fff';ctx.fillRect(-6,-2,3,3);
+    ctx.restore();
+    // Head
+    ctx.fillStyle='#e06010';ctx.fillRect(sx+3,sy-7,7,6);
+    // Ears
+    ctx.fillStyle='#c03800';
+    ctx.beginPath();ctx.moveTo(sx+4,sy-7);ctx.lineTo(sx+3,sy-11);ctx.lineTo(sx+7,sy-7);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(sx+8,sy-7);ctx.lineTo(sx+9,sy-11);ctx.lineTo(sx+11,sy-7);ctx.closePath();ctx.fill();
+    // Eye
+    ctx.fillStyle='#000';ctx.beginPath();ctx.arc(sx+8,sy-4,1,0,Math.PI*2);ctx.fill();
+    // Nose
+    ctx.fillStyle='#000';ctx.beginPath();ctx.arc(sx+10,sy-2,0.8,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ═══ MEGA PROJECTILE (Nesta dark orb) ═══
+class MegaProj{
+  constructor(x,y,vx,vy,dmg){
+    this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.dmg=dmg;
+    this.on=true;this.r=20;this.life=4.0;
+    this._phase=Math.random()*Math.PI*2;
+  }
+  update(dt,enemies){
+    if(!this.on)return;
+    this.x+=this.vx*dt*60;this.y+=this.vy*dt*60;
+    this.life-=dt; if(this.life<=0){this.on=false;return;}
+    if(enemies)enemies.forEach(e=>{
+      if(!e.on)return;
+      if(Math.abs(e.x+e.w/2-this.x)<24&&Math.abs(e.y+e.h/2-this.y)<24){
+        e.hurt(this.dmg);this.on=false;
+      }
+    });
+  }
+  draw(ctx,cam,camY){
+    if(!this.on)return;
+    let sx=this.x-cam,sy=this.y-(camY||0),t=Date.now()/400+this._phase;
+    let g=ctx.createRadialGradient(sx,sy,2,sx,sy,22);
+    g.addColorStop(0,'rgba(80,0,120,0.95)');
+    g.addColorStop(0.5,'rgba(40,0,80,0.8)');
+    g.addColorStop(1,'rgba(0,0,20,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(sx,sy,22,0,Math.PI*2);ctx.fill();
+    for(let i=0;i<6;i++){
+      let a=t+i*Math.PI/3;
+      let r1=10+Math.sin(t*2+i)*4,r2=18+Math.sin(t+i)*3;
+      ctx.strokeStyle='rgba(160,0,255,0.7)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(sx+Math.cos(a)*r1,sy+Math.sin(a)*r1);
+      ctx.lineTo(sx+Math.cos(a+0.4)*r2,sy+Math.sin(a+0.4)*r2);ctx.stroke();
+    }
+  }
+}
+
 // ═══ HERO PROJECTILE ═══
 class HeroProj{
   constructor(x,y,vx,vy,dmg,shooter){
     this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.dmg=dmg;
     this.shooter=shooter;this.on=true;this.r=5;this.life=3.0;
+    this._ownerType=(shooter&&shooter.customType)||'';
   }
   update(dt,tm,enemies){
     if(!this.on)return;
@@ -1749,13 +1882,24 @@ class HeroProj{
   }
   draw(){
     if(!this.on)return;
-    R.x.save();
-    R.x.fillStyle='#aaddff';
-    R.x.shadowColor='#4488ff';R.x.shadowBlur=8;
-    R.x.fillRect(this.x-R.cam.x-7,this.y-R.cam.y-2,14,4);
-    R.x.fillStyle='#ffffff';
-    R.x.fillRect(this.x-R.cam.x-3,this.y-R.cam.y-1,6,2);
-    R.x.restore();
+    if(this._ownerType==='elber'){
+      let sx2=this.x-R.cam.x, sy2=this.y-R.cam.y;
+      let gl=0.6+0.4*Math.sin(Date.now()/150);
+      R.x.save(); R.x.translate(sx2,sy2);
+      R.x.rotate(Math.atan2(this.vy,this.vx));
+      R.x.fillStyle='rgba(255,190,40,'+gl+')';
+      R.x.shadowColor='#ff8800'; R.x.shadowBlur=10;
+      R.x.beginPath();R.x.moveTo(0,-5);R.x.lineTo(9,0);R.x.lineTo(0,5);R.x.lineTo(-9,0);R.x.closePath();R.x.fill();
+      R.x.shadowBlur=0; R.x.restore();
+    }else{
+      R.x.save();
+      R.x.fillStyle='#aaddff';
+      R.x.shadowColor='#4488ff';R.x.shadowBlur=8;
+      R.x.fillRect(this.x-R.cam.x-7,this.y-R.cam.y-2,14,4);
+      R.x.fillStyle='#ffffff';
+      R.x.fillRect(this.x-R.cam.x-3,this.y-R.cam.y-1,6,2);
+      R.x.restore();
+    }
   }
 }
 
@@ -1788,7 +1932,7 @@ class Proj{
 
 // ═══ GAME STATE ═══
 class Lv1{
-  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tut=false;this.exit=null;this.shk=0;this.shi=0;this.tileset='tiles_castle';this.fox={x:200,y:100,b:0,alive:true};this.stealthFailed=false;this.decos=[];this._alertTimer=0;this._stealthAlert=false;this._prevAnyAlert=false;this._healFlash=0;this.projectiles=[]}
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tut=false;this.exit=null;this.shk=0;this.shi=0;this.tileset='tiles_castle';this.fox={x:200,y:100,b:0,alive:true};this.stealthFailed=false;this.decos=[];this._alertTimer=0;this._stealthAlert=false;this._prevAnyAlert=false;this._healFlash=0;this.projectiles=[];this.megaProjs=[]}
 
   createHeroes(x,y,includeNesta){
     const heroes=[
@@ -1822,6 +1966,7 @@ class Lv1{
   }
 
   enter(){
+    this._fox=new Fox(100,100);
     this.bAct1();
   }
 
@@ -1960,7 +2105,7 @@ class Lv1{
 
     // Guard NPC with patrol — touching it restarts the act
     this.enemies=[
-      new Enem(800,(H-4)*T,28,40,'Guard','#4466aa',70,11,'patrol','castle_knight'),
+      new Enem(200,(H-4)*T,28,40,'Guard','#4466aa',70,11,'patrol','castle_knight'),
       new Enem(1200,(H-5)*T,16,20,'Mimic Book','#8844aa',90,8,'static','mimic'),
       new Enem(1400,(H-5)*T,16,20,'Mimic Book','#8844aa',90,8,'static','mimic'),
       new Enem(1800,(H-4)*T,24,28,'Mimic Book','#6b3a8c',150,14,'patrol','mimic'),
@@ -2000,7 +2145,7 @@ class Lv1{
       d('Narrator','But first, they must understand the scar.'),
       d('Narrator','A blue dragon. A connection. A journey begins.'),
       d('Narrator','Next stop: Vogler.')
-    ],()=>{G.sc=new Lv2();G.sc.enter()});
+    ],()=>{if(G.sc&&G.sc.heroes)G.sc.heroes.forEach(h=>{if(h.on)G.heroHPs[h.customType]=h.hp;});G.sc=new Lv2();G.sc.enter()});
   }
 
   swap(idx){
@@ -2062,6 +2207,7 @@ class Lv1{
       }
       this.heroes[this.ai].update(dt,this.tm);
       this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
+    if(this._fox){let nesta=this.heroes.find(h=>h.customType==='nesta'&&h.on);this._fox.update(dt,nesta||null);}
       P.up(dt);this.hud();
       if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
       return;
@@ -2069,6 +2215,7 @@ class Lv1{
 
     this.heroes[this.ai].update(dt,this.tm);
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
+    if(this._fox){let nesta=this.heroes.find(h=>h.customType==='nesta'&&h.on);this._fox.update(dt,nesta||null);}
     this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
 
     // Act 4: Guard detection (2-stage stealth)
@@ -2113,9 +2260,16 @@ class Lv1{
 
     // Projectile updates
     if(this.projectiles){this.projectiles.forEach(p=>{if(p instanceof HeroProj)p.update(dt,this.tm,this.enemies);else p.update(dt,this.tm,this.heroes);});this.projectiles=this.projectiles.filter(p=>p.on);}
+    if(this.megaProjs){this.megaProjs.forEach(p=>p.update(dt,this.enemies));this.megaProjs=this.megaProjs.filter(p=>p.on);}
 
     P.up(dt);
     this.hud();
+
+    // Scroll revival (odd levels)
+    if(G.scrollsLeft>0&&I.pr('KeyR')){
+      let dead=this.heroes.find(h=>!h.on);
+      if(dead){dead.on=true;dead.hp=Math.floor(dead.mhp*0.3);dead.x=this.heroes[this.ai].x;dead.y=this.heroes[this.ai].y-10;G.scrollsLeft--;G._floats.push({x:dead.x,y:dead.y-20,txt:'REVIVED!',life:2,col:'#ffdd44'});}
+    }
 
     // Act 1: Defeat all enemies
     if(this.act===1&&this.tut&&this.enemies.every(e=>!e.on)){
@@ -2149,11 +2303,11 @@ class Lv1{
     if(this.act===4){
       const cam=R.cam.x;
       R.x.fillStyle='rgba(0,200,80,0.12)';
-      R.x.fillRect(0, (18-4)*T - R.cam.y, CW, T*2);
+      R.x.fillRect(0, (18-7)*T - R.cam.y, CW, T*2);
       let pulse = 0.5+0.5*Math.sin(Date.now()/400);
       R.x.fillStyle=`rgba(0,220,80,${pulse})`;
       R.x.font='20px monospace';
-      R.x.fillText('→ → → SNEAK THIS WAY → → →', 40, (18-3)*T - R.cam.y + 8);
+      R.x.fillText('→ → → SNEAK THIS WAY → → →', 40, (18-6)*T - R.cam.y + 8);
     }
     // Guard detection rings
     this.enemies.forEach(e=>{
@@ -2172,8 +2326,10 @@ class Lv1{
       }
     });
     if(this.projectiles)this.projectiles.forEach(p=>p.draw());
+    if(this.megaProjs)this.megaProjs.forEach(p=>p.draw(R.x,R.cam.x,R.cam.y));
     this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
+    if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
     // Heal flash
     if(this._healFlash>0){
       R.x.save();
@@ -2183,13 +2339,16 @@ class Lv1{
       R.x.fillText('PARTY HEALED!',CW/2,CH/2-60);
       R.x.restore();R.x.textAlign='left';
     }
+    // Scroll counter
+    R.x.fillStyle='#ffdd44';R.x.font='bold 13px monospace';
+    R.x.fillText('Scrolls: '+G.scrollsLeft+' [R]',CW-120,18);
     P.draw();
   }
 }
 
 // ═══ LEVEL 2 ═══
 class Lv2{
-  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_garden';this.exit=null;this.shk=0;this.shi=0;this.fishing=false;this.fishRound=0;this.fishCaught=0;this.fishBar=0;this.fishMarker=0;this.fishDir=1;this.tut=false;this.decos=[];this._healFlash=0;this.projectiles=[]}
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_garden';this.exit=null;this.shk=0;this.shi=0;this.fishing=false;this.fishRound=0;this.fishCaught=0;this.fishBar=0;this.fishMarker=0;this.fishDir=1;this.tut=false;this.decos=[];this._healFlash=0;this.projectiles=[];this.megaProjs=[]}
 
   createHeroes(x,y){
     const heroes=[
@@ -2222,6 +2381,7 @@ class Lv2{
   }
 
   enter(){
+    this._fox=new Fox(100,100);
     this.bAct1();
   }
 
@@ -2406,6 +2566,7 @@ class Lv2{
       }
       this.heroes[this.ai].update(dt,this.tm);
       this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
+    if(this._fox){let nesta=this.heroes.find(h=>h.customType==='nesta'&&h.on);this._fox.update(dt,nesta||null);}
       P.up(dt);this.hud();
       if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
       return;
@@ -2413,6 +2574,7 @@ class Lv2{
 
     this.heroes[this.ai].update(dt,this.tm);
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
+    if(this._fox){let nesta=this.heroes.find(h=>h.customType==='nesta'&&h.on);this._fox.update(dt,nesta||null);}
     this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
     // Underwater buoyancy for heroes
     if(this.act===1){
@@ -2445,6 +2607,7 @@ class Lv2{
     });
 
     if(this.projectiles){this.projectiles.forEach(p=>{if(p instanceof HeroProj)p.update(dt,this.tm,this.enemies);else p.update(dt,this.tm,this.heroes);});this.projectiles=this.projectiles.filter(p=>p.on);}
+    if(this.megaProjs){this.megaProjs.forEach(p=>p.update(dt,this.enemies));this.megaProjs=this.megaProjs.filter(p=>p.on);}
 
     P.up(dt);
     this.hud();
@@ -2457,7 +2620,7 @@ class Lv2{
     if(this.act===4&&this.tut&&this.enemies.every(e=>!e.on)){
       this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#00aa44',6,0.8,3);
       P.emit(this.enemies[0].x,this.enemies[0].y,20,'#00dd44',5,0.6,3);
-      D.show([d('Narrator','The Draconian Kapak falls in acid!')],()=>{G.sc=new Lv3();G.sc.enter()});
+      D.show([d('Narrator','The Draconian Kapak falls in acid!')],()=>{if(G.sc&&G.sc.heroes)G.sc.heroes.forEach(h=>{if(h.on)G.heroHPs[h.customType]=h.hp;});G.sc=new Lv3();G.sc.enter()});
     }
 
     if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
@@ -2500,8 +2663,10 @@ class Lv2{
     this.npcs.forEach(n=>n.draw());
     this.enemies.forEach(e=>e.draw());
     if(this.projectiles)this.projectiles.forEach(p=>p.draw());
+    if(this.megaProjs)this.megaProjs.forEach(p=>p.draw(R.x,R.cam.x,R.cam.y));
     this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
+    if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
     // Rising bubbles (underwater act only)
     if(this.act===1&&this._bubbles){
       const cam=R.cam.x;
@@ -2537,7 +2702,7 @@ class Lv2{
 
 // ═══ LEVEL 3 ═══
 class Lv3{
-  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_library';this.exit=null;this.shk=0;this.shi=0;this.tut=false;this.stealthFailed=false;this.decos=[];this._alertTimer=0;this._stealthAlert=false;this._prevAnyAlert=false;this._healFlash=0;this.projectiles=[]}
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_library';this.exit=null;this.shk=0;this.shi=0;this.tut=false;this.stealthFailed=false;this.decos=[];this._alertTimer=0;this._stealthAlert=false;this._prevAnyAlert=false;this._healFlash=0;this.projectiles=[];this.megaProjs=[]}
 
   createHeroes(x,y){
     const heroes=[
@@ -2570,6 +2735,7 @@ class Lv3{
   }
 
   enter(){
+    this._fox=new Fox(100,100);
     this.bAct1();
   }
 
@@ -2588,7 +2754,7 @@ class Lv3{
     this.ai=0;
 
     // Guard in corridor between walls 15 and 32 (center ~x=23*T=368)
-    this.enemies=[new Enem(736,(H-4)*T,28,40,'Library Censor','#4466aa',130,11,'patrol','lib_censor'),
+    this.enemies=[new Enem(1200,(H-4)*T,28,40,'Library Censor','#4466aa',130,11,'patrol','lib_censor'),
       new Enem(2500,(H-4)*T,24,36,'Censor Guard','#556688',120,12,'patrol','castle_soldier'),
       new Enem(3000,(H-4)*T,24,36,'Censor Guard','#556688',120,12,'chase','castle_soldier'),
       new Enem(3500,(H-4)*T,24,36,'Censor Guard','#556688',120,12,'patrol','castle_soldier'),
@@ -2639,16 +2805,17 @@ class Lv3{
 
     // Cursed Sword in corridor between walls 32 and 52 (center ~x=42*T=672)
     this.enemies=[
-      new Enem(1344,(H-4)*T,28,40,'Corrupted Librarian','#9944ff',140,14,'static','lib_cataloguer'),
-      new Enem(800,(H-8)*T,24,36,'Corrupted Archivist','#443322',140,13,'static','lib_director'),
-      new Enem(800,(H-4)*T,24,36,'Cursed Scholar','#9944ff',130,12,'patrol','lib_cataloguer'),
-      new Enem(1400,(H-4)*T,24,36,'Cursed Scholar','#9944ff',130,12,'chase','lib_cataloguer'),
-      new Enem(2000,(H-4)*T,24,36,'Cursed Scholar','#9944ff',130,12,'patrol','lib_cataloguer'),
-      new Enem(2600,(H-4)*T,24,36,'Cursed Scholar','#9944ff',130,12,'chase','lib_cataloguer'),
-      new Enem(3200,(H-4)*T,24,36,'Cursed Scholar','#9944ff',130,12,'patrol','lib_cataloguer'),
-      new Enem(4000,(H-4)*T,24,36,'Cursed Scholar','#9944ff',130,12,'chase','lib_cataloguer'),
+      new Enem(1344,(H-4)*T,28,40,'Animated Sword','#9944ff',140,14,'static','animated_sword'),
+      new Enem(800,(H-8)*T,24,36,'Cursed Gauntlet','#443322',140,13,'static','gauntlet'),
+      new Enem(800,(H-4)*T,24,36,'Animated Sword','#9944ff',130,12,'patrol','animated_sword'),
+      new Enem(1400,(H-4)*T,24,36,'Animated Sword','#9944ff',130,12,'chase','animated_sword'),
+      new Enem(2000,(H-4)*T,24,36,'Animated Sword','#9944ff',130,12,'patrol','animated_sword'),
+      new Enem(2600,(H-4)*T,24,36,'Animated Sword','#9944ff',130,12,'chase','animated_sword'),
+      new Enem(3200,(H-4)*T,24,36,'Animated Sword','#9944ff',130,12,'patrol','animated_sword'),
+      new Enem(4000,(H-4)*T,24,36,'Animated Sword','#9944ff',130,12,'chase','animated_sword'),
     ];
     this.enemies.forEach(e=>{e.spd=0.9;});
+    this.tut=true;
 
     this.rebuildCompanions();
     this.hud();
@@ -2674,12 +2841,12 @@ class Lv3{
     spectator._teleTimer=4.0;
     spectator._tpMinDist=80;
     this.enemies=[spectator,
-      new Enem(800,(H-4)*T,24,36,'Cursed Watcher','#6644aa',120,12,'patrol','lib_director'),
-      new Enem(1400,(H-4)*T,24,36,'Cursed Watcher','#6644aa',120,12,'chase','lib_director'),
-      new Enem(2000,(H-4)*T,24,36,'Cursed Watcher','#6644aa',120,12,'patrol','lib_director'),
-      new Enem(2600,(H-4)*T,24,36,'Cursed Watcher','#6644aa',120,12,'chase','lib_director'),
-      new Enem(3200,(H-4)*T,24,36,'Cursed Watcher','#6644aa',120,12,'patrol','lib_director'),
-      new Enem(4000,(H-4)*T,24,36,'Cursed Watcher','#6644aa',120,12,'chase','lib_director'),
+      new Enem(800,(H-4)*T,24,36,'Cursed Watcher','#6644aa',120,12,'patrol','gauntlet'),
+      new Enem(1400,(H-4)*T,24,36,'Cursed Watcher','#6644aa',120,12,'chase','gauntlet'),
+      new Enem(2000,(H-4)*T,24,36,'Cursed Watcher','#6644aa',120,12,'patrol','gauntlet'),
+      new Enem(2600,(H-4)*T,24,36,'Cursed Watcher','#6644aa',120,12,'chase','gauntlet'),
+      new Enem(3200,(H-4)*T,24,36,'Cursed Watcher','#6644aa',120,12,'patrol','gauntlet'),
+      new Enem(4000,(H-4)*T,24,36,'Cursed Watcher','#6644aa',120,12,'chase','gauntlet'),
     ];
 
     this.rebuildCompanions();
@@ -2810,13 +2977,14 @@ class Lv3{
     if(this.act===5&&!this._act5done){
       if(this.heroes[this.ai].x>3000){
         this._act5done=true;
-        D.show([d('Narrator','You escaped the library!')],()=>{G.sc=new Lv4();G.sc.enter()});
+        D.show([d('Narrator','You escaped the library!')],()=>{if(G.sc&&G.sc.heroes)G.sc.heroes.forEach(h=>{if(h.on)G.heroHPs[h.customType]=h.hp;});G.sc=new Lv4();G.sc.enter()});
         return;
       }
     }
 
     this.heroes[this.ai].update(dt,this.tm);
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
+    if(this._fox){let nesta=this.heroes.find(h=>h.customType==='nesta'&&h.on);this._fox.update(dt,nesta||null);}
     this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
     this.npcs.forEach(n=>n.update(dt,this.heroes[this.ai]));
 
@@ -2826,9 +2994,16 @@ class Lv3{
     });
 
     if(this.projectiles){this.projectiles.forEach(p=>{if(p instanceof HeroProj)p.update(dt,this.tm,this.enemies);else p.update(dt,this.tm,this.heroes);});this.projectiles=this.projectiles.filter(p=>p.on);}
+    if(this.megaProjs){this.megaProjs.forEach(p=>p.update(dt,this.enemies));this.megaProjs=this.megaProjs.filter(p=>p.on);}
 
     P.up(dt);
     this.hud();
+
+    // Scroll revival (odd levels)
+    if(G.scrollsLeft>0&&I.pr('KeyR')){
+      let dead=this.heroes.find(h=>!h.on);
+      if(dead){dead.on=true;dead.hp=Math.floor(dead.mhp*0.3);dead.x=this.heroes[this.ai].x;dead.y=this.heroes[this.ai].y-10;G.scrollsLeft--;G._floats.push({x:dead.x,y:dead.y-20,txt:'REVIVED!',life:2,col:'#ffdd44'});}
+    }
 
     if(this.act===3&&this.tut&&this.enemies.every(e=>!e.on)){
       this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#9944ff',6,0.8,3);
@@ -2858,11 +3033,11 @@ class Lv3{
     if(this.act===1){
       const camY=R.cam.y;
       R.x.fillStyle='rgba(0,200,80,0.10)';
-      R.x.fillRect(0, (20-11)*T - camY, CW, T*2);
+      R.x.fillRect(0, (20-15)*T - camY, CW, T*2);
       let pulse2 = 0.5+0.5*Math.sin(Date.now()/400);
       R.x.fillStyle=`rgba(0,220,80,${pulse2})`;
       R.x.font='16px monospace';
-      R.x.fillText('→ UPPER PATH →', 40, (20-11)*T - camY + T + 8);
+      R.x.fillText('→ UPPER PATH →', 40, (20-15)*T - camY + T + 8);
     }
     // Guard detection rings (stealth)
     if(this.act===1){
@@ -2883,8 +3058,10 @@ class Lv3{
       });
     }
     if(this.projectiles)this.projectiles.forEach(p=>p.draw());
+    if(this.megaProjs)this.megaProjs.forEach(p=>p.draw(R.x,R.cam.x,R.cam.y));
     this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
+    if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
     // Heal flash
     if(this._healFlash>0){
       R.x.save();
@@ -2894,13 +3071,16 @@ class Lv3{
       R.x.fillText('PARTY HEALED!',CW/2,CH/2-60);
       R.x.restore();R.x.textAlign='left';
     }
+    // Scroll counter
+    R.x.fillStyle='#ffdd44';R.x.font='bold 13px monospace';
+    R.x.fillText('Scrolls: '+G.scrollsLeft+' [R]',CW-120,18);
     P.draw();
   }
 }
 
 // ═══ LEVEL 4 ═══
 class Lv4{
-  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_castle';this.exit=null;this.shk=0;this.shi=0;this.decos=[];this._healFlash=0;this.projectiles=[]}
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_castle';this.exit=null;this.shk=0;this.shi=0;this.decos=[];this._healFlash=0;this.projectiles=[];this.megaProjs=[]}
 
   createHeroes(x,y){
     const heroes=[
@@ -2934,6 +3114,7 @@ class Lv4{
   }
 
   enter(){
+    this._fox=new Fox(100,100);
     this.bAct1();
   }
 
@@ -3054,7 +3235,7 @@ class Lv4{
       d('Becklin','There, you will find the answers you seek.'),
       d('Narrator','The masquerade concludes.'),
       d('Narrator','But the true test lies ahead...'),
-    ],()=>{G.sc=new Lv5();G.sc.enter()});
+    ],()=>{if(G.sc&&G.sc.heroes)G.sc.heroes.forEach(h=>{if(h.on)G.heroHPs[h.customType]=h.hp;});G.sc=new Lv5();G.sc.enter()});
   }
 
   swap(idx){
@@ -3097,6 +3278,7 @@ class Lv4{
 
     this.heroes[this.ai].update(dt,this.tm);
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
+    if(this._fox){let nesta=this.heroes.find(h=>h.customType==='nesta'&&h.on);this._fox.update(dt,nesta||null);}
     this.npcs.forEach(n=>n.update(dt,this.heroes[this.ai]));
 
     if(this.enemies&&this.enemies.length){
@@ -3111,6 +3293,7 @@ class Lv4{
       });
     }
     if(this.projectiles){this.projectiles.forEach(p=>{if(p instanceof HeroProj)p.update(dt,this.tm,this.enemies);else p.update(dt,this.tm,this.heroes);});this.projectiles=this.projectiles.filter(p=>p.on);}
+    if(this.megaProjs){this.megaProjs.forEach(p=>p.update(dt,this.enemies));this.megaProjs=this.megaProjs.filter(p=>p.on);}
     // Act 3 win condition
     if(this.act===3&&this._act3combat&&this.enemies&&this.enemies.every(e=>!e.on)){
       this._act3combat=false;
@@ -3158,8 +3341,10 @@ class Lv4{
     this.npcs.forEach(n=>n.draw());
     if(this.enemies)this.enemies.forEach(e=>e.draw());
     if(this.projectiles)this.projectiles.forEach(p=>p.draw());
+    if(this.megaProjs)this.megaProjs.forEach(p=>p.draw(R.x,R.cam.x,R.cam.y));
     this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
+    if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
     // Heal flash
     if(this._healFlash>0){
       R.x.save();
@@ -3175,7 +3360,7 @@ class Lv4{
 
 // ═══ LEVEL 5 ═══
 class Lv5{
-  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_dungeon';this.shk=0;this.shi=0;this.escapeTimer=0;this.decos=[];this._healFlash=0;this.projectiles=[]}
+  constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tileset='tiles_dungeon';this.shk=0;this.shi=0;this.escapeTimer=0;this.decos=[];this._healFlash=0;this.projectiles=[];this.megaProjs=[]}
 
   createHeroes(x,y){
     const heroes=[
@@ -3209,6 +3394,7 @@ class Lv5{
   }
 
   enter(){
+    this._fox=new Fox(100,100);
     this.bAct1();
   }
 
@@ -3448,6 +3634,7 @@ class Lv5{
 
     this.heroes[this.ai].update(dt,this.tm);
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
+    if(this._fox){let nesta=this.heroes.find(h=>h.customType==='nesta'&&h.on);this._fox.update(dt,nesta||null);}
     this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
     this.npcs.forEach(n=>n.update(dt,this.heroes[this.ai]));
 
@@ -3476,9 +3663,16 @@ class Lv5{
     });
 
     if(this.projectiles){this.projectiles.forEach(p=>{if(p instanceof HeroProj)p.update(dt,this.tm,this.enemies);else p.update(dt,this.tm,this.heroes);});this.projectiles=this.projectiles.filter(p=>p.on);}
+    if(this.megaProjs){this.megaProjs.forEach(p=>p.update(dt,this.enemies));this.megaProjs=this.megaProjs.filter(p=>p.on);}
 
     P.up(dt);
     this.hud();
+
+    // Scroll revival (odd levels)
+    if(G.scrollsLeft>0&&I.pr('KeyR')){
+      let dead=this.heroes.find(h=>!h.on);
+      if(dead){dead.on=true;dead.hp=Math.floor(dead.mhp*0.3);dead.x=this.heroes[this.ai].x;dead.y=this.heroes[this.ai].y-10;G.scrollsLeft--;G._floats.push({x:dead.x,y:dead.y-20,txt:'REVIVED!',life:2,col:'#ffdd44'});}
+    }
 
     if(this.act===2&&this.tut&&this.enemies.every(e=>!e.on)){
       this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#c8a84e',6,0.8,3);
@@ -3550,8 +3744,10 @@ class Lv5{
     this.npcs.forEach(n=>n.draw());
     this.enemies.forEach(e=>e.draw());
     if(this.projectiles)this.projectiles.forEach(p=>p.draw());
+    if(this.megaProjs)this.megaProjs.forEach(p=>p.draw(R.x,R.cam.x,R.cam.y));
     this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
+    if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
     // Heal flash
     if(this._healFlash>0){
       R.x.save();
@@ -3561,12 +3757,15 @@ class Lv5{
       R.x.fillText('PARTY HEALED!',CW/2,CH/2-60);
       R.x.restore();R.x.textAlign='left';
     }
+    // Scroll counter
+    R.x.fillStyle='#ffdd44';R.x.font='bold 13px monospace';
+    R.x.fillText('Scrolls: '+G.scrollsLeft+' [R]', CW-120, 18);
     P.draw();
   }
 }
 
 // ═══ MAIN GAME LOOP ═══
-const G={sc:null,_floats:[],_rings:[],
+const G={sc:null,_floats:[],_rings:[],heroHPs:{},scrollsLeft:2,
   init(){
     I.init();
     R.init();
