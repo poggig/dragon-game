@@ -1214,6 +1214,9 @@ class Hero extends Ent{
             this._preBuffMaxHp=this.mhp; this._preBuffDmg=this.atkDmg;
             this.mhp*=2; this.hp=Math.min(this.hp+this._preBuffMaxHp,this.mhp);
             this.atkDmg*=2;
+            P.emit(this.x+this.w/2,this.y+this.h/2,20,'#cc44cc',6,0.8,3);
+            G._rings.push({x:this.x+this.w/2,y:this.y+this.h/2,r:5,life:0.6,col:'#ff88ff'});
+            G._floats.push({x:this.x,y:this.y-30,txt:'TITAN FORM!',life:2.0,col:'#ff88ff'});
           }
           return;
         }
@@ -1261,6 +1264,7 @@ class Hero extends Ent{
       }
     }
     if(this.dshT>0)this.dshT-=dt;
+    if(this._invis){this._invisTimer-=dt;if(this._invisTimer<=0)this._invis=false;}
     if(this._buffActive){
       this._buffTimer-=dt;
       if(this._buffTimer<=0){
@@ -1361,7 +1365,9 @@ class Hero extends Ent{
       const bx=this.x+this.w/2-R.cam.x, by=this.y+this.h/2-R.cam.y;
       R.x.translate(bx,by);R.x.scale(2,2);R.x.translate(-bx,-by);
     }
+    if(this._invis)R.x.globalAlpha=0.3;
     R.drawHero(this.customType,this.st,this.animFrame,this.x,this.y,this.w,this.h,!this.rt);
+    if(this._invis)R.x.globalAlpha=1.0;
     if(this._buffActive) R.x.restore();
     if(this.ctrl)R.txt(this.nm,this.x+this.w/2-R.cam.x,this.y-8-R.cam.y,this.col,9,'center');
     if(this._buffActive){
@@ -1391,6 +1397,7 @@ class Hero extends Ent{
     this._healAmt=s.healAmt||0;
     this._ranged=s.ranged||false;
     if(type==='minerva') this._isBuff=true;
+    this._rUsed=false;
   }
 }
 
@@ -1584,7 +1591,7 @@ class Enem extends Ent{
       if(d<this.ag)this.ai='chase';
       this.st='run';
       this._scene&&this._scene.heroes&&this._scene.heroes.forEach(h=>{
-        if(h.on&&this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1;this.st='attack';
+        if(h.on&&!h._invis&&this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1;this.st='attack';
           P.emit(h.x+h.w/2,h.y+h.h/2,8,'#f44',4,0.25,2);
           if(this.customType==='darkmantle'&&!this._darkUsed&&this._scene._darkZones){
             this._darkUsed=true;
@@ -1596,7 +1603,7 @@ class Enem extends Ent{
       if(d>280){this.ai='patrol';return}
       this.vx=(h.x>this.x?1:-1)*this.spd*1.4;this.rt=this.vx>0;
       this.st='run';
-      if(this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1;this.st='attack';
+      if(!h._invis&&this.hits(h)&&this.akt<=0){h.hurt(this.dmg);this.akt=1;this.st='attack';
         P.emit(h.x+h.w/2,h.y+h.h/2,8,'#f44',4,0.25,2);
         if(this.customType==='darkmantle'&&!this._darkUsed&&this._scene&&this._scene._darkZones){
           this._darkUsed=true;
@@ -1868,6 +1875,9 @@ class MegaProj{
     this.life-=dt; if(this.life<=0){this.on=false;return;}
     if(enemies)enemies.forEach(e=>{
       if(!e.on)return;
+      if(this._skelMega&&Math.abs(e.x+e.w/2-this.x)<26&&Math.abs(e.y+e.h/2-this.y)<26){
+        e.hurt(this.dmg);P.emit(this.x,this.y,12,'#e8e8d0',4,0.5,2);this.on=false;return;
+      }
       if(Math.abs(e.x+e.w/2-this.x)<24&&Math.abs(e.y+e.h/2-this.y)<24){
         e.hurt(this.dmg);this.on=false;
       }
@@ -1875,19 +1885,33 @@ class MegaProj{
   }
   draw(ctx,cam,camY){
     if(!this.on)return;
-    let sx=this.x-cam,sy=this.y-(camY||0),t=Date.now()/400+this._phase;
-    let g=ctx.createRadialGradient(sx,sy,2,sx,sy,22);
-    g.addColorStop(0,'rgba(80,0,120,0.95)');
-    g.addColorStop(0.5,'rgba(40,0,80,0.8)');
-    g.addColorStop(1,'rgba(0,0,20,0)');
-    ctx.fillStyle=g;ctx.beginPath();ctx.arc(sx,sy,22,0,Math.PI*2);ctx.fill();
-    for(let i=0;i<6;i++){
-      let a=t+i*Math.PI/3;
-      let r1=10+Math.sin(t*2+i)*4,r2=18+Math.sin(t+i)*3;
-      ctx.strokeStyle='rgba(160,0,255,0.7)';ctx.lineWidth=2;
-      ctx.beginPath();ctx.moveTo(sx+Math.cos(a)*r1,sy+Math.sin(a)*r1);
-      ctx.lineTo(sx+Math.cos(a+0.4)*r2,sy+Math.sin(a+0.4)*r2);ctx.stroke();
+    let sx=this.x-cam,sy=this.y-(camY||0);
+    if(this._amber){
+      let glow=0.6+0.4*Math.sin(Date.now()/200+this._phase);
+      let g=ctx.createRadialGradient(sx,sy,2,sx,sy,22);
+      g.addColorStop(0,'rgba(255,180,0,0.95)');g.addColorStop(0.6,'rgba(200,100,0,0.7)');g.addColorStop(1,'rgba(100,40,0,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(sx,sy,22,0,Math.PI*2);ctx.fill();
+      ctx.shadowColor='#ff8800';ctx.shadowBlur=15;ctx.strokeStyle=`rgba(255,220,50,${glow})`;ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(sx,sy,18,0,Math.PI*2);ctx.stroke();
+      ctx.shadowBlur=0;return;
     }
+    if(this._skelMega){
+      ctx.save();ctx.translate(sx,sy);ctx.rotate(Date.now()/400+this._phase);
+      ctx.fillStyle='#e8e8d0';ctx.shadowColor='#ffffff';ctx.shadowBlur=10;
+      ctx.fillRect(-14,-4,28,8);
+      ctx.beginPath();ctx.arc(-14,0,7,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(14,0,7,0,Math.PI*2);ctx.fill();
+      ctx.shadowBlur=0;ctx.restore();return;
+    }
+    // Default: Nesta crescent blade
+    let t=Date.now()/300+this._phase;
+    ctx.save();ctx.translate(sx,sy);ctx.rotate(t);
+    let glow=0.6+0.4*Math.sin(t*2);
+    ctx.strokeStyle=`rgba(180,0,255,${glow})`;ctx.lineWidth=3;ctx.shadowColor='#cc00ff';ctx.shadowBlur=12;
+    ctx.beginPath();ctx.arc(0,0,16,0.3,Math.PI*1.7);ctx.stroke();
+    ctx.beginPath();ctx.arc(6,0,10,Math.PI*0.8,Math.PI*2.2);ctx.stroke();
+    ctx.fillStyle=`rgba(255,100,255,${glow})`;ctx.beginPath();ctx.arc(0,0,4,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;ctx.restore();
   }
 }
 
@@ -2067,6 +2091,7 @@ const Music=(()=>{
       if(_sched){clearTimeout(_sched);_sched=null;}
       _theme=null;_beat=0;
     },
+    resume(){try{if(ctx&&ctx.state==='suspended')ctx.resume();}catch(e){}},
     toggle(){
       if(!ctx)init();
       _muted=!_muted;
@@ -2236,6 +2261,7 @@ class Lv1{
 
   // ACT 4: NIGHT INFILTRATION - Stealth + Combat in the library
   bAct4(){
+    Music.play('castle');
     this.act=4;this.tileset='tiles_castle';
     const W=300,H=18;
     this.tm=new TM(W,H);
@@ -2243,8 +2269,8 @@ class Lv1{
     this.stealthFailed=false;
 
     buildCastleArena(this.tm,W,H);
-    // Stealth-only: extend left platform to x=0 and add staircase
-    for(let i=0;i<Math.floor(W*0.22);i++)this.tm.set(i,H-7,3);
+    // Stealth-only: extend left platform starting at x=4 (gap lets player choose path)
+    for(let i=4;i<Math.floor(W*0.22);i++)this.tm.set(i,H-7,3);
     for(let step=0;step<5;step++){this.tm.set(2+step,(H-4-step),1);}
     this.decos=genDecos(W,H,'library',this.act);
 
@@ -2264,6 +2290,8 @@ class Lv1{
       new Enem(4000,(H-4)*T,24,28,'Mimic Book','#6b3a8c',150,14,'patrol','mimic'),
     ];
     this.enemies[0].spd=0.8;
+    this.enemies[0]._platformTimer=3.0+Math.random()*4;
+    this.enemies[0]._onUpper=false;
     this.enemies[1].spd=0.9;
     this.enemies[2].spd=0.9;
 
@@ -2297,6 +2325,34 @@ class Lv1{
     ],()=>{if(G.sc&&G.sc.heroes)G.sc.heroes.forEach(h=>{if(h.on)G.heroHPs[h.customType]=h.hp;});Music.stop();Music.play('underwater');G.sc=new Lv2();G.sc.enter()});
   }
 
+  _triggerRAbility(){
+    const h=this.heroes[this.ai];if(!h||!h.on||h._rUsed)return;
+    h._rUsed=true;const cx=h.x+h.w/2,cy=h.y+h.h/2;
+    switch(h.customType){
+      case 'minerva':
+        this.enemies.forEach(e=>{if(!e.on)return;const dx=e.x+e.w/2-cx,dy=e.y+e.h/2-cy;if(Math.sqrt(dx*dx+dy*dy)<200)e.hurt(h.atkDmg*3);});
+        G._rings.push({x:cx,y:cy,r:10,life:0.8,col:'#cc44cc'});G._rings.push({x:cx,y:cy,r:10,life:1.2,col:'#ff88ff'});
+        G._floats.push({x:cx,y:cy-30,txt:'CLEAVE!',life:1.5,col:'#ff88ff'});break;
+      case 'kote':
+        for(let i=-2;i<=2;i++){const a=i*0.18,dir=h.rt?1:-1;const p=new HeroProj(cx,cy,Math.cos(a)*dir*7,Math.sin(a)*(-1+Math.abs(i)*0.3),h.atkDmg*2,h);p._col='#ff6600';this.projectiles.push(p);}
+        G._floats.push({x:cx,y:cy-20,txt:'BARRAGE!',life:1.5,col:'#ff6600'});break;
+      case 'nesta':
+        h._invis=true;h._invisTimer=4.0;
+        G._floats.push({x:cx,y:cy-20,txt:'INVISIBLE!',life:1.5,col:'#aaddff'});break;
+      case 'elber':{
+        const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
+        const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
+        const dx=t.x-cx,dy=(t.y||cy)-cy,len=Math.sqrt(dx*dx+dy*dy)||1;
+        const p=new MegaProj(cx,cy,(dx/len)*2.5,(dy/len)*2.5,h.atkDmg*4);p._amber=true;this.megaProjs.push(p);
+        G._floats.push({x:cx,y:cy-20,txt:'MEGA SHOT!',life:1.5,col:'#ffaa00'});break;}
+      case 'nick':{
+        const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
+        const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
+        const dx=t.x-cx,dy=(t.y||cy)-cy,len=Math.sqrt(dx*dx+dy*dy)||1;
+        const p=new MegaProj(cx,cy,(dx/len)*2.0,(dy/len)*2.0,h.atkDmg*5);p._skelMega=true;this.megaProjs.push(p);
+        G._floats.push({x:cx,y:cy-20,txt:'BONE SHOT!',life:1.5,col:'#e8e8d0'});break;}
+    }
+  }
   swap(idx){
     if(idx===this.ai||!this.heroes[idx]||!this.heroes[idx].on)return;
     const cur=this.heroes[this.ai],nxt=this.heroes[idx];
@@ -2371,6 +2427,11 @@ class Lv1{
 
     // Act 4: Guard detection (2-stage stealth)
     if(this.act===4&&this.tut){
+      // Guard randomly switches between floor and upper platform
+      {const pg=this.enemies.find(e=>e.customType==='castle_knight'&&e.on);
+      if(pg&&pg._platformTimer!==undefined){pg._platformTimer-=dt;
+        if(pg._platformTimer<=0){pg._onUpper=!pg._onUpper;pg._platformTimer=4.0+Math.random()*5;
+          const H=18;pg.y=(pg._onUpper?(H-8):(H-4))*T;pg.vy=0;}}}
       const h=this.heroes[this.ai];
       let anyAlert=false;
       this.enemies.forEach(e=>{
@@ -2416,10 +2477,11 @@ class Lv1{
     P.up(dt);
     this.hud();
 
-    // Scroll revival (odd levels)
-    if(G.scrollsLeft>0&&I.pr('KeyR')){
+    // Scroll revival + R ability (odd levels)
+    if(I.pr('KeyR')){
       let dead=this.heroes.find(h=>!h.on);
-      if(dead){dead.on=true;dead.hp=Math.floor(dead.mhp*0.3);dead.x=this.heroes[this.ai].x;dead.y=this.heroes[this.ai].y-10;G.scrollsLeft--;G._floats.push({x:dead.x,y:dead.y-20,txt:'REVIVED!',life:2,col:'#ffdd44'});}
+      if(G.scrollsLeft>0&&dead){dead.on=true;dead.hp=Math.floor(dead.mhp*0.3);dead.x=this.heroes[this.ai].x;dead.y=this.heroes[this.ai].y-10;G.scrollsLeft--;G._floats.push({x:dead.x,y:dead.y-20,txt:'REVIVED!',life:2,col:'#ffdd44'});}
+      else this._triggerRAbility();
     }
 
     // Act 1: Defeat all enemies
@@ -2482,6 +2544,7 @@ class Lv1{
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
     if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
     if(this._skeleton)this._skeleton.draw(R.x,R.cam.x,R.cam.y);
+    {const h=this.heroes[this.ai];if(h){const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle=h._rUsed?'rgba(120,120,120,0.7)':'rgba(255,220,80,0.95)';mx.fillText(h._rUsed?'[R] used':'[R] ready',CW-90,44);mx.restore();}}
     // Heal flash
     if(this._healFlash>0){
       R.x.save();
@@ -2637,6 +2700,34 @@ class Lv2{
     D.show([d('Narrator','Shadow on the Road...'),d('Narrator','A Draconian Kapak blocks the path!'),d('Tutorial','Defeat it!')],()=>{this.tut=true});
   }
 
+  _triggerRAbility(){
+    const h=this.heroes[this.ai];if(!h||!h.on||h._rUsed)return;
+    h._rUsed=true;const cx=h.x+h.w/2,cy=h.y+h.h/2;
+    switch(h.customType){
+      case 'minerva':
+        this.enemies.forEach(e=>{if(!e.on)return;const dx=e.x+e.w/2-cx,dy=e.y+e.h/2-cy;if(Math.sqrt(dx*dx+dy*dy)<200)e.hurt(h.atkDmg*3);});
+        G._rings.push({x:cx,y:cy,r:10,life:0.8,col:'#cc44cc'});G._rings.push({x:cx,y:cy,r:10,life:1.2,col:'#ff88ff'});
+        G._floats.push({x:cx,y:cy-30,txt:'CLEAVE!',life:1.5,col:'#ff88ff'});break;
+      case 'kote':
+        for(let i=-2;i<=2;i++){const a=i*0.18,dir=h.rt?1:-1;const p=new HeroProj(cx,cy,Math.cos(a)*dir*7,Math.sin(a)*(-1+Math.abs(i)*0.3),h.atkDmg*2,h);p._col='#ff6600';this.projectiles.push(p);}
+        G._floats.push({x:cx,y:cy-20,txt:'BARRAGE!',life:1.5,col:'#ff6600'});break;
+      case 'nesta':
+        h._invis=true;h._invisTimer=4.0;
+        G._floats.push({x:cx,y:cy-20,txt:'INVISIBLE!',life:1.5,col:'#aaddff'});break;
+      case 'elber':{
+        const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
+        const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
+        const dx=t.x-cx,dy=(t.y||cy)-cy,len=Math.sqrt(dx*dx+dy*dy)||1;
+        const p=new MegaProj(cx,cy,(dx/len)*2.5,(dy/len)*2.5,h.atkDmg*4);p._amber=true;this.megaProjs.push(p);
+        G._floats.push({x:cx,y:cy-20,txt:'MEGA SHOT!',life:1.5,col:'#ffaa00'});break;}
+      case 'nick':{
+        const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
+        const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
+        const dx=t.x-cx,dy=(t.y||cy)-cy,len=Math.sqrt(dx*dx+dy*dy)||1;
+        const p=new MegaProj(cx,cy,(dx/len)*2.0,(dy/len)*2.0,h.atkDmg*5);p._skelMega=true;this.megaProjs.push(p);
+        G._floats.push({x:cx,y:cy-20,txt:'BONE SHOT!',life:1.5,col:'#e8e8d0'});break;}
+    }
+  }
   swap(idx){
     if(idx===this.ai||!this.heroes[idx]||!this.heroes[idx].on)return;
     const cur=this.heroes[this.ai],nxt=this.heroes[idx];
@@ -2766,6 +2857,7 @@ class Lv2{
 
     P.up(dt);
     this.hud();
+    if(I.pr('KeyR'))this._triggerRAbility();
 
     if(this.act===1&&this.tut&&this.enemies.every(e=>!e.on)){
       this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#c8a84e',6,0.8,3);
@@ -2823,6 +2915,7 @@ class Lv2{
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
     if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
     if(this._skeleton)this._skeleton.draw(R.x,R.cam.x,R.cam.y);
+    {const h=this.heroes[this.ai];if(h){const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle=h._rUsed?'rgba(120,120,120,0.7)':'rgba(255,220,80,0.95)';mx.fillText(h._rUsed?'[R] used':'[R] ready',CW-90,44);mx.restore();}}
     // Rising bubbles (underwater act only)
     if(this.act===1&&this._bubbles){
       const cam=R.cam.x;
@@ -3037,6 +3130,34 @@ class Lv3{
     D.show([d('Narrator','The exit corridor lies ahead.')],()=>{});
   }
 
+  _triggerRAbility(){
+    const h=this.heroes[this.ai];if(!h||!h.on||h._rUsed)return;
+    h._rUsed=true;const cx=h.x+h.w/2,cy=h.y+h.h/2;
+    switch(h.customType){
+      case 'minerva':
+        this.enemies.forEach(e=>{if(!e.on)return;const dx=e.x+e.w/2-cx,dy=e.y+e.h/2-cy;if(Math.sqrt(dx*dx+dy*dy)<200)e.hurt(h.atkDmg*3);});
+        G._rings.push({x:cx,y:cy,r:10,life:0.8,col:'#cc44cc'});G._rings.push({x:cx,y:cy,r:10,life:1.2,col:'#ff88ff'});
+        G._floats.push({x:cx,y:cy-30,txt:'CLEAVE!',life:1.5,col:'#ff88ff'});break;
+      case 'kote':
+        for(let i=-2;i<=2;i++){const a=i*0.18,dir=h.rt?1:-1;const p=new HeroProj(cx,cy,Math.cos(a)*dir*7,Math.sin(a)*(-1+Math.abs(i)*0.3),h.atkDmg*2,h);p._col='#ff6600';this.projectiles.push(p);}
+        G._floats.push({x:cx,y:cy-20,txt:'BARRAGE!',life:1.5,col:'#ff6600'});break;
+      case 'nesta':
+        h._invis=true;h._invisTimer=4.0;
+        G._floats.push({x:cx,y:cy-20,txt:'INVISIBLE!',life:1.5,col:'#aaddff'});break;
+      case 'elber':{
+        const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
+        const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
+        const dx=t.x-cx,dy=(t.y||cy)-cy,len=Math.sqrt(dx*dx+dy*dy)||1;
+        const p=new MegaProj(cx,cy,(dx/len)*2.5,(dy/len)*2.5,h.atkDmg*4);p._amber=true;this.megaProjs.push(p);
+        G._floats.push({x:cx,y:cy-20,txt:'MEGA SHOT!',life:1.5,col:'#ffaa00'});break;}
+      case 'nick':{
+        const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
+        const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
+        const dx=t.x-cx,dy=(t.y||cy)-cy,len=Math.sqrt(dx*dx+dy*dy)||1;
+        const p=new MegaProj(cx,cy,(dx/len)*2.0,(dy/len)*2.0,h.atkDmg*5);p._skelMega=true;this.megaProjs.push(p);
+        G._floats.push({x:cx,y:cy-20,txt:'BONE SHOT!',life:1.5,col:'#e8e8d0'});break;}
+    }
+  }
   swap(idx){
     if(idx===this.ai||!this.heroes[idx]||!this.heroes[idx].on)return;
     const cur=this.heroes[this.ai],nxt=this.heroes[idx];
@@ -3160,10 +3281,11 @@ class Lv3{
     P.up(dt);
     this.hud();
 
-    // Scroll revival (odd levels)
-    if(G.scrollsLeft>0&&I.pr('KeyR')){
+    // Scroll revival + R ability (odd levels)
+    if(I.pr('KeyR')){
       let dead=this.heroes.find(h=>!h.on);
-      if(dead){dead.on=true;dead.hp=Math.floor(dead.mhp*0.3);dead.x=this.heroes[this.ai].x;dead.y=this.heroes[this.ai].y-10;G.scrollsLeft--;G._floats.push({x:dead.x,y:dead.y-20,txt:'REVIVED!',life:2,col:'#ffdd44'});}
+      if(G.scrollsLeft>0&&dead){dead.on=true;dead.hp=Math.floor(dead.mhp*0.3);dead.x=this.heroes[this.ai].x;dead.y=this.heroes[this.ai].y-10;G.scrollsLeft--;G._floats.push({x:dead.x,y:dead.y-20,txt:'REVIVED!',life:2,col:'#ffdd44'});}
+      else this._triggerRAbility();
     }
 
     if(this.act===3&&this.tut&&this.enemies.every(e=>!e.on)){
@@ -3224,6 +3346,7 @@ class Lv3{
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
     if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
     if(this._skeleton)this._skeleton.draw(R.x,R.cam.x,R.cam.y);
+    {const h=this.heroes[this.ai];if(h){const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle=h._rUsed?'rgba(120,120,120,0.7)':'rgba(255,220,80,0.95)';mx.fillText(h._rUsed?'[R] used':'[R] ready',CW-90,44);mx.restore();}}
     // Heal flash
     if(this._healFlash>0){
       R.x.save();
@@ -3401,6 +3524,34 @@ class Lv4{
     ],()=>{if(G.sc&&G.sc.heroes)G.sc.heroes.forEach(h=>{if(h.on)G.heroHPs[h.customType]=h.hp;});Music.stop();Music.play('boss');G.sc=new Lv5();G.sc.enter()});
   }
 
+  _triggerRAbility(){
+    const h=this.heroes[this.ai];if(!h||!h.on||h._rUsed)return;
+    h._rUsed=true;const cx=h.x+h.w/2,cy=h.y+h.h/2;
+    switch(h.customType){
+      case 'minerva':
+        this.enemies.forEach(e=>{if(!e.on)return;const dx=e.x+e.w/2-cx,dy=e.y+e.h/2-cy;if(Math.sqrt(dx*dx+dy*dy)<200)e.hurt(h.atkDmg*3);});
+        G._rings.push({x:cx,y:cy,r:10,life:0.8,col:'#cc44cc'});G._rings.push({x:cx,y:cy,r:10,life:1.2,col:'#ff88ff'});
+        G._floats.push({x:cx,y:cy-30,txt:'CLEAVE!',life:1.5,col:'#ff88ff'});break;
+      case 'kote':
+        for(let i=-2;i<=2;i++){const a=i*0.18,dir=h.rt?1:-1;const p=new HeroProj(cx,cy,Math.cos(a)*dir*7,Math.sin(a)*(-1+Math.abs(i)*0.3),h.atkDmg*2,h);p._col='#ff6600';this.projectiles.push(p);}
+        G._floats.push({x:cx,y:cy-20,txt:'BARRAGE!',life:1.5,col:'#ff6600'});break;
+      case 'nesta':
+        h._invis=true;h._invisTimer=4.0;
+        G._floats.push({x:cx,y:cy-20,txt:'INVISIBLE!',life:1.5,col:'#aaddff'});break;
+      case 'elber':{
+        const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
+        const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
+        const dx=t.x-cx,dy=(t.y||cy)-cy,len=Math.sqrt(dx*dx+dy*dy)||1;
+        const p=new MegaProj(cx,cy,(dx/len)*2.5,(dy/len)*2.5,h.atkDmg*4);p._amber=true;this.megaProjs.push(p);
+        G._floats.push({x:cx,y:cy-20,txt:'MEGA SHOT!',life:1.5,col:'#ffaa00'});break;}
+      case 'nick':{
+        const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
+        const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
+        const dx=t.x-cx,dy=(t.y||cy)-cy,len=Math.sqrt(dx*dx+dy*dy)||1;
+        const p=new MegaProj(cx,cy,(dx/len)*2.0,(dy/len)*2.0,h.atkDmg*5);p._skelMega=true;this.megaProjs.push(p);
+        G._floats.push({x:cx,y:cy-20,txt:'BONE SHOT!',life:1.5,col:'#e8e8d0'});break;}
+    }
+  }
   swap(idx){
     if(idx===this.ai||!this.heroes[idx]||!this.heroes[idx].on)return;
     const cur=this.heroes[this.ai],nxt=this.heroes[idx];
@@ -3471,6 +3622,7 @@ class Lv4{
 
     P.up(dt);
     this.hud();
+    if(I.pr('KeyR'))this._triggerRAbility();
 
     // Act 1: NPC interaction via Z/J/SPACE key
     if(this.act===1){
@@ -3510,6 +3662,7 @@ class Lv4{
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
     if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
     if(this._skeleton)this._skeleton.draw(R.x,R.cam.x,R.cam.y);
+    {const h=this.heroes[this.ai];if(h){const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle=h._rUsed?'rgba(120,120,120,0.7)':'rgba(255,220,80,0.95)';mx.fillText(h._rUsed?'[R] used':'[R] ready',CW-90,44);mx.restore();}}
     // Heal flash
     if(this._healFlash>0){
       R.x.save();
@@ -3752,6 +3905,34 @@ class Lv5{
     D.show([d('Narrator','The ground shakes...'),d('Narrator','Kansaldi, the Dragon Commander, emerges!'),d('Kansaldi','Your struggle ends now!'),d('Narrator','This battle cannot be won. Escape!')],()=>{this.tut=true});
   }
 
+  _triggerRAbility(){
+    const h=this.heroes[this.ai];if(!h||!h.on||h._rUsed)return;
+    h._rUsed=true;const cx=h.x+h.w/2,cy=h.y+h.h/2;
+    switch(h.customType){
+      case 'minerva':
+        this.enemies.forEach(e=>{if(!e.on)return;const dx=e.x+e.w/2-cx,dy=e.y+e.h/2-cy;if(Math.sqrt(dx*dx+dy*dy)<200)e.hurt(h.atkDmg*3);});
+        G._rings.push({x:cx,y:cy,r:10,life:0.8,col:'#cc44cc'});G._rings.push({x:cx,y:cy,r:10,life:1.2,col:'#ff88ff'});
+        G._floats.push({x:cx,y:cy-30,txt:'CLEAVE!',life:1.5,col:'#ff88ff'});break;
+      case 'kote':
+        for(let i=-2;i<=2;i++){const a=i*0.18,dir=h.rt?1:-1;const p=new HeroProj(cx,cy,Math.cos(a)*dir*7,Math.sin(a)*(-1+Math.abs(i)*0.3),h.atkDmg*2,h);p._col='#ff6600';this.projectiles.push(p);}
+        G._floats.push({x:cx,y:cy-20,txt:'BARRAGE!',life:1.5,col:'#ff6600'});break;
+      case 'nesta':
+        h._invis=true;h._invisTimer=4.0;
+        G._floats.push({x:cx,y:cy-20,txt:'INVISIBLE!',life:1.5,col:'#aaddff'});break;
+      case 'elber':{
+        const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
+        const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
+        const dx=t.x-cx,dy=(t.y||cy)-cy,len=Math.sqrt(dx*dx+dy*dy)||1;
+        const p=new MegaProj(cx,cy,(dx/len)*2.5,(dy/len)*2.5,h.atkDmg*4);p._amber=true;this.megaProjs.push(p);
+        G._floats.push({x:cx,y:cy-20,txt:'MEGA SHOT!',life:1.5,col:'#ffaa00'});break;}
+      case 'nick':{
+        const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
+        const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
+        const dx=t.x-cx,dy=(t.y||cy)-cy,len=Math.sqrt(dx*dx+dy*dy)||1;
+        const p=new MegaProj(cx,cy,(dx/len)*2.0,(dy/len)*2.0,h.atkDmg*5);p._skelMega=true;this.megaProjs.push(p);
+        G._floats.push({x:cx,y:cy-20,txt:'BONE SHOT!',life:1.5,col:'#e8e8d0'});break;}
+    }
+  }
   swap(idx){
     if(idx===this.ai||!this.heroes[idx]||!this.heroes[idx].on)return;
     const cur=this.heroes[this.ai],nxt=this.heroes[idx];
@@ -3835,10 +4016,11 @@ class Lv5{
     P.up(dt);
     this.hud();
 
-    // Scroll revival (odd levels)
-    if(G.scrollsLeft>0&&I.pr('KeyR')){
+    // Scroll revival + R ability (odd levels)
+    if(I.pr('KeyR')){
       let dead=this.heroes.find(h=>!h.on);
-      if(dead){dead.on=true;dead.hp=Math.floor(dead.mhp*0.3);dead.x=this.heroes[this.ai].x;dead.y=this.heroes[this.ai].y-10;G.scrollsLeft--;G._floats.push({x:dead.x,y:dead.y-20,txt:'REVIVED!',life:2,col:'#ffdd44'});}
+      if(G.scrollsLeft>0&&dead){dead.on=true;dead.hp=Math.floor(dead.mhp*0.3);dead.x=this.heroes[this.ai].x;dead.y=this.heroes[this.ai].y-10;G.scrollsLeft--;G._floats.push({x:dead.x,y:dead.y-20,txt:'REVIVED!',life:2,col:'#ffdd44'});}
+      else this._triggerRAbility();
     }
 
     if(this.act===2&&this.tut&&this.enemies.every(e=>!e.on)){
@@ -3916,6 +4098,7 @@ class Lv5{
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
     if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
     if(this._skeleton)this._skeleton.draw(R.x,R.cam.x,R.cam.y);
+    {const h=this.heroes[this.ai];if(h){const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle=h._rUsed?'rgba(120,120,120,0.7)':'rgba(255,220,80,0.95)';mx.fillText(h._rUsed?'[R] used':'[R] ready',CW-90,44);mx.restore();}}
     // Heal flash
     if(this._healFlash>0){
       R.x.save();
@@ -4098,6 +4281,7 @@ const G={sc:null,_floats:[],_rings:[],heroHPs:{},scrollsLeft:2,
   _looping:false,
   loop(){
     const dt=1/60;
+    Music.resume();
     if(I.pr('KeyM'))Music.toggle();
     try{
       if(this.sc){
