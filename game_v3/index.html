@@ -115,6 +115,7 @@ const Assets={
 const I={k:{},j:{},
   init(){
     window.addEventListener('keydown',e=>{
+      Music.init();
       if(!this.k[e.code])this.j[e.code]=true;
       this.k[e.code]=true;
       if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.code))e.preventDefault();
@@ -844,8 +845,6 @@ function buildCastleArena(tm,W,H){
   for(let i=-4;i<5;i++)tm.set(mid+i,H-7,3)
   // High center perch (one-way, double-jump from center platform)
   for(let i=-3;i<4;i++)tm.set(mid+i,H-12,3)
-  // Left entry staircase to upper path
-  for(let step=0;step<5;step++){tm.set(2+step,(H-4-step),1);}
 }
 
 function buildGardenPath(tm,W,H){
@@ -884,8 +883,6 @@ function buildLibraryHalls(tm,W,H){
   for(let x=walls[1]+2;x<walls[2]-1;x++)tm.set(x,H-11,3)
   // High reading balcony (full width)
   for(let x=2;x<W-2;x++)tm.set(x,H-15,3)
-  // Left staircase to balcony
-  for(let step=0;step<12;step++){tm.set(2+step,(H-3-step),1);}
 }
 
 function buildMasqueradeHall(tm,W,H){
@@ -1793,23 +1790,66 @@ class Fox{
     ctx.save();
     if(this._flip){ctx.translate(sx*2,0);ctx.scale(-1,1);}
     // Body
-    ctx.fillStyle='#e06010';ctx.fillRect(sx-5,sy-3,10,7);
+    ctx.fillStyle='#111';ctx.fillRect(sx-5,sy-3,10,7);
     // Tail
     let ta=Math.sin(this._bob*3)*0.5;
     ctx.save();ctx.translate(sx-5,sy+1);ctx.rotate(ta);
-    ctx.fillStyle='#e06010';ctx.fillRect(-5,-3,6,6);
+    ctx.fillStyle='#111';ctx.fillRect(-5,-3,6,6);
     ctx.fillStyle='#fff';ctx.fillRect(-6,-2,3,3);
     ctx.restore();
     // Head
-    ctx.fillStyle='#e06010';ctx.fillRect(sx+3,sy-7,7,6);
+    ctx.fillStyle='#111';ctx.fillRect(sx+3,sy-7,7,6);
     // Ears
-    ctx.fillStyle='#c03800';
+    ctx.fillStyle='#000';
     ctx.beginPath();ctx.moveTo(sx+4,sy-7);ctx.lineTo(sx+3,sy-11);ctx.lineTo(sx+7,sy-7);ctx.closePath();ctx.fill();
     ctx.beginPath();ctx.moveTo(sx+8,sy-7);ctx.lineTo(sx+9,sy-11);ctx.lineTo(sx+11,sy-7);ctx.closePath();ctx.fill();
     // Eye
     ctx.fillStyle='#000';ctx.beginPath();ctx.arc(sx+8,sy-4,1,0,Math.PI*2);ctx.fill();
     // Nose
     ctx.fillStyle='#000';ctx.beginPath();ctx.arc(sx+10,sy-2,0.8,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ═══ SKELETON FAMILIAR ═══
+class Skeleton{
+  constructor(x,y){this.x=x;this.y=y;this._visible=false;this._bob=0;this._flip=false;}
+  update(dt,nick){
+    if(!nick||!nick.on){this._visible=false;return;}
+    this._visible=true;
+    this._bob+=dt*3;
+    let tx=nick.x+(nick.rt?-32:32),ty=nick.y+nick.h-18;
+    let dx=tx-this.x,dy=ty-this.y;
+    let spd=Math.min(200,Math.sqrt(dx*dx+dy*dy)*6);
+    if(Math.abs(dx)>3){this.x+=Math.sign(dx)*Math.min(Math.abs(dx),spd*dt);this._flip=dx<0;}
+    if(Math.abs(dy)>3)this.y+=Math.sign(dy)*Math.min(Math.abs(dy),spd*dt);
+  }
+  draw(ctx,cam,camY){
+    if(!this._visible)return;
+    let sx=this.x-cam,sy=this.y-(camY||0)+Math.sin(this._bob*2)*1.5;
+    let bob=Math.sin(this._bob*2)*1.5;
+    ctx.save();
+    if(this._flip){ctx.translate(sx*2,0);ctx.scale(-1,1);}
+    // Skull
+    ctx.fillStyle='#e8e8d0';
+    ctx.beginPath();ctx.ellipse(sx,sy-13+bob,5,6,0,0,Math.PI*2);ctx.fill();
+    // Eye sockets
+    ctx.fillStyle='#222';
+    ctx.fillRect(sx-4,sy-15+bob,3,2);ctx.fillRect(sx+1,sy-15+bob,3,2);
+    // Jaw
+    ctx.fillStyle='#e8e8d0';ctx.fillRect(sx-3,sy-8+bob,7,3);
+    ctx.fillStyle='#222';ctx.fillRect(sx-2,sy-7+bob,2,2);ctx.fillRect(sx+1,sy-7+bob,2,2);
+    // Spine
+    ctx.fillStyle='#e8e8d0';ctx.fillRect(sx-1,sy-4+bob,2,9);
+    // Ribs
+    ctx.fillRect(sx-5,sy-3+bob,10,2);ctx.fillRect(sx-4,sy,8,2);ctx.fillRect(sx-3,sy+3+bob,6,2);
+    // Arms
+    ctx.strokeStyle='#e8e8d0';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(sx-5,sy-3+bob);ctx.lineTo(sx-9,sy+2+bob);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(sx+5,sy-3+bob);ctx.lineTo(sx+9,sy+2+bob);ctx.stroke();
+    // Legs
+    ctx.beginPath();ctx.moveTo(sx-1,sy+5+bob);ctx.lineTo(sx-4,sy+12+bob);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(sx+1,sy+5+bob);ctx.lineTo(sx+4,sy+12+bob);ctx.stroke();
     ctx.restore();
   }
 }
@@ -1930,6 +1970,110 @@ class Proj{
   }
 }
 
+// ═══ MUSIC SYSTEM ═══
+const Music=(()=>{
+  let ctx=null,master=null,_muted=false,_theme=null,_sched=null,_beat=0,_next=0;
+
+  function init(){
+    if(ctx)return;
+    try{
+      ctx=new(window.AudioContext||window.webkitAudioContext)();
+      master=ctx.createGain();master.gain.value=0.25;
+      master.connect(ctx.destination);
+    }catch(e){}
+  }
+
+  function note(freq,type,vol,t,dur){
+    if(!ctx||_muted||!freq||freq<=0)return;
+    try{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.type=type;o.frequency.value=freq;
+      g.gain.setValueAtTime(0,t);
+      g.gain.linearRampToValueAtTime(vol,t+0.025);
+      g.gain.setValueAtTime(vol,t+dur*0.72);
+      g.gain.linearRampToValueAtTime(0,t+dur);
+      o.connect(g);g.connect(master);
+      o.start(t);o.stop(t+dur+0.06);
+    }catch(e){}
+  }
+
+  const T={
+    castle:{bpm:120,
+      mel:[294,349,440,523,440,349,294,262, 330,392,440,523,392,330,294,262],
+      bas:[147,147,110,110,131,131,147,147, 147,147,110,110,131,131,147,147],
+      play(i,t,b){
+        note(this.mel[i%16],'square',0.065,t,b*0.52);
+        note(this.bas[i%16],'sawtooth',0.15,t,b*0.86);
+        if(i%8===0){note(294,'sawtooth',0.045,t,b*1.9);note(349,'sawtooth',0.03,t,b*1.9);note(440,'sawtooth',0.025,t,b*1.9);}
+      }},
+    underwater:{bpm:80,
+      mel:[262,0,311,0,262,0,392,0, 311,0,262,0,392,0,466,0],
+      play(i,t,b){
+        const m=this.mel[i%16];
+        if(m){note(m,'sine',0.075,t,b*1.8);note(m/2,'sine',0.13,t,b*3.6);}
+        if(i%8===0)note(131,'sine',0.17,t,b*5.5);
+      }},
+    library:{bpm:88,
+      mel:[220,0,262,0,247,0,220,294, 262,0,220,0,196,0,220,0],
+      play(i,t,b){
+        const m=this.mel[i%16];
+        if(m){note(m,'sine',0.075,t,b*1.4);note(m*2,'sine',0.03,t,b*0.9);}
+        if(i%16===0)note(110,'sine',0.13,t,b*4.2);
+        if(i%16===8)note(98,'sine',0.10,t,b*4.2);
+        if(i%16===6)note(311,'sine',0.035,t,b*2.6);
+      }},
+    boss:{bpm:138,
+      arp:[294,349,440,523,440,349,294,262, 294,349,440,523,588,523,440,349],
+      play(i,t,b){
+        note(147,'sawtooth',0.17,t,b*0.72);
+        note(this.arp[i%16],'square',0.055,t,b*0.42);
+        if(i%4===0){note(294,'sawtooth',0.065,t,b*1.35);note(440,'sawtooth',0.038,t,b*1.35);}
+      }},
+    stealth:{bpm:58,
+      mel:[196,0,0,0,220,0,0,0,185,0,0,0,196,0,0,0],
+      play(i,t,b){
+        const m=this.mel[i%16];
+        if(m){note(m,'sine',0.055,t,b*3.0);note(m*2,'sine',0.02,t,b*1.8);}
+        if(i%16===0)note(98,'sine',0.065,t,b*5.2);
+      }}
+  };
+
+  function schedule(){
+    if(!_theme||!ctx)return;
+    const th=T[_theme];if(!th)return;
+    const b=60/th.bpm,ahead=0.5;
+    while(_next<ctx.currentTime+ahead){
+      try{th.play(_beat,_next,b);}catch(e){}
+      _next+=b;_beat++;
+    }
+    _sched=setTimeout(schedule,200);
+  }
+
+  return{
+    get muted(){return _muted;},
+    init,
+    play(t){
+      if(_theme===t)return;
+      if(_sched){clearTimeout(_sched);_sched=null;}
+      _theme=t;_beat=0;
+      if(!ctx){init();}
+      if(!ctx)return;
+      try{if(ctx.state==='suspended')ctx.resume();}catch(e){}
+      _next=ctx.currentTime+0.12;
+      schedule();
+    },
+    stop(){
+      if(_sched){clearTimeout(_sched);_sched=null;}
+      _theme=null;_beat=0;
+    },
+    toggle(){
+      if(!ctx)init();
+      _muted=!_muted;
+      if(master)master.gain.value=_muted?0:0.25;
+    }
+  };
+})();
+
 // ═══ GAME STATE ═══
 class Lv1{
   constructor(){this.act=0;this.tm=null;this.heroes=[];this.enemies=[];this.npcs=[];this.companions=[];this.ai=0;this.tut=false;this.exit=null;this.shk=0;this.shi=0;this.tileset='tiles_castle';this.fox={x:200,y:100,b:0,alive:true};this.stealthFailed=false;this.decos=[];this._alertTimer=0;this._stealthAlert=false;this._prevAnyAlert=false;this._healFlash=0;this.projectiles=[];this.megaProjs=[]}
@@ -1967,6 +2111,7 @@ class Lv1{
 
   enter(){
     this._fox=new Fox(100,100);
+    this._skeleton=new Skeleton(100,100);
     this.bAct1();
   }
 
@@ -2097,6 +2242,8 @@ class Lv1{
     this.stealthFailed=false;
 
     buildCastleArena(this.tm,W,H);
+    // Staircase only for stealth act — lets heroes reach the upper safe path
+    for(let step=0;step<5;step++){this.tm.set(2+step,(H-4-step),1);}
     this.decos=genDecos(W,H,'library',this.act);
 
     this.heroes=this.createHeroes(40,(H-4)*T,true);
@@ -2145,7 +2292,7 @@ class Lv1{
       d('Narrator','But first, they must understand the scar.'),
       d('Narrator','A blue dragon. A connection. A journey begins.'),
       d('Narrator','Next stop: Vogler.')
-    ],()=>{if(G.sc&&G.sc.heroes)G.sc.heroes.forEach(h=>{if(h.on)G.heroHPs[h.customType]=h.hp;});G.sc=new Lv2();G.sc.enter()});
+    ],()=>{if(G.sc&&G.sc.heroes)G.sc.heroes.forEach(h=>{if(h.on)G.heroHPs[h.customType]=h.hp;});Music.stop();Music.play('underwater');G.sc=new Lv2();G.sc.enter()});
   }
 
   swap(idx){
@@ -2208,6 +2355,7 @@ class Lv1{
       this.heroes[this.ai].update(dt,this.tm);
       this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
     if(this._fox){let nesta=this.heroes.find(h=>h.customType==='nesta'&&h.on);this._fox.update(dt,nesta||null);}
+    if(this._skeleton){let nick=this.heroes.find(h=>h.customType==='nick'&&h.on);this._skeleton.update(dt,nick||null);}
       P.up(dt);this.hud();
       if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
       return;
@@ -2216,6 +2364,7 @@ class Lv1{
     this.heroes[this.ai].update(dt,this.tm);
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
     if(this._fox){let nesta=this.heroes.find(h=>h.customType==='nesta'&&h.on);this._fox.update(dt,nesta||null);}
+    if(this._skeleton){let nick=this.heroes.find(h=>h.customType==='nick'&&h.on);this._skeleton.update(dt,nick||null);}
     this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
 
     // Act 4: Guard detection (2-stage stealth)
@@ -2228,7 +2377,7 @@ class Lv1{
           const ALERT_R=180,CAUGHT_R=70;
           if(dist<CAUGHT_R&&!this.stealthFailed){
             this.stealthFailed=true;this._stealthAlert=false;this._alertTimer=0;
-            D.show([d('Guard','Intruder! Stop right there!')],()=>{this.stealthFailed=false;this.bAct4()});
+            D.show([d('Guard','Intruder! The heroes flee...')],()=>{Music.stop();Music.play('castle');G.sc=new Lv1();G.sc.enter();});
           } else if(dist<ALERT_R){
             anyAlert=true;
             if(!this._prevAnyAlert){this._alertTimer=2.5;}
@@ -2248,7 +2397,7 @@ class Lv1{
         this._alertTimer-=dt;
         if(this._alertTimer<=0&&!this.stealthFailed){
           this.stealthFailed=true;this._stealthAlert=false;
-          D.show([d('Guard','I see you! Sound the alarm!')],()=>{this.stealthFailed=false;this.bAct4()});
+          D.show([d('Guard','I see you! Sound the alarm!')],()=>{Music.stop();Music.play('castle');G.sc=new Lv1();G.sc.enter();});
         }
       }
     }
@@ -2330,6 +2479,7 @@ class Lv1{
     this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
     if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
+    if(this._skeleton)this._skeleton.draw(R.x,R.cam.x,R.cam.y);
     // Heal flash
     if(this._healFlash>0){
       R.x.save();
@@ -2382,6 +2532,7 @@ class Lv2{
 
   enter(){
     this._fox=new Fox(100,100);
+    this._skeleton=new Skeleton(100,100);
     this.bAct1();
   }
 
@@ -2567,6 +2718,7 @@ class Lv2{
       this.heroes[this.ai].update(dt,this.tm);
       this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
     if(this._fox){let nesta=this.heroes.find(h=>h.customType==='nesta'&&h.on);this._fox.update(dt,nesta||null);}
+    if(this._skeleton){let nick=this.heroes.find(h=>h.customType==='nick'&&h.on);this._skeleton.update(dt,nick||null);}
       P.up(dt);this.hud();
       if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
       return;
@@ -2575,6 +2727,7 @@ class Lv2{
     this.heroes[this.ai].update(dt,this.tm);
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
     if(this._fox){let nesta=this.heroes.find(h=>h.customType==='nesta'&&h.on);this._fox.update(dt,nesta||null);}
+    if(this._skeleton){let nick=this.heroes.find(h=>h.customType==='nick'&&h.on);this._skeleton.update(dt,nick||null);}
     this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
     // Underwater buoyancy for heroes
     if(this.act===1){
@@ -2620,7 +2773,7 @@ class Lv2{
     if(this.act===4&&this.tut&&this.enemies.every(e=>!e.on)){
       this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#00aa44',6,0.8,3);
       P.emit(this.enemies[0].x,this.enemies[0].y,20,'#00dd44',5,0.6,3);
-      D.show([d('Narrator','The Draconian Kapak falls in acid!')],()=>{if(G.sc&&G.sc.heroes)G.sc.heroes.forEach(h=>{if(h.on)G.heroHPs[h.customType]=h.hp;});G.sc=new Lv3();G.sc.enter()});
+      D.show([d('Narrator','The Draconian Kapak falls in acid!')],()=>{if(G.sc&&G.sc.heroes)G.sc.heroes.forEach(h=>{if(h.on)G.heroHPs[h.customType]=h.hp;});Music.stop();Music.play('stealth');G.sc=new Lv3();G.sc.enter()});
     }
 
     if(this.tm){R.cam.x=Math.max(0,Math.min(this.tm.w*T-CW,R.cam.x));R.cam.y=Math.max(0,Math.min(this.tm.h*T-CH,R.cam.y))}
@@ -2667,6 +2820,7 @@ class Lv2{
     this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
     if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
+    if(this._skeleton)this._skeleton.draw(R.x,R.cam.x,R.cam.y);
     // Rising bubbles (underwater act only)
     if(this.act===1&&this._bubbles){
       const cam=R.cam.x;
@@ -2736,6 +2890,7 @@ class Lv3{
 
   enter(){
     this._fox=new Fox(100,100);
+    this._skeleton=new Skeleton(100,100);
     this.bAct1();
   }
 
@@ -2747,6 +2902,8 @@ class Lv3{
     this.stealthFailed=false;
 
     buildLibraryHalls(this.tm,W,H);
+    // Staircase only for stealth act — lets heroes reach the upper safe balcony
+    for(let step=0;step<12;step++){this.tm.set(2+step,(H-3-step),1);}
     this.decos=genDecos(W,H,'library',this.act);
 
     this.heroes=this.createHeroes(40,(H-4)*T);
@@ -2773,6 +2930,7 @@ class Lv3{
 
   bAct2(){
     this.act=2;
+    Music.play('library');
     const W=240,H=20;
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
@@ -2924,7 +3082,7 @@ class Lv3{
         const ALERT_R=180,CAUGHT_R=70;
         if(dist<CAUGHT_R&&this.tut&&!this.stealthFailed){
           this.stealthFailed=true;this._stealthAlert=false;this._alertTimer=0;
-          D.show([d('Narrator','Detected! The guard spots you!')],()=>{this.stealthFailed=false;this.bAct1()});
+          D.show([d('Narrator','Detected! Forced to retreat...')],()=>{Music.stop();Music.play('stealth');G.sc=new Lv3();G.sc.enter();});
           return;
         } else if(dist<ALERT_R&&this.tut){
           if(!this._prevAnyAlert){this._alertTimer=2.5;}
@@ -2941,7 +3099,7 @@ class Lv3{
           this._alertTimer-=dt;
           if(this._alertTimer<=0&&!this.stealthFailed&&this.tut){
             this.stealthFailed=true;this._stealthAlert=false;
-            D.show([d('Narrator','The guard noticed you! Fall back!')],()=>{this.stealthFailed=false;this.bAct1()});
+            D.show([d('Narrator','The guard noticed you! Fall back!')],()=>{Music.stop();Music.play('stealth');G.sc=new Lv3();G.sc.enter();});
             return;
           }
         }
@@ -2977,7 +3135,7 @@ class Lv3{
     if(this.act===5&&!this._act5done){
       if(this.heroes[this.ai].x>3000){
         this._act5done=true;
-        D.show([d('Narrator','You escaped the library!')],()=>{if(G.sc&&G.sc.heroes)G.sc.heroes.forEach(h=>{if(h.on)G.heroHPs[h.customType]=h.hp;});G.sc=new Lv4();G.sc.enter()});
+        D.show([d('Narrator','You escaped the library!')],()=>{if(G.sc&&G.sc.heroes)G.sc.heroes.forEach(h=>{if(h.on)G.heroHPs[h.customType]=h.hp;});Music.stop();Music.play('library');G.sc=new Lv4();G.sc.enter()});
         return;
       }
     }
@@ -2985,6 +3143,7 @@ class Lv3{
     this.heroes[this.ai].update(dt,this.tm);
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
     if(this._fox){let nesta=this.heroes.find(h=>h.customType==='nesta'&&h.on);this._fox.update(dt,nesta||null);}
+    if(this._skeleton){let nick=this.heroes.find(h=>h.customType==='nick'&&h.on);this._skeleton.update(dt,nick||null);}
     this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
     this.npcs.forEach(n=>n.update(dt,this.heroes[this.ai]));
 
@@ -3062,6 +3221,7 @@ class Lv3{
     this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
     if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
+    if(this._skeleton)this._skeleton.draw(R.x,R.cam.x,R.cam.y);
     // Heal flash
     if(this._healFlash>0){
       R.x.save();
@@ -3115,6 +3275,7 @@ class Lv4{
 
   enter(){
     this._fox=new Fox(100,100);
+    this._skeleton=new Skeleton(100,100);
     this.bAct1();
   }
 
@@ -3235,7 +3396,7 @@ class Lv4{
       d('Becklin','There, you will find the answers you seek.'),
       d('Narrator','The masquerade concludes.'),
       d('Narrator','But the true test lies ahead...'),
-    ],()=>{if(G.sc&&G.sc.heroes)G.sc.heroes.forEach(h=>{if(h.on)G.heroHPs[h.customType]=h.hp;});G.sc=new Lv5();G.sc.enter()});
+    ],()=>{if(G.sc&&G.sc.heroes)G.sc.heroes.forEach(h=>{if(h.on)G.heroHPs[h.customType]=h.hp;});Music.stop();Music.play('boss');G.sc=new Lv5();G.sc.enter()});
   }
 
   swap(idx){
@@ -3279,6 +3440,7 @@ class Lv4{
     this.heroes[this.ai].update(dt,this.tm);
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
     if(this._fox){let nesta=this.heroes.find(h=>h.customType==='nesta'&&h.on);this._fox.update(dt,nesta||null);}
+    if(this._skeleton){let nick=this.heroes.find(h=>h.customType==='nick'&&h.on);this._skeleton.update(dt,nick||null);}
     this.npcs.forEach(n=>n.update(dt,this.heroes[this.ai]));
 
     if(this.enemies&&this.enemies.length){
@@ -3345,6 +3507,7 @@ class Lv4{
     this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
     if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
+    if(this._skeleton)this._skeleton.draw(R.x,R.cam.x,R.cam.y);
     // Heal flash
     if(this._healFlash>0){
       R.x.save();
@@ -3395,6 +3558,7 @@ class Lv5{
 
   enter(){
     this._fox=new Fox(100,100);
+    this._skeleton=new Skeleton(100,100);
     this.bAct1();
   }
 
@@ -3635,6 +3799,7 @@ class Lv5{
     this.heroes[this.ai].update(dt,this.tm);
     this.companions.forEach(comp=>comp.update(dt,this.heroes[this.ai],this.tm,this.enemies));
     if(this._fox){let nesta=this.heroes.find(h=>h.customType==='nesta'&&h.on);this._fox.update(dt,nesta||null);}
+    if(this._skeleton){let nick=this.heroes.find(h=>h.customType==='nick'&&h.on);this._skeleton.update(dt,nick||null);}
     this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
     this.npcs.forEach(n=>n.update(dt,this.heroes[this.ai]));
 
@@ -3716,7 +3881,7 @@ class Lv5{
           d('Nick','"We\'re alive. They made sure of that."'),
           d('Narrator','Vogler village. Dawn. The survivors count what they\'ve saved and what they\'ve lost.'),
           d('Narrator','Chronicles of Azurerune. Book One: Complete.'),
-        ],()=>{G.sc=new Lv1();G.sc.enter()});
+        ],()=>{Music.stop();Music.play('castle');G.sc=new Lv1();G.sc.enter()});
       }
     }
 
@@ -3748,6 +3913,7 @@ class Lv5{
     this.heroes.filter(h=>!h.ctrl).forEach(h=>h.draw());
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
     if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
+    if(this._skeleton)this._skeleton.draw(R.x,R.cam.x,R.cam.y);
     // Heal flash
     if(this._healFlash>0){
       R.x.save();
@@ -3882,6 +4048,12 @@ const G={sc:null,_floats:[],_rings:[],heroHPs:{},scrollsLeft:2,
     });
   },
   start(lvl){
+    Music.stop();
+    if(lvl instanceof Lv1)Music.play('castle');
+    else if(lvl instanceof Lv2)Music.play('underwater');
+    else if(lvl instanceof Lv3)Music.play('stealth');
+    else if(lvl instanceof Lv4)Music.play('library');
+    else if(lvl instanceof Lv5)Music.play('boss');
     document.getElementById('title').style.display='none';
     document.getElementById('c').focus();
     D.on=false;D.idx=0;D.dlgs=[];document.getElementById('dlg').style.display='none'; // Reset dialogue state
@@ -3897,6 +4069,7 @@ const G={sc:null,_floats:[],_rings:[],heroHPs:{},scrollsLeft:2,
     if(!this._looping){this._looping=true;this.loop()}
   },
   title(){
+    Music.stop();
     this.sc=null;
     D.on=false;D.idx=0;D.dlgs=[];
     document.getElementById('title').style.display='flex';
@@ -3923,6 +4096,7 @@ const G={sc:null,_floats:[],_rings:[],heroHPs:{},scrollsLeft:2,
   _looping:false,
   loop(){
     const dt=1/60;
+    if(I.pr('KeyM'))Music.toggle();
     try{
       if(this.sc){
         this.sc.update(dt);
@@ -3930,6 +4104,8 @@ const G={sc:null,_floats:[],_rings:[],heroHPs:{},scrollsLeft:2,
         R.cls('#000');
         this.sc.draw();
         FX.draw();
+        // Mute indicator
+        {const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle='rgba(255,255,255,0.55)';mx.fillText(Music.muted?'[M] MUTED':'[M] music',R.cw-90,14);mx.restore();}
         // Floating heal/damage numbers
         if(G._floats&&G._floats.length){
           G._floats=G._floats.filter(f=>f.life>0);
