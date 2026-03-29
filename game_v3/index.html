@@ -838,8 +838,9 @@ function buildCastleArena(tm,W,H){
   const bs=Math.floor(W*0.7)
   for(let x=bs-4;x<bs;x++){tm.set(x,H-5,1);tm.set(x,H-4,1)}
   for(let x=bs-8;x<bs-4;x++)tm.set(x,H-4,1)
-  // Left side platform (one-way, full span from x=0)
-  for(let i=0;i<Math.floor(W*0.22)+7;i++)tm.set(i,H-7,3)
+  // Left side platform (one-way)
+  const lp=Math.floor(W*0.22);
+  for(let i=lp;i<lp+7;i++)tm.set(i,H-7,3)
   // Center platform (one-way, single jump)
   const mid=Math.floor(W/2)
   for(let i=-4;i<5;i++)tm.set(mid+i,H-7,3)
@@ -1790,17 +1791,17 @@ class Fox{
     ctx.save();
     if(this._flip){ctx.translate(sx*2,0);ctx.scale(-1,1);}
     // Body
-    ctx.fillStyle='#111';ctx.fillRect(sx-5,sy-3,10,7);
+    ctx.fillStyle='#888';ctx.fillRect(sx-5,sy-3,10,7);
     // Tail
     let ta=Math.sin(this._bob*3)*0.5;
     ctx.save();ctx.translate(sx-5,sy+1);ctx.rotate(ta);
-    ctx.fillStyle='#111';ctx.fillRect(-5,-3,6,6);
+    ctx.fillStyle='#888';ctx.fillRect(-5,-3,6,6);
     ctx.fillStyle='#fff';ctx.fillRect(-6,-2,3,3);
     ctx.restore();
     // Head
-    ctx.fillStyle='#111';ctx.fillRect(sx+3,sy-7,7,6);
+    ctx.fillStyle='#888';ctx.fillRect(sx+3,sy-7,7,6);
     // Ears
-    ctx.fillStyle='#000';
+    ctx.fillStyle='#555';
     ctx.beginPath();ctx.moveTo(sx+4,sy-7);ctx.lineTo(sx+3,sy-11);ctx.lineTo(sx+7,sy-7);ctx.closePath();ctx.fill();
     ctx.beginPath();ctx.moveTo(sx+8,sy-7);ctx.lineTo(sx+9,sy-11);ctx.lineTo(sx+11,sy-7);ctx.closePath();ctx.fill();
     // Eye
@@ -2242,7 +2243,8 @@ class Lv1{
     this.stealthFailed=false;
 
     buildCastleArena(this.tm,W,H);
-    // Staircase only for stealth act — lets heroes reach the upper safe path
+    // Stealth-only: extend left platform to x=0 and add staircase
+    for(let i=0;i<Math.floor(W*0.22);i++)this.tm.set(i,H-7,3);
     for(let step=0;step<5;step++){this.tm.set(2+step,(H-4-step),1);}
     this.decos=genDecos(W,H,'library',this.act);
 
@@ -2377,7 +2379,7 @@ class Lv1{
           const ALERT_R=180,CAUGHT_R=70;
           if(dist<CAUGHT_R&&!this.stealthFailed){
             this.stealthFailed=true;this._stealthAlert=false;this._alertTimer=0;
-            D.show([d('Guard','Intruder! The heroes flee...')],()=>{Music.stop();Music.play('castle');G.sc=new Lv1();G.sc.enter();});
+            D.show([d('Guard','Intruder! The heroes flee...')],()=>{this.stealthFailed=false;this.bAct4();});
           } else if(dist<ALERT_R){
             anyAlert=true;
             if(!this._prevAnyAlert){this._alertTimer=2.5;}
@@ -2397,7 +2399,7 @@ class Lv1{
         this._alertTimer-=dt;
         if(this._alertTimer<=0&&!this.stealthFailed){
           this.stealthFailed=true;this._stealthAlert=false;
-          D.show([d('Guard','I see you! Sound the alarm!')],()=>{Music.stop();Music.play('castle');G.sc=new Lv1();G.sc.enter();});
+          D.show([d('Guard','I see you! Sound the alarm!')],()=>{this.stealthFailed=false;this.bAct4();});
         }
       }
     }
@@ -3082,7 +3084,7 @@ class Lv3{
         const ALERT_R=180,CAUGHT_R=70;
         if(dist<CAUGHT_R&&this.tut&&!this.stealthFailed){
           this.stealthFailed=true;this._stealthAlert=false;this._alertTimer=0;
-          D.show([d('Narrator','Detected! Forced to retreat...')],()=>{Music.stop();Music.play('stealth');G.sc=new Lv3();G.sc.enter();});
+          D.show([d('Narrator','Detected! Forced to retreat...')],()=>{this.stealthFailed=false;this.bAct1();});
           return;
         } else if(dist<ALERT_R&&this.tut){
           if(!this._prevAnyAlert){this._alertTimer=2.5;}
@@ -3099,7 +3101,7 @@ class Lv3{
           this._alertTimer-=dt;
           if(this._alertTimer<=0&&!this.stealthFailed&&this.tut){
             this.stealthFailed=true;this._stealthAlert=false;
-            D.show([d('Narrator','The guard noticed you! Fall back!')],()=>{Music.stop();Music.play('stealth');G.sc=new Lv3();G.sc.enter();});
+            D.show([d('Narrator','The guard noticed you! Fall back!')],()=>{this.stealthFailed=false;this.bAct1();});
             return;
           }
         }
@@ -4105,7 +4107,7 @@ const G={sc:null,_floats:[],_rings:[],heroHPs:{},scrollsLeft:2,
         this.sc.draw();
         FX.draw();
         // Mute indicator
-        {const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle='rgba(255,255,255,0.55)';mx.fillText(Music.muted?'[M] MUTED':'[M] music',R.cw-90,14);mx.restore();}
+        {const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle='rgba(255,255,255,0.55)';mx.fillText(Music.muted?'[M] MUTED':'[M] music',CW-90,14);mx.restore();}
         // Floating heal/damage numbers
         if(G._floats&&G._floats.length){
           G._floats=G._floats.filter(f=>f.life>0);
