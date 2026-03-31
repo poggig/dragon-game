@@ -1258,7 +1258,7 @@ class Hero extends Ent{
           P.emit(sx,sy,8,this.col,4,0.5,3);
         }
       }
-      if((I.pr('KeyX')||I.pr('KeyK'))&&this.dashCD<=0){
+      if(I.pr('KeyK')&&this.dashCD<=0){
         this.dshT=this.dashDur||0.12;this.dashCD=0.6;this.vx=(this.rt?1:-1)*7;this.inv=0.15;
         FX.play(FXConfig.dash,this.x+this.w/2,this.y+this.h/2,32,this.rt,0.03);
       }
@@ -1885,33 +1885,25 @@ class MegaProj{
   }
   draw(ctx,cam,camY){
     if(!this.on)return;
-    let sx=this.x-cam,sy=this.y-(camY||0);
+    const sx=this.x-cam,sy=this.y-(camY||0);
     if(this._amber){
-      let glow=0.6+0.4*Math.sin(Date.now()/200+this._phase);
-      let g=ctx.createRadialGradient(sx,sy,2,sx,sy,22);
-      g.addColorStop(0,'rgba(255,180,0,0.95)');g.addColorStop(0.6,'rgba(200,100,0,0.7)');g.addColorStop(1,'rgba(100,40,0,0)');
-      ctx.fillStyle=g;ctx.beginPath();ctx.arc(sx,sy,22,0,Math.PI*2);ctx.fill();
-      ctx.shadowColor='#ff8800';ctx.shadowBlur=15;ctx.strokeStyle=`rgba(255,220,50,${glow})`;ctx.lineWidth=2;
-      ctx.beginPath();ctx.arc(sx,sy,18,0,Math.PI*2);ctx.stroke();
-      ctx.shadowBlur=0;return;
+      const img=Assets.images['fx_elber_mega'];
+      if(img){const fW=72,fH=32,nf=10,fi=Math.floor(Date.now()/80)%nf;
+        ctx.save();ctx.translate(sx,sy);ctx.rotate(Math.atan2(this.vy,this.vx));
+        ctx.drawImage(img,fi*fW,0,fW,fH,-36,-16,72,32);ctx.restore();}
+      return;
     }
     if(this._skelMega){
-      ctx.save();ctx.translate(sx,sy);ctx.rotate(Date.now()/400+this._phase);
-      ctx.fillStyle='#e8e8d0';ctx.shadowColor='#ffffff';ctx.shadowBlur=10;
-      ctx.fillRect(-14,-4,28,8);
-      ctx.beginPath();ctx.arc(-14,0,7,0,Math.PI*2);ctx.fill();
-      ctx.beginPath();ctx.arc(14,0,7,0,Math.PI*2);ctx.fill();
-      ctx.shadowBlur=0;ctx.restore();return;
+      const img=Assets.images['fx_nick_bone'];
+      if(img){const fW=32,fH=16,nf=8,fi=Math.floor(Date.now()/80)%nf;
+        ctx.save();ctx.translate(sx,sy);ctx.rotate(Date.now()/400+this._phase);
+        ctx.drawImage(img,fi*fW,0,fW,fH,-24,-12,48,24);ctx.restore();}
+      return;
     }
-    // Default: Nesta crescent blade
-    let t=Date.now()/300+this._phase;
-    ctx.save();ctx.translate(sx,sy);ctx.rotate(t);
-    let glow=0.6+0.4*Math.sin(t*2);
-    ctx.strokeStyle=`rgba(180,0,255,${glow})`;ctx.lineWidth=3;ctx.shadowColor='#cc00ff';ctx.shadowBlur=12;
-    ctx.beginPath();ctx.arc(0,0,16,0.3,Math.PI*1.7);ctx.stroke();
-    ctx.beginPath();ctx.arc(6,0,10,Math.PI*0.8,Math.PI*2.2);ctx.stroke();
-    ctx.fillStyle=`rgba(255,100,255,${glow})`;ctx.beginPath();ctx.arc(0,0,4,0,Math.PI*2);ctx.fill();
-    ctx.shadowBlur=0;ctx.restore();
+    // Default: Nesta wormhole
+    const img=Assets.images['fx_nesta_q'];
+    if(img){const fW=96,fH=96,nf=9,fi=Math.floor(Date.now()/100)%nf;
+      ctx.drawImage(img,fi*fW,0,fW,fH,sx-32,sy-32,64,64);}
   }
 }
 
@@ -1947,22 +1939,24 @@ class HeroProj{
   }
   draw(){
     if(!this.on)return;
+    const sx2=this.x-R.cam.x,sy2=this.y-R.cam.y;
     if(this._ownerType==='elber'){
-      let sx2=this.x-R.cam.x, sy2=this.y-R.cam.y;
       let gl=0.6+0.4*Math.sin(Date.now()/150);
-      R.x.save(); R.x.translate(sx2,sy2);
-      R.x.rotate(Math.atan2(this.vy,this.vx));
-      R.x.fillStyle='rgba(255,190,40,'+gl+')';
-      R.x.shadowColor='#ff8800'; R.x.shadowBlur=10;
+      R.x.save();R.x.translate(sx2,sy2);R.x.rotate(Math.atan2(this.vy,this.vx));
+      R.x.fillStyle='rgba(255,190,40,'+gl+')';R.x.shadowColor='#ff8800';R.x.shadowBlur=10;
       R.x.beginPath();R.x.moveTo(0,-5);R.x.lineTo(9,0);R.x.lineTo(0,5);R.x.lineTo(-9,0);R.x.closePath();R.x.fill();
-      R.x.shadowBlur=0; R.x.restore();
+      R.x.shadowBlur=0;R.x.restore();
+    }else if(this._ownerType==='nesta'){
+      const img=Assets.images['fx_nesta_proj'];
+      if(img){const fW=48,fH=48,nf=26,fi=Math.floor(Date.now()/50)%nf;R.x.drawImage(img,fi*fW,0,fW,fH,sx2-24,sy2-24,48,48);}
+    }else if(this._col==='#ff6600'){
+      const img=Assets.images['fx_kote_barrage'];
+      if(img){const fW=48,fH=32,nf=8,fi=Math.floor(Date.now()/60)%nf;R.x.drawImage(img,fi*fW,0,fW,fH,sx2-24,sy2-16,48,32);}
     }else{
       R.x.save();
-      R.x.fillStyle='#aaddff';
-      R.x.shadowColor='#4488ff';R.x.shadowBlur=8;
-      R.x.fillRect(this.x-R.cam.x-7,this.y-R.cam.y-2,14,4);
-      R.x.fillStyle='#ffffff';
-      R.x.fillRect(this.x-R.cam.x-3,this.y-R.cam.y-1,6,2);
+      R.x.fillStyle='#aaddff';R.x.shadowColor='#4488ff';R.x.shadowBlur=8;
+      R.x.fillRect(sx2-7,sy2-2,14,4);
+      R.x.fillStyle='#ffffff';R.x.fillRect(sx2-3,sy2-1,6,2);
       R.x.restore();
     }
   }
@@ -2332,6 +2326,7 @@ class Lv1{
       case 'minerva':
         this.enemies.forEach(e=>{if(!e.on)return;const dx=e.x+e.w/2-cx,dy=e.y+e.h/2-cy;if(Math.sqrt(dx*dx+dy*dy)<200)e.hurt(h.atkDmg*3);});
         G._rings.push({x:cx,y:cy,r:10,life:0.8,col:'#cc44cc'});G._rings.push({x:cx,y:cy,r:10,life:1.2,col:'#ff88ff'});
+        FX.play('fx_cleave',cx,cy,96,false,0.06);
         G._floats.push({x:cx,y:cy-30,txt:'CLEAVE!',life:1.5,col:'#ff88ff'});break;
       case 'kote':
         for(let i=-2;i<=2;i++){const a=i*0.18,dir=h.rt?1:-1;const p=new HeroProj(cx,cy,Math.cos(a)*dir*7,Math.sin(a)*(-1+Math.abs(i)*0.3),h.atkDmg*2,h);p._col='#ff6600';this.projectiles.push(p);}
@@ -2477,12 +2472,12 @@ class Lv1{
     P.up(dt);
     this.hud();
 
-    // Scroll revival + R ability (odd levels)
-    if(I.pr('KeyR')){
+    // Scroll revival (R key, odd levels)
+    if(I.pr('KeyR')&&G.scrollsLeft>0){
       let dead=this.heroes.find(h=>!h.on);
-      if(G.scrollsLeft>0&&dead){dead.on=true;dead.hp=Math.floor(dead.mhp*0.3);dead.x=this.heroes[this.ai].x;dead.y=this.heroes[this.ai].y-10;G.scrollsLeft--;G._floats.push({x:dead.x,y:dead.y-20,txt:'REVIVED!',life:2,col:'#ffdd44'});}
-      else this._triggerRAbility();
+      if(dead){dead.on=true;dead.hp=Math.floor(dead.mhp*0.3);dead.x=this.heroes[this.ai].x;dead.y=this.heroes[this.ai].y-10;G.scrollsLeft--;G._floats.push({x:dead.x,y:dead.y-20,txt:'REVIVED!',life:2,col:'#ffdd44'});}
     }
+    if(I.pr('KeyX'))this._triggerRAbility();
 
     // Act 1: Defeat all enemies
     if(this.act===1&&this.tut&&this.enemies.every(e=>!e.on)){
@@ -2544,7 +2539,7 @@ class Lv1{
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
     if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
     if(this._skeleton)this._skeleton.draw(R.x,R.cam.x,R.cam.y);
-    {const h=this.heroes[this.ai];if(h){const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle=h._rUsed?'rgba(120,120,120,0.7)':'rgba(255,220,80,0.95)';mx.fillText(h._rUsed?'[R] used':'[R] ready',CW-90,44);mx.restore();}}
+    {const h=this.heroes[this.ai];if(h){const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle=h._rUsed?'rgba(120,120,120,0.7)':'rgba(255,220,80,0.95)';mx.fillText(h._rUsed?'[X] used':'[X] ready',CW-90,44);mx.restore();}}
     // Heal flash
     if(this._healFlash>0){
       R.x.save();
@@ -2707,6 +2702,7 @@ class Lv2{
       case 'minerva':
         this.enemies.forEach(e=>{if(!e.on)return;const dx=e.x+e.w/2-cx,dy=e.y+e.h/2-cy;if(Math.sqrt(dx*dx+dy*dy)<200)e.hurt(h.atkDmg*3);});
         G._rings.push({x:cx,y:cy,r:10,life:0.8,col:'#cc44cc'});G._rings.push({x:cx,y:cy,r:10,life:1.2,col:'#ff88ff'});
+        FX.play('fx_cleave',cx,cy,96,false,0.06);
         G._floats.push({x:cx,y:cy-30,txt:'CLEAVE!',life:1.5,col:'#ff88ff'});break;
       case 'kote':
         for(let i=-2;i<=2;i++){const a=i*0.18,dir=h.rt?1:-1;const p=new HeroProj(cx,cy,Math.cos(a)*dir*7,Math.sin(a)*(-1+Math.abs(i)*0.3),h.atkDmg*2,h);p._col='#ff6600';this.projectiles.push(p);}
@@ -2857,7 +2853,7 @@ class Lv2{
 
     P.up(dt);
     this.hud();
-    if(I.pr('KeyR'))this._triggerRAbility();
+    if(I.pr('KeyX'))this._triggerRAbility();
 
     if(this.act===1&&this.tut&&this.enemies.every(e=>!e.on)){
       this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#c8a84e',6,0.8,3);
@@ -2915,7 +2911,7 @@ class Lv2{
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
     if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
     if(this._skeleton)this._skeleton.draw(R.x,R.cam.x,R.cam.y);
-    {const h=this.heroes[this.ai];if(h){const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle=h._rUsed?'rgba(120,120,120,0.7)':'rgba(255,220,80,0.95)';mx.fillText(h._rUsed?'[R] used':'[R] ready',CW-90,44);mx.restore();}}
+    {const h=this.heroes[this.ai];if(h){const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle=h._rUsed?'rgba(120,120,120,0.7)':'rgba(255,220,80,0.95)';mx.fillText(h._rUsed?'[X] used':'[X] ready',CW-90,44);mx.restore();}}
     // Rising bubbles (underwater act only)
     if(this.act===1&&this._bubbles){
       const cam=R.cam.x;
@@ -2984,6 +2980,7 @@ class Lv3{
   }
 
   enter(){
+    Music.play('stealth');
     this._fox=new Fox(100,100);
     this._skeleton=new Skeleton(100,100);
     this.bAct1();
@@ -3104,6 +3101,7 @@ class Lv3{
 
     this.rebuildCompanions();
     this.hud();
+    this.tut=true;
     document.getElementById('hint').textContent='Deceptions and Depths: Defeat the Spectator!';
     D.show([d('Narrator','A figure floats above the abyss...'),d('Narrator','The Spectator observes all who enter.'),d('Tutorial','Defeat it!')],()=>{this.tut=true});
   }
@@ -3126,6 +3124,7 @@ class Lv3{
 
     this.rebuildCompanions();
     this.hud();
+    this.tut=true;
     document.getElementById('hint').textContent='Escape: Reach the exit!';
     D.show([d('Narrator','The exit corridor lies ahead.')],()=>{});
   }
@@ -3137,6 +3136,7 @@ class Lv3{
       case 'minerva':
         this.enemies.forEach(e=>{if(!e.on)return;const dx=e.x+e.w/2-cx,dy=e.y+e.h/2-cy;if(Math.sqrt(dx*dx+dy*dy)<200)e.hurt(h.atkDmg*3);});
         G._rings.push({x:cx,y:cy,r:10,life:0.8,col:'#cc44cc'});G._rings.push({x:cx,y:cy,r:10,life:1.2,col:'#ff88ff'});
+        FX.play('fx_cleave',cx,cy,96,false,0.06);
         G._floats.push({x:cx,y:cy-30,txt:'CLEAVE!',life:1.5,col:'#ff88ff'});break;
       case 'kote':
         for(let i=-2;i<=2;i++){const a=i*0.18,dir=h.rt?1:-1;const p=new HeroProj(cx,cy,Math.cos(a)*dir*7,Math.sin(a)*(-1+Math.abs(i)*0.3),h.atkDmg*2,h);p._col='#ff6600';this.projectiles.push(p);}
@@ -3281,12 +3281,12 @@ class Lv3{
     P.up(dt);
     this.hud();
 
-    // Scroll revival + R ability (odd levels)
-    if(I.pr('KeyR')){
+    // Scroll revival (R key, odd levels)
+    if(I.pr('KeyR')&&G.scrollsLeft>0){
       let dead=this.heroes.find(h=>!h.on);
-      if(G.scrollsLeft>0&&dead){dead.on=true;dead.hp=Math.floor(dead.mhp*0.3);dead.x=this.heroes[this.ai].x;dead.y=this.heroes[this.ai].y-10;G.scrollsLeft--;G._floats.push({x:dead.x,y:dead.y-20,txt:'REVIVED!',life:2,col:'#ffdd44'});}
-      else this._triggerRAbility();
+      if(dead){dead.on=true;dead.hp=Math.floor(dead.mhp*0.3);dead.x=this.heroes[this.ai].x;dead.y=this.heroes[this.ai].y-10;G.scrollsLeft--;G._floats.push({x:dead.x,y:dead.y-20,txt:'REVIVED!',life:2,col:'#ffdd44'});}
     }
+    if(I.pr('KeyX'))this._triggerRAbility();
 
     if(this.act===3&&this.tut&&this.enemies.every(e=>!e.on)){
       this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#9944ff',6,0.8,3);
@@ -3346,7 +3346,7 @@ class Lv3{
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
     if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
     if(this._skeleton)this._skeleton.draw(R.x,R.cam.x,R.cam.y);
-    {const h=this.heroes[this.ai];if(h){const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle=h._rUsed?'rgba(120,120,120,0.7)':'rgba(255,220,80,0.95)';mx.fillText(h._rUsed?'[R] used':'[R] ready',CW-90,44);mx.restore();}}
+    {const h=this.heroes[this.ai];if(h){const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle=h._rUsed?'rgba(120,120,120,0.7)':'rgba(255,220,80,0.95)';mx.fillText(h._rUsed?'[X] used':'[X] ready',CW-90,44);mx.restore();}}
     // Heal flash
     if(this._healFlash>0){
       R.x.save();
@@ -3399,6 +3399,7 @@ class Lv4{
   }
 
   enter(){
+    Music.play('library');
     this._fox=new Fox(100,100);
     this._skeleton=new Skeleton(100,100);
     this.bAct1();
@@ -3531,6 +3532,7 @@ class Lv4{
       case 'minerva':
         this.enemies.forEach(e=>{if(!e.on)return;const dx=e.x+e.w/2-cx,dy=e.y+e.h/2-cy;if(Math.sqrt(dx*dx+dy*dy)<200)e.hurt(h.atkDmg*3);});
         G._rings.push({x:cx,y:cy,r:10,life:0.8,col:'#cc44cc'});G._rings.push({x:cx,y:cy,r:10,life:1.2,col:'#ff88ff'});
+        FX.play('fx_cleave',cx,cy,96,false,0.06);
         G._floats.push({x:cx,y:cy-30,txt:'CLEAVE!',life:1.5,col:'#ff88ff'});break;
       case 'kote':
         for(let i=-2;i<=2;i++){const a=i*0.18,dir=h.rt?1:-1;const p=new HeroProj(cx,cy,Math.cos(a)*dir*7,Math.sin(a)*(-1+Math.abs(i)*0.3),h.atkDmg*2,h);p._col='#ff6600';this.projectiles.push(p);}
@@ -3622,7 +3624,7 @@ class Lv4{
 
     P.up(dt);
     this.hud();
-    if(I.pr('KeyR'))this._triggerRAbility();
+    if(I.pr('KeyX'))this._triggerRAbility();
 
     // Act 1: NPC interaction via Z/J/SPACE key
     if(this.act===1){
@@ -3662,7 +3664,7 @@ class Lv4{
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
     if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
     if(this._skeleton)this._skeleton.draw(R.x,R.cam.x,R.cam.y);
-    {const h=this.heroes[this.ai];if(h){const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle=h._rUsed?'rgba(120,120,120,0.7)':'rgba(255,220,80,0.95)';mx.fillText(h._rUsed?'[R] used':'[R] ready',CW-90,44);mx.restore();}}
+    {const h=this.heroes[this.ai];if(h){const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle=h._rUsed?'rgba(120,120,120,0.7)':'rgba(255,220,80,0.95)';mx.fillText(h._rUsed?'[X] used':'[X] ready',CW-90,44);mx.restore();}}
     // Heal flash
     if(this._healFlash>0){
       R.x.save();
@@ -3712,6 +3714,7 @@ class Lv5{
   }
 
   enter(){
+    Music.play('boss');
     this._fox=new Fox(100,100);
     this._skeleton=new Skeleton(100,100);
     this.bAct1();
@@ -3912,6 +3915,7 @@ class Lv5{
       case 'minerva':
         this.enemies.forEach(e=>{if(!e.on)return;const dx=e.x+e.w/2-cx,dy=e.y+e.h/2-cy;if(Math.sqrt(dx*dx+dy*dy)<200)e.hurt(h.atkDmg*3);});
         G._rings.push({x:cx,y:cy,r:10,life:0.8,col:'#cc44cc'});G._rings.push({x:cx,y:cy,r:10,life:1.2,col:'#ff88ff'});
+        FX.play('fx_cleave',cx,cy,96,false,0.06);
         G._floats.push({x:cx,y:cy-30,txt:'CLEAVE!',life:1.5,col:'#ff88ff'});break;
       case 'kote':
         for(let i=-2;i<=2;i++){const a=i*0.18,dir=h.rt?1:-1;const p=new HeroProj(cx,cy,Math.cos(a)*dir*7,Math.sin(a)*(-1+Math.abs(i)*0.3),h.atkDmg*2,h);p._col='#ff6600';this.projectiles.push(p);}
@@ -4016,12 +4020,12 @@ class Lv5{
     P.up(dt);
     this.hud();
 
-    // Scroll revival + R ability (odd levels)
-    if(I.pr('KeyR')){
+    // Scroll revival (R key, odd levels)
+    if(I.pr('KeyR')&&G.scrollsLeft>0){
       let dead=this.heroes.find(h=>!h.on);
-      if(G.scrollsLeft>0&&dead){dead.on=true;dead.hp=Math.floor(dead.mhp*0.3);dead.x=this.heroes[this.ai].x;dead.y=this.heroes[this.ai].y-10;G.scrollsLeft--;G._floats.push({x:dead.x,y:dead.y-20,txt:'REVIVED!',life:2,col:'#ffdd44'});}
-      else this._triggerRAbility();
+      if(dead){dead.on=true;dead.hp=Math.floor(dead.mhp*0.3);dead.x=this.heroes[this.ai].x;dead.y=this.heroes[this.ai].y-10;G.scrollsLeft--;G._floats.push({x:dead.x,y:dead.y-20,txt:'REVIVED!',life:2,col:'#ffdd44'});}
     }
+    if(I.pr('KeyX'))this._triggerRAbility();
 
     if(this.act===2&&this.tut&&this.enemies.every(e=>!e.on)){
       this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#c8a84e',6,0.8,3);
@@ -4098,7 +4102,7 @@ class Lv5{
     this.heroes.filter(h=>h.ctrl).forEach(h=>h.draw());
     if(this._fox)this._fox.draw(R.x,R.cam.x,R.cam.y);
     if(this._skeleton)this._skeleton.draw(R.x,R.cam.x,R.cam.y);
-    {const h=this.heroes[this.ai];if(h){const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle=h._rUsed?'rgba(120,120,120,0.7)':'rgba(255,220,80,0.95)';mx.fillText(h._rUsed?'[R] used':'[R] ready',CW-90,44);mx.restore();}}
+    {const h=this.heroes[this.ai];if(h){const mx=R.x;mx.save();mx.font='11px monospace';mx.fillStyle=h._rUsed?'rgba(120,120,120,0.7)':'rgba(255,220,80,0.95)';mx.fillText(h._rUsed?'[X] used':'[X] ready',CW-90,44);mx.restore();}}
     // Heal flash
     if(this._healFlash>0){
       R.x.save();
@@ -4178,6 +4182,12 @@ const G={sc:null,_floats:[],_rings:[],heroHPs:{},scrollsLeft:2,
       {type:'image',key:'fx_nick_heal',path:'assets/fx/nick_heal.png'},
       {type:'image',key:'fx_dash',path:'assets/fx/dash_fx.png'},
       {type:'image',key:'fx_enemy_death',path:'assets/fx/enemy_death.png'},
+      {type:'image',key:'fx_nesta_proj',path:'assets/fx/nesta_proj.png'},
+      {type:'image',key:'fx_nesta_q',path:'assets/fx/nesta_q_proj.png'},
+      {type:'image',key:'fx_kote_barrage',path:'assets/fx/kote_barrage.png'},
+      {type:'image',key:'fx_nick_bone',path:'assets/fx/nick_bone.png'},
+      {type:'image',key:'fx_elber_mega',path:'assets/fx/elber_mega.png'},
+      {type:'image',key:'fx_cleave',path:'assets/fx/cleave_fx.png'},
       // Decoration props
       {type:'image',key:'deco_tree',path:'assets/env/props/extracted/tree_green.png'},
       {type:'image',key:'deco_bush',path:'assets/env/props/extracted/bush.png'},
