@@ -926,13 +926,16 @@ function buildRuinsField(tm,W,H){
 }
 
 function buildUnderwaterArena(tm,W,H){
-  // Floor
+  // Ceiling (can't swim through top)
+  for(let x=0;x<W;x++)tm.set(x,0,1);
+  // Floor boundary (soft bottom)
   for(let x=0;x<W;x++){tm.set(x,H-1,1);tm.set(x,H-2,1);}
-  // Scattered floating platforms
-  let plats=[[5,H-6,8],[20,H-8,6],[35,H-5,7],[50,H-9,5],[65,H-6,8],[80,H-7,6],[100,H-5,7],[120,H-8,5]];
-  plats.forEach(([px,py,pw])=>{for(let i=0;i<pw;i++)tm.set(px+i,py,1);});
   // Left/right walls
   for(let y=0;y<H;y++){tm.set(0,y,1);tm.set(W-1,y,1);}
+  // Underwater rock formations on sea floor
+  [[5,H-4,5],[18,H-5,4],[34,H-4,6],[50,H-6,3],[66,H-4,5],[84,H-5,4],[100,H-4,5],[118,H-5,4]].forEach(([px,py,pw])=>{
+    for(let i=0;i<pw;i++){tm.set(px+i,py,1);tm.set(px+i,py+1,1);}
+  });
 }
 
 
@@ -1166,7 +1169,8 @@ class Hero extends Ent{
     if(this.dashCD>0)this.dashCD-=dt;
     if(this.skillCD>0)this.skillCD-=dt;
 
-    this.vy=Math.min(this.vy+GR,MF);
+    if(!this._underwater)this.vy=Math.min(this.vy+GR,MF);
+    else{this.vx*=0.88;this.vy*=0.88;}
 
     if(this.gnd)this.jumps=0;
 
@@ -1185,7 +1189,10 @@ class Hero extends Ent{
       else if(I.down('ArrowRight')||I.down('KeyD')){this.vx=this.spd;this.rt=true;mov=true}
       else this.vx=0;
 
-      if((I.pr('ArrowUp')||I.pr('KeyW')||I.pr('Space'))&&this.jumps<this.maxJumps){
+      if(this._underwater){
+        if(I.down('ArrowUp')||I.down('KeyW')||I.down('Space'))this.vy=Math.max(this.vy-0.7,-5);
+        if(I.down('ArrowDown')||I.down('KeyS'))this.vy=Math.min(this.vy+0.7,5);
+      }else if((I.pr('ArrowUp')||I.pr('KeyW')||I.pr('Space'))&&this.jumps<this.maxJumps){
         this.vy=this.jf;this.gnd=false;this.jumps++;
         P.emit(this.x+this.w/2,this.y+this.h,8,'#d4c4a0',2.5,0.25,2.5);
         if(this.jumps>1)P.emit(this.x+this.w/2,this.y+this.h,6,this.col,2,0.2,1);
@@ -2059,8 +2066,11 @@ const Music=(()=>{
 
   function schedule(){
     if(!_theme||!ctx)return;
+    try{if(ctx.state==='suspended')ctx.resume();}catch(e){}
     const th=T[_theme];if(!th)return;
     const b=60/th.bpm,ahead=0.5;
+    // Resync if AudioContext was suspended (tab hidden etc.)
+    if(_next<ctx.currentTime-1.0)_next=ctx.currentTime+0.05;
     while(_next<ctx.currentTime+ahead){
       try{th.play(_beat,_next,b);}catch(e){}
       _next+=b;_beat++;
@@ -2263,9 +2273,10 @@ class Lv1{
     this.stealthFailed=false;
 
     buildCastleArena(this.tm,W,H);
-    // Stealth-only: extend left platform starting at x=4 (gap lets player choose path)
-    for(let i=4;i<Math.floor(W*0.22);i++)this.tm.set(i,H-7,3);
-    for(let step=0;step<5;step++){this.tm.set(2+step,(H-4-step),1);}
+    // 3-platform ladder — P1/P2/P3 span stealth zone, guard switches between them
+    for(let i=5;i<80;i++)this.tm.set(i,H-5,3);   // P1 low  (+3 tiles above ground)
+    for(let i=5;i<80;i++)this.tm.set(i,H-8,3);   // P2 mid  (+6 tiles above ground)
+    for(let i=5;i<80;i++)this.tm.set(i,H-11,3);  // P3 high (+9 tiles above ground)
     this.decos=genDecos(W,H,'library',this.act);
 
     this.heroes=this.createHeroes(40,(H-4)*T,true);
@@ -2285,19 +2296,19 @@ class Lv1{
     ];
     this.enemies[0].spd=0.8;
     this.enemies[0]._platformTimer=3.0+Math.random()*4;
-    this.enemies[0]._onUpper=false;
+    this.enemies[0]._platform=0;
     this.enemies[1].spd=0.9;
     this.enemies[2].spd=0.9;
 
     this.rebuildCompanions();
     this.hud();
     document.getElementById('hud').style.display='flex';
-    document.getElementById('hint').textContent='Act 4: Night Infiltration - Avoid the Guard! Defeat the Mimic Books and reach x>700!';
+    document.getElementById('hint').textContent='Act 4: Night Infiltration - Avoid the Guard! 3 platforms — pick your level!';
     D.show([
       d('Narrator','Under cover of night, the group sneaks into the library.'),
-      d('Narrator','A guard patrols the halls. Avoid detection!'),
-      d('Narrator','Defeat the Mimic Books and reach the far side.'),
-      d('Nesta',"There's a guard above. Stay on the bottom floor — don't get close to him.")
+      d('Narrator','A guard patrols and switches between three platforms.'),
+      d('Nesta','Stay on a platform the guard is NOT on. Jump up or drop down to dodge.'),
+      d('Nesta',"Use X-ability as Nesta to turn the whole party invisible — walk right past.")
     ],()=>{this.tut=true});
   }
 
@@ -2332,8 +2343,8 @@ class Lv1{
         for(let i=-2;i<=2;i++){const a=i*0.18,dir=h.rt?1:-1;const p=new HeroProj(cx,cy,Math.cos(a)*dir*7,Math.sin(a)*(-1+Math.abs(i)*0.3),h.atkDmg*2,h);p._col='#ff6600';this.projectiles.push(p);}
         G._floats.push({x:cx,y:cy-20,txt:'BARRAGE!',life:1.5,col:'#ff6600'});break;
       case 'nesta':
-        h._invis=true;h._invisTimer=4.0;
-        G._floats.push({x:cx,y:cy-20,txt:'INVISIBLE!',life:1.5,col:'#aaddff'});break;
+        this.heroes.forEach(hh=>{if(hh.on){hh._invis=true;hh._invisTimer=5.0;}});
+        G._floats.push({x:cx,y:cy-20,txt:'PARTY INVISIBLE!',life:2.0,col:'#aaddff'});break;
       case 'elber':{
         const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
         const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
@@ -2425,8 +2436,18 @@ class Lv1{
       // Guard randomly switches between floor and upper platform
       {const pg=this.enemies.find(e=>e.customType==='castle_knight'&&e.on);
       if(pg&&pg._platformTimer!==undefined){pg._platformTimer-=dt;
-        if(pg._platformTimer<=0){pg._onUpper=!pg._onUpper;pg._platformTimer=4.0+Math.random()*5;
-          const H=18;pg.y=(pg._onUpper?(H-8):(H-4))*T;pg.vy=0;}}}
+        if(pg._platformTimer<=0){
+          const H=18,gh=40;
+          pg._platform=(pg._platform+1)%4;
+          pg._platformTimer=3.5+Math.random()*4;
+          // 0=floor, 1=P1(low), 2=P2(mid), 3=P3(high)
+          const pY=[(H-4)*T,(H-5)*T-gh,(H-8)*T-gh,(H-11)*T-gh];
+          pg.y=pY[pg._platform];pg.vy=0;}}}
+      if(this.heroes.some(hh=>hh._invis)){
+        // Party invisible — guard cannot detect
+        this._stealthAlert=false;this._alertTimer=0;
+        this.enemies.forEach(e=>{if(e._savedAi){e.ai=e._savedAi;e._savedAi=null;}});
+      }else{
       const h=this.heroes[this.ai];
       let anyAlert=false;
       this.enemies.forEach(e=>{
@@ -2457,6 +2478,7 @@ class Lv1{
           this.stealthFailed=true;this._stealthAlert=false;
           D.show([d('Guard','I see you! Sound the alarm!')],()=>{this.stealthFailed=false;this.bAct4();});
         }
+      }
       }
     }
 
@@ -2507,15 +2529,15 @@ class Lv1{
 
     this.npcs.forEach(n=>n.draw());
     this.enemies.forEach(e=>e.draw());
-    // Safe corridor hint (stealth)
+    // Platform labels (stealth)
     if(this.act===4){
-      const cam=R.cam.x;
-      R.x.fillStyle='rgba(0,200,80,0.12)';
-      R.x.fillRect(0, (18-7)*T - R.cam.y, CW, T*2);
-      let pulse = 0.5+0.5*Math.sin(Date.now()/400);
-      R.x.fillStyle=`rgba(0,220,80,${pulse})`;
-      R.x.font='20px monospace';
-      R.x.fillText('→ → → SNEAK THIS WAY → → →', 40, (18-6)*T - R.cam.y + 8);
+      const H=18;const labels=[['P1',H-5],['P2',H-8],['P3',H-11]];
+      labels.forEach(([lbl,row])=>{
+        R.x.fillStyle='rgba(0,200,80,0.08)';
+        R.x.fillRect(0,row*T-R.cam.y,CW,T);
+        R.x.fillStyle='rgba(100,255,120,0.4)';R.x.font='10px monospace';
+        R.x.fillText(lbl,8,row*T-R.cam.y+11);
+      });
     }
     // Guard detection rings
     this.enemies.forEach(e=>{
@@ -2602,13 +2624,14 @@ class Lv2{
     this.tm=new TM(W,H);
     this.enemies=[];this.npcs=[];
 
+    this.tileset='tiles_castle';
     buildUnderwaterArena(this.tm,W,H);
-    this.decos=genDecos(W,H,'garden',this.act);
-    this._darkZones=[];this._timer=60.0;
-    this._bubbles=Array.from({length:20},()=>({x:Math.random()*4800,y:480,r:2+Math.random()*3,spd:20+Math.random()*15}));
+    this.decos=[];
+    this._darkZones=[];this._timer=90.0;
+    this._bubbles=Array.from({length:35},()=>({x:Math.random()*4800,y:Math.random()*440+40,r:1+Math.random()*3,spd:12+Math.random()*18}));
 
-    this.heroes=this.createHeroes(40,(H-4)*T);
-    this.heroes.forEach(h=>{h._floatPhase=Math.random()*6.28;});
+    this.heroes=this.createHeroes(40,(H-9)*T);
+    this.heroes.forEach(h=>{h._floatPhase=Math.random()*6.28;h._underwater=true;});
     this.heroes[0].ctrl=true;
     this.ai=0;
 
@@ -2708,8 +2731,8 @@ class Lv2{
         for(let i=-2;i<=2;i++){const a=i*0.18,dir=h.rt?1:-1;const p=new HeroProj(cx,cy,Math.cos(a)*dir*7,Math.sin(a)*(-1+Math.abs(i)*0.3),h.atkDmg*2,h);p._col='#ff6600';this.projectiles.push(p);}
         G._floats.push({x:cx,y:cy-20,txt:'BARRAGE!',life:1.5,col:'#ff6600'});break;
       case 'nesta':
-        h._invis=true;h._invisTimer=4.0;
-        G._floats.push({x:cx,y:cy-20,txt:'INVISIBLE!',life:1.5,col:'#aaddff'});break;
+        this.heroes.forEach(hh=>{if(hh.on){hh._invis=true;hh._invisTimer=5.0;}});
+        G._floats.push({x:cx,y:cy-20,txt:'PARTY INVISIBLE!',life:2.0,col:'#aaddff'});break;
       case 'elber':{
         const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
         const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
@@ -2820,26 +2843,22 @@ class Lv2{
     this.enemies.forEach(e=>e.update(dt,this.tm,this.heroes));
     // Underwater buoyancy for heroes
     if(this.act===1){
-      // Swim-jump: allow repeated upward push in water
-      if(I.k['KeyZ']||I.k['KeyJ']){
-        this.heroes.forEach(h=>{if(!h._swimLatch){h.vy=h.jf||-9;h._swimLatch=true;}});
-        I.j['KeyZ']=false; I.j['KeyJ']=false;
-      }else{
-        this.heroes.forEach(h=>{h._swimLatch=false;});
-      }
+      const H=18;
+      // Clamp heroes to water volume (ceiling T, floor (H-2)*T)
       this.heroes.forEach(h=>{
-        h.vy*=0.82;
-        if(h.vy>40)h.vy=40;
-        if(Math.abs(h.vy)<2&&Math.abs(h.vx)<2){
-          h.y+=Math.sin(Date.now()/600+(h._floatPhase||0))*0.3;
-        }
+        if(h.y<T){h.y=T;h.vy=0;}
+        if(h.y+h.h>(H-2)*T){h.y=(H-2)*T-h.h;h.vy=0;}
       });
-      // Timer countdown
+      // Idle float bob for inactive companions
+      this.heroes.filter(h=>!h.ctrl&&h.on).forEach(h=>{
+        h.y+=Math.sin(Date.now()/700+(h._floatPhase||0))*0.25;
+      });
+      // Air timer (run out of air = die)
       this._timer-=dt;
       if(this._timer<=0){this.heroes.forEach(h=>{h.hp=0;h.on=false;});}
     }
     // Bubble updates
-    if(this._bubbles)this._bubbles.forEach(b=>{b.y-=b.spd*dt;if(b.y<0)b.y=480;});
+    if(this._bubbles)this._bubbles.forEach(b=>{b.y-=b.spd*dt;if(b.y<0)b.y=CH+Math.random()*80;});
     // Dark zone updates
     if(this._darkZones){this._darkZones.forEach(dz=>dz.update(dt));this._darkZones=this._darkZones.filter(dz=>dz.life>0);}
 
@@ -2870,10 +2889,25 @@ class Lv2{
   }
 
   draw(){
-    const g=R.x.createLinearGradient(0,0,0,CH);
-    g.addColorStop(0,'#0d4a2a');g.addColorStop(1,'#1a5a3a');
-    R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
-    drawBgLayer(R.x,R.cam,'garden',300,18);
+    if(this.act===1){
+      // Deep ocean background
+      const g=R.x.createLinearGradient(0,0,0,CH);
+      g.addColorStop(0,'#001533');g.addColorStop(0.5,'#002a55');g.addColorStop(1,'#001022');
+      R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
+      // Caustic light shafts
+      const t=Date.now()/2000,ox=Math.floor(R.cam.x*0.12);
+      for(let i=0;i<9;i++){
+        const lx=((i*130-ox)%(CW+200))-100;
+        const alpha=0.025+0.02*Math.sin(t*1.3+i*0.85);
+        R.x.fillStyle=`rgba(60,150,255,${alpha})`;
+        R.x.beginPath();R.x.moveTo(lx-12,0);R.x.lineTo(lx+12,0);R.x.lineTo(lx+55,CH);R.x.lineTo(lx-55,CH);R.x.closePath();R.x.fill();
+      }
+    }else{
+      const g=R.x.createLinearGradient(0,0,0,CH);
+      g.addColorStop(0,'#0d4a2a');g.addColorStop(1,'#1a5a3a');
+      R.x.fillStyle=g;R.x.fillRect(0,0,CW,CH);
+      drawBgLayer(R.x,R.cam,'garden',300,18);
+    }
 
     if(this.fishing){
       R.x.fillStyle='rgba(0,100,50,0.3)';
@@ -2901,7 +2935,7 @@ class Lv2{
     }
 
     if(this.tm)this.tm.draw(this.tileset);
-    R.drawDecos(this.decos);
+    if(this.act!==1)R.drawDecos(this.decos);
 
     this.npcs.forEach(n=>n.draw());
     this.enemies.forEach(e=>e.draw());
@@ -2916,16 +2950,23 @@ class Lv2{
     if(this.act===1&&this._bubbles){
       const cam=R.cam.x;
       this._bubbles.forEach(b=>{
-        R.x.beginPath();R.x.arc(b.x-cam,b.y,b.r,0,Math.PI*2);
-        R.x.strokeStyle='rgba(150,220,255,0.6)';R.x.lineWidth=1;R.x.stroke();
+        const sx=b.x-cam;
+        if(sx<-10||sx>CW+10)return;
+        R.x.beginPath();R.x.arc(sx,b.y,b.r,0,Math.PI*2);
+        R.x.strokeStyle='rgba(150,220,255,0.65)';R.x.lineWidth=1;R.x.stroke();
+        // Highlight spot
+        R.x.globalAlpha=0.4;
+        R.x.fillStyle='rgba(220,240,255,0.9)';
+        R.x.beginPath();R.x.arc(sx-b.r*0.3,b.y-b.r*0.35,b.r*0.35,0,Math.PI*2);R.x.fill();
+        R.x.globalAlpha=1.0;
       });
     }
-    // Water tint
-    if(this.act===1){R.x.fillStyle='rgba(0,60,180,0.18)';R.x.fillRect(0,0,CW,CH);}
+    // Deep water overlay
+    if(this.act===1){R.x.fillStyle='rgba(0,30,110,0.22)';R.x.fillRect(0,0,CW,CH);}
     // Timer display
     if(this.act===1&&this._timer!==undefined){
       let tRemain=Math.max(0,this._timer);
-      let tColor=tRemain<15?'#ff4444':tRemain<30?'#ffaa00':'#ffffff';
+      let tColor=tRemain<20?'#ff4444':tRemain<45?'#ffaa00':'#aaddff';
       R.x.fillStyle=tColor;R.x.font='bold 18px monospace';R.x.textAlign='center';
       R.x.fillText('ESCAPE: '+Math.ceil(tRemain)+'s',CW/2,28);
       R.x.textAlign='left';
@@ -3142,8 +3183,8 @@ class Lv3{
         for(let i=-2;i<=2;i++){const a=i*0.18,dir=h.rt?1:-1;const p=new HeroProj(cx,cy,Math.cos(a)*dir*7,Math.sin(a)*(-1+Math.abs(i)*0.3),h.atkDmg*2,h);p._col='#ff6600';this.projectiles.push(p);}
         G._floats.push({x:cx,y:cy-20,txt:'BARRAGE!',life:1.5,col:'#ff6600'});break;
       case 'nesta':
-        h._invis=true;h._invisTimer=4.0;
-        G._floats.push({x:cx,y:cy-20,txt:'INVISIBLE!',life:1.5,col:'#aaddff'});break;
+        this.heroes.forEach(hh=>{if(hh.on){hh._invis=true;hh._invisTimer=5.0;}});
+        G._floats.push({x:cx,y:cy-20,txt:'PARTY INVISIBLE!',life:2.0,col:'#aaddff'});break;
       case 'elber':{
         const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
         const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
@@ -3201,6 +3242,11 @@ class Lv3{
       const guard=this.enemies[0];
       const hero=this.heroes[this.ai];
       if(guard&&guard.on){
+        if(this.heroes.some(hh=>hh._invis)){
+          // Party invisible — guard cannot detect
+          this._stealthAlert=false;this._alertTimer=0;
+          if(guard._savedAi){guard.ai=guard._savedAi;guard._savedAi=null;}
+        }else{
         const dist=Math.sqrt((hero.x-guard.x)**2+(hero.y-guard.y)**2);
         const ALERT_R=180,CAUGHT_R=70;
         if(dist<CAUGHT_R&&this.tut&&!this.stealthFailed){
@@ -3225,6 +3271,7 @@ class Lv3{
             D.show([d('Narrator','The guard noticed you! Fall back!')],()=>{this.stealthFailed=false;this.bAct1();});
             return;
           }
+        }
         }
       }
       if(hero.x>2000&&this.tut&&!this._stealthDone){
@@ -3538,8 +3585,8 @@ class Lv4{
         for(let i=-2;i<=2;i++){const a=i*0.18,dir=h.rt?1:-1;const p=new HeroProj(cx,cy,Math.cos(a)*dir*7,Math.sin(a)*(-1+Math.abs(i)*0.3),h.atkDmg*2,h);p._col='#ff6600';this.projectiles.push(p);}
         G._floats.push({x:cx,y:cy-20,txt:'BARRAGE!',life:1.5,col:'#ff6600'});break;
       case 'nesta':
-        h._invis=true;h._invisTimer=4.0;
-        G._floats.push({x:cx,y:cy-20,txt:'INVISIBLE!',life:1.5,col:'#aaddff'});break;
+        this.heroes.forEach(hh=>{if(hh.on){hh._invis=true;hh._invisTimer=5.0;}});
+        G._floats.push({x:cx,y:cy-20,txt:'PARTY INVISIBLE!',life:2.0,col:'#aaddff'});break;
       case 'elber':{
         const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
         const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
@@ -3921,8 +3968,8 @@ class Lv5{
         for(let i=-2;i<=2;i++){const a=i*0.18,dir=h.rt?1:-1;const p=new HeroProj(cx,cy,Math.cos(a)*dir*7,Math.sin(a)*(-1+Math.abs(i)*0.3),h.atkDmg*2,h);p._col='#ff6600';this.projectiles.push(p);}
         G._floats.push({x:cx,y:cy-20,txt:'BARRAGE!',life:1.5,col:'#ff6600'});break;
       case 'nesta':
-        h._invis=true;h._invisTimer=4.0;
-        G._floats.push({x:cx,y:cy-20,txt:'INVISIBLE!',life:1.5,col:'#aaddff'});break;
+        this.heroes.forEach(hh=>{if(hh.on){hh._invis=true;hh._invisTimer=5.0;}});
+        G._floats.push({x:cx,y:cy-20,txt:'PARTY INVISIBLE!',life:2.0,col:'#aaddff'});break;
       case 'elber':{
         const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
         const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
