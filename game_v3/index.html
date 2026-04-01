@@ -2003,7 +2003,7 @@ class Proj{
 
 // ═══ MUSIC SYSTEM ═══
 const Music=(()=>{
-  let ctx=null,master=null,_muted=false,_theme=null,_sched=null,_beat=0,_next=0;
+  let ctx=null,master=null,_muted=false,_theme=null,_sched=null,_beat=0,_next=0,_startId=0;
 
   function init(){
     if(ctx)return;
@@ -2071,7 +2071,6 @@ const Music=(()=>{
 
   function schedule(){
     if(!_theme||!ctx)return;
-    try{if(ctx.state==='suspended')ctx.resume();}catch(e){}
     const th=T[_theme];if(!th)return;
     const b=60/th.bpm,ahead=0.5;
     // Resync if AudioContext was suspended (tab hidden etc.)
@@ -2090,14 +2089,12 @@ const Music=(()=>{
       if(_theme===t&&_sched)return;
       if(_sched){clearTimeout(_sched);_sched=null;}
       _theme=t;_beat=0;
-      if(!ctx){init();}
+      const id=++_startId;
+      if(!ctx)init();
       if(!ctx)return;
-      if(ctx.state==='suspended'){
-        ctx.resume().then(()=>{if(_theme===t){_next=ctx.currentTime+0.12;schedule();}}).catch(()=>{});
-        return;
-      }
-      _next=ctx.currentTime+0.12;
-      schedule();
+      const go=()=>{if(_startId!==id||_theme!==t)return;_next=ctx.currentTime+0.1;schedule();};
+      if(ctx.state==='suspended'){ctx.resume().then(go).catch(()=>{});}
+      else{go();}
     },
     stop(){
       if(_sched){clearTimeout(_sched);_sched=null;}
