@@ -115,7 +115,7 @@ const Assets={
 const I={k:{},j:{},
   init(){
     window.addEventListener('keydown',e=>{
-      Music.init();
+      Music.init();Music.resume();
       if(!this.k[e.code])this.j[e.code]=true;
       this.k[e.code]=true;
       if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.code))e.preventDefault();
@@ -1469,7 +1469,12 @@ class Companion{
       const fc=this.hero.st==='run'?6:4;
       this.hero.animFrame=(this.hero.animFrame+1)%fc;
     }
-    this.hero.vy=Math.min((this.hero.vy||0)+GR,MF);
+    if(this.hero._underwater){
+      this.hero.vx=(this.hero.vx||0)*0.88;
+      this.hero.vy=(this.hero.vy||0)*0.88;
+    }else{
+      this.hero.vy=Math.min((this.hero.vy||0)+GR,MF);
+    }
     this.hero.mv(tm);
   }
 }
@@ -2087,7 +2092,10 @@ const Music=(()=>{
       _theme=t;_beat=0;
       if(!ctx){init();}
       if(!ctx)return;
-      try{if(ctx.state==='suspended')ctx.resume();}catch(e){}
+      if(ctx.state==='suspended'){
+        ctx.resume().then(()=>{if(_theme===t){_next=ctx.currentTime+0.12;schedule();}}).catch(()=>{});
+        return;
+      }
       _next=ctx.currentTime+0.12;
       schedule();
     },
@@ -2095,7 +2103,7 @@ const Music=(()=>{
       if(_sched){clearTimeout(_sched);_sched=null;}
       _theme=null;_beat=0;
     },
-    resume(){try{if(ctx&&ctx.state==='suspended')ctx.resume();}catch(e){}},
+    resume(){try{if(ctx&&ctx.state==='suspended')ctx.resume().then(()=>{if(_theme&&!_sched){_next=ctx.currentTime+0.05;schedule();}}).catch(()=>{});}catch(e){}},
     toggle(){
       if(!ctx)init();
       _muted=!_muted;
@@ -2442,7 +2450,9 @@ class Lv1{
           pg._platformTimer=3.5+Math.random()*4;
           // 0=floor, 1=P1(low), 2=P2(mid), 3=P3(high)
           const pY=[(H-4)*T,(H-5)*T-gh,(H-8)*T-gh,(H-11)*T-gh];
-          pg.y=pY[pg._platform];pg.vy=0;}}}
+          pg.y=pY[pg._platform];pg.vy=0;}
+        if(pg.x<5*32){pg.x=5*32;pg.rt=true;}
+        if(pg.x>75*32){pg.x=75*32;pg.rt=false;}}}
       if(this.heroes.some(hh=>hh._invis)){
         // Party invisible — guard cannot detect
         this._stealthAlert=false;this._alertTimer=0;
