@@ -1487,7 +1487,7 @@ class Enem extends Ent{
     this.customType=customType;this.animFrame=0;this.animTimer=0;this.st='idle';
   }
   update(dt,tm,heroes){
-    if(!this.on)return;if(this.inv>0)this.inv-=dt;this.akt-=dt;
+    if(!this.on)return;if(this._slowTimer>0){this._slowTimer-=dt;if(this._slowTimer<=0){this._slowTimer=0;if(this._spdOrig){this.spd=this._spdOrig;this._spdOrig=null;}this._slowed=false;}}if(this.inv>0)this.inv-=dt;this.akt-=dt;
     // Charge-target override: enemy directly pursues the hero who shot them
     if(this._chargeDur!==undefined){this._chargeDur-=dt;if(this._chargeDur<=0){this._chargeTarget=null;this._chargeDur=undefined;}}
     if(this._chargeTarget){
@@ -1699,6 +1699,7 @@ class Enem extends Ent{
     if(!this.on)return;if(this.inv>0&&((this.inv*12)|0)%2)return;
     const cx=this.x+this.w/2,cy=this.y+this.h;
     R.drawEnemy(this.customType,this.st,this.animFrame,cx-this.w/2,cy-this.h,this.w,this.h,!this.rt);
+    if(this._slowed){R.x.save();R.x.globalAlpha=0.35;R.x.fillStyle='#00ccff';R.x.fillRect(this.x-R.cam.x,this.y-R.cam.y,this.w,this.h);R.x.restore();}
     if(this.hp<this.mhp){R.rect(this.x,this.y-5,this.w,3,'#333');R.rect(this.x,this.y-5,this.w*(this.hp/this.mhp),3,this.hp/this.mhp>0.5?'#4a4':'#f44')}
     R.txt(this.nm,this.x+this.w/2-R.cam.x,this.y-9-R.cam.y,'#faa',8,'center');
   }
@@ -1891,14 +1892,26 @@ class MegaProj{
         e.hurt(this.dmg);P.emit(this.x,this.y,12,'#e8e8d0',4,0.5,2);this.on=false;return;
       }
       if(Math.abs(e.x+e.w/2-this.x)<24&&Math.abs(e.y+e.h/2-this.y)<24){
-        e.hurt(this.dmg);this.on=false;
+        e.hurt(this.dmg);
+        if(this._amberSlow){e._spdOrig=e._spdOrig||e.spd;e.spd=e._spdOrig*0.4;e._slowed=true;e._slowTimer=3.0;}
+        this.on=false;
       }
     });
   }
   draw(ctx,cam,camY){
     if(!this.on)return;
     const sx=this.x-cam,sy=this.y-(camY||0);
-    if(this._amber){
+    if(this._amberSlow){
+    const tt=Date.now()/300+this._phase;
+    ctx.save();ctx.translate(sx,sy);
+    const g2=ctx.createRadialGradient(0,0,2,0,0,20);
+    g2.addColorStop(0,'rgba(100,220,255,0.9)');g2.addColorStop(0.5,'rgba(50,150,200,0.6)');g2.addColorStop(1,'rgba(0,80,150,0)');
+    ctx.fillStyle=g2;ctx.beginPath();ctx.arc(0,0,20,0,Math.PI*2);ctx.fill();
+    for(let i=0;i<6;i++){ctx.save();ctx.rotate(tt+i*Math.PI/3);ctx.strokeStyle='rgba(180,240,255,0.85)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-14);ctx.stroke();ctx.beginPath();ctx.moveTo(-4,-8);ctx.lineTo(4,-8);ctx.stroke();ctx.restore();}
+    ctx.fillStyle='rgba(255,255,255,0.95)';ctx.beginPath();ctx.arc(0,0,4,0,Math.PI*2);ctx.fill();
+    ctx.restore();return;
+  }
+  if(this._amber){
       const img=Assets.images['fx_elber_mega'];
       if(img){const fW=72,fH=32,nf=10,fi=Math.floor(Date.now()/80)%nf;
         ctx.save();ctx.translate(sx,sy);ctx.rotate(Math.atan2(this.vy,this.vx));
@@ -2355,8 +2368,8 @@ class Lv1{
         const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
         const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
         const dx=t.x-cx,dy=(t.y||cy)-cy,len=Math.sqrt(dx*dx+dy*dy)||1;
-        const p=new MegaProj(cx,cy,(dx/len)*2.5,(dy/len)*2.5,h.atkDmg*4);p._amber=true;this.megaProjs.push(p);
-        G._floats.push({x:cx,y:cy-20,txt:'MEGA SHOT!',life:1.5,col:'#ffaa00'});break;}
+        const p=new MegaProj(cx,cy,(dx/len)*2.0,(dy/len)*2.0,h.atkDmg*2);p._amberSlow=true;this.megaProjs.push(p);
+        G._floats.push({x:cx,y:cy-20,txt:'FREEZE SHOT!',life:1.5,col:'#44ddff'});break;}
       case 'nick':{
         const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
         const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
@@ -2746,8 +2759,8 @@ class Lv2{
         const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
         const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
         const dx=t.x-cx,dy=(t.y||cy)-cy,len=Math.sqrt(dx*dx+dy*dy)||1;
-        const p=new MegaProj(cx,cy,(dx/len)*2.5,(dy/len)*2.5,h.atkDmg*4);p._amber=true;this.megaProjs.push(p);
-        G._floats.push({x:cx,y:cy-20,txt:'MEGA SHOT!',life:1.5,col:'#ffaa00'});break;}
+        const p=new MegaProj(cx,cy,(dx/len)*2.0,(dy/len)*2.0,h.atkDmg*2);p._amberSlow=true;this.megaProjs.push(p);
+        G._floats.push({x:cx,y:cy-20,txt:'FREEZE SHOT!',life:1.5,col:'#44ddff'});break;}
       case 'nick':{
         const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
         const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
@@ -3198,8 +3211,8 @@ class Lv3{
         const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
         const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
         const dx=t.x-cx,dy=(t.y||cy)-cy,len=Math.sqrt(dx*dx+dy*dy)||1;
-        const p=new MegaProj(cx,cy,(dx/len)*2.5,(dy/len)*2.5,h.atkDmg*4);p._amber=true;this.megaProjs.push(p);
-        G._floats.push({x:cx,y:cy-20,txt:'MEGA SHOT!',life:1.5,col:'#ffaa00'});break;}
+        const p=new MegaProj(cx,cy,(dx/len)*2.0,(dy/len)*2.0,h.atkDmg*2);p._amberSlow=true;this.megaProjs.push(p);
+        G._floats.push({x:cx,y:cy-20,txt:'FREEZE SHOT!',life:1.5,col:'#44ddff'});break;}
       case 'nick':{
         const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
         const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
@@ -3344,12 +3357,14 @@ class Lv3{
     }
     if(I.pr('KeyX'))this._triggerRAbility();
 
-    if(this.act===3&&this.tut&&this.enemies.every(e=>!e.on)){
+    if(this.act===3&&this.tut&&!this._act3done&&this.enemies.every(e=>!e.on)){
+      this._act3done=true;
       this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#9944ff',6,0.8,3);
       D.show([d('Narrator','The curse breaks!')],()=>{this.bAct4()});
     }
 
-    if(this.act===4&&this.tut&&this.enemies.every(e=>!e.on)){
+    if(this.act===4&&this.tut&&!this._act4done&&this.enemies.every(e=>!e.on)){
+      this._act4done=true;
       this.shk=0.5;this.shi=4;P.emit(CW/2+R.cam.x,CH/2+R.cam.y,25,'#c8a84e',6,0.8,3);
       D.show([d('Narrator','The Spectator falls!')],()=>{this.bAct5()});
     }
@@ -3600,8 +3615,8 @@ class Lv4{
         const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
         const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
         const dx=t.x-cx,dy=(t.y||cy)-cy,len=Math.sqrt(dx*dx+dy*dy)||1;
-        const p=new MegaProj(cx,cy,(dx/len)*2.5,(dy/len)*2.5,h.atkDmg*4);p._amber=true;this.megaProjs.push(p);
-        G._floats.push({x:cx,y:cy-20,txt:'MEGA SHOT!',life:1.5,col:'#ffaa00'});break;}
+        const p=new MegaProj(cx,cy,(dx/len)*2.0,(dy/len)*2.0,h.atkDmg*2);p._amberSlow=true;this.megaProjs.push(p);
+        G._floats.push({x:cx,y:cy-20,txt:'FREEZE SHOT!',life:1.5,col:'#44ddff'});break;}
       case 'nick':{
         const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
         const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
@@ -3983,8 +3998,8 @@ class Lv5{
         const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
         const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
         const dx=t.x-cx,dy=(t.y||cy)-cy,len=Math.sqrt(dx*dx+dy*dy)||1;
-        const p=new MegaProj(cx,cy,(dx/len)*2.5,(dy/len)*2.5,h.atkDmg*4);p._amber=true;this.megaProjs.push(p);
-        G._floats.push({x:cx,y:cy-20,txt:'MEGA SHOT!',life:1.5,col:'#ffaa00'});break;}
+        const p=new MegaProj(cx,cy,(dx/len)*2.0,(dy/len)*2.0,h.atkDmg*2);p._amberSlow=true;this.megaProjs.push(p);
+        G._floats.push({x:cx,y:cy-20,txt:'FREEZE SHOT!',life:1.5,col:'#44ddff'});break;}
       case 'nick':{
         const es=this.enemies.filter(e=>e.on).sort((a,b)=>Math.abs(a.x-cx)-Math.abs(b.x-cx));
         const t=es[0]||{x:cx+(h.rt?500:-500),y:cy};
