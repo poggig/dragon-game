@@ -15,9 +15,15 @@ let data=read('src/data.js');
 const scenes=read('src/scenes.js');
 const main=read('src/main.js');
 
-// Single-file build: no assets, programmatic fallback art everywhere
-data=data.replace(/const ASSET_MANIFEST=\[[\s\S]*?\n\];/,
-  'const ASSET_MANIFEST=[]; // mobile single-file build: fallback art only');
+// Single-file build: inline every manifest asset as a base64 data: URI so
+// the real spritesheets/tilesets ship inside the HTML (works over file://).
+data=data.replace(/const ASSET_MANIFEST=\[[\s\S]*?\n\];/,block=>{
+  return block.replace(/\{type:'(image|meta)',key:'([^']+)',path:'([^']+)'\}/g,(m,type,key,path)=>{
+    const buf=readFileSync(join(SRC,path));
+    const mime=type==='image'?'image/png':'text/plain';
+    return `{type:'${type}',key:'${key}',path:'data:${mime};base64,${buf.toString('base64')}'}`;
+  });
+});
 
 const TOUCH_CSS=`
 #touch{position:fixed;inset:0;pointer-events:none;z-index:50;display:none;font-family:'Courier New',monospace;-webkit-user-select:none;user-select:none}

@@ -34,8 +34,7 @@ const Assets={
     const bar=document.getElementById('loadBar'),info=document.getElementById('loadInfo');
     // Version-keyed cache bust: assets re-download only when the game version
     // changes, instead of on every page load (the old Date.now() bust).
-    // data: URIs (single-file mobile build) must not get a query suffix.
-    const bustFor=p=>p.startsWith('data:')?'':'?v='+GAME_VERSION;
+    const bust='?v='+GAME_VERSION;
     const tick=(path)=>{this.loaded++;bar.style.width=(this.loaded/this.total*100)+'%';info.textContent=path};
     const promises=manifest.map(item=>{
       if(item.type==='image'){
@@ -43,10 +42,10 @@ const Assets={
           const img=new Image();
           img.onload=()=>{this.images[item.key]=img;tick(item.path);res()};
           img.onerror=()=>{console.warn('Failed:',item.path);tick(item.path);res()};
-          img.src=item.path+bustFor(item.path);
+          img.src=item.path+bust;
         });
       }
-      return fetch(item.path+bustFor(item.path)).then(r=>r.text()).then(txt=>{
+      return fetch(item.path+bust).then(r=>r.text()).then(txt=>{
         this.meta[item.key]=this.parseMeta(txt);tick(item.path);
       }).catch(()=>{console.warn('Failed meta:',item.path);tick(item.path)});
     });
