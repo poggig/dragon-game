@@ -43,13 +43,14 @@ Some browsers let you open `game_v3/index.html` directly. If assets don't load, 
 |-----|--------|
 | `← →` or `A D` | Move |
 | `↑` / `W` / `Space` | Jump (double jump available!) |
-| `Z` or `J` | Attack |
+| `Z` or `J` | Attack *(also talks to NPCs)* |
 | `Q` or `L` | Skill ability |
-| `K` | Dash |
-| `X` | R-Ability *(once per level — make it count!)* |
+| `K` | Dash *(brief invulnerability!)* |
+| `X` | Ultimate *(once per level — make it count!)* |
 | `R` | Revive a fallen ally *(uses a resurrection scroll)* |
 | `1–5` | Swap active hero |
 | `Tab` | Cycle heroes |
+| `ESC` | Pause *(resume / restart act / quit to title)* |
 | `M` | Toggle music |
 | `Space` / `Enter` | Advance dialogue |
 
@@ -59,11 +60,11 @@ Some browsers let you open `game_v3/index.html` directly. If assets don't load, 
 
 | Hero | Role | Signature Move |
 |------|------|---------------|
-| 🛡️ **Minerva** | Tank | Titan Form — doubles size & damage for 20s, then Cleave AoE |
-| ⚡ **Elber** | Balanced DPS | Fires amber energy bolts; R-Ability launches a massive fireball |
-| 🗡️ **Kote** | Glass Cannon | Hits like a truck, dies like a napkin; R-Ability: 5-way barrage |
-| 💀 **Nick** | Healer | Skills heal allies; R-Ability fires a bone projectile (yes, his own) |
-| 🌀 **Nesta** | Ranged | Shoots violet lightning; R-Ability turns her *invisible for 4 seconds* |
+| 🛡️ **Minerva** | Tank | Titan Form — doubles size & damage for 20s; Ultimate: Cleave AoE |
+| ⚡ **Elber** | Balanced DPS | Fires amber energy bolts; Ultimate: freezing amber shot |
+| 🗡️ **Kote** | Glass Cannon | Hits like a truck, dies like a napkin; Ultimate: 5-way barrage |
+| 💀 **Nick** | Healer | Skills heal allies; Ultimate fires a bone projectile (yes, his own) |
+| 🌀 **Nesta** | Ranged | Shoots violet lightning; Ultimate turns the *whole party invisible* |
 
 > 🦊 Nesta's black fox familiar follows her everywhere.
 > 💀 Nick's skeleton follows him. It's fine. He's fine.
@@ -85,26 +86,38 @@ Some browsers let you open `game_v3/index.html` directly. If assets don't load, 
 ## 💡 Tips
 
 - **Hero HP persists between levels** — if Kote barely survived Lv3, she starts Lv4 on 3 HP. Protect your glass cannons.
-- **Stealth sections**: hug the safe path (green glow). Getting caught restarts the whole level. 😬
+- **Stealth sections**: hug the safe path (green glow). Getting caught restarts the act (not the whole level, and no dialogue replay).
 - **Resurrection Scrolls** (R key): you only get 2 across the whole game. Save them for bosses.
 - **Swap often** — different heroes shine in different situations. Nick's heal mid-fight can turn a wipe.
-- **X ability resets each level** — use it freely in every new stage.
+- **Ultimate [X] resets each level** — use it freely in every new stage.
+- **If the party wipes**, you can retry the current act — no page reloads needed.
+- **EN/ES/IT**: the language toggle now translates the entire story, and you can switch mid-game.
 
 ---
 
 ## 🛠️ Tech
 
-Built entirely in a **single HTML file** — no frameworks, no build step, no npm install. Pure canvas2D + Web Audio API.
+No frameworks, no build step, no npm install. Pure canvas2D + Web Audio API,
+organized as four plain-JS modules (see [AUDIT.md](AUDIT.md) for the full
+refactor story):
 
 ```
 game_v3/
-├── index.html      ← the whole game (~4300 lines of JS)
+├── index.html      ← DOM shell (~80 lines)
+├── src/
+│   ├── engine.js   ← game-agnostic engine: rendering, physics, entities, audio
+│   ├── data.js     ← game content: stats, sprites, maps, full EN/ES/IT i18n
+│   ├── scenes.js   ← Scene base class + the five levels
+│   └── main.js     ← fixed-timestep loop, title/pause/game-over/victory
 └── assets/
-    ├── heroes/     ← character spritesheets
+    ├── chars/      ← character spritesheets
     ├── enemies/    ← enemy sprites
-    ├── tiles/      ← tileset PNGs
+    ├── env/        ← tilesets & props
     └── fx/         ← animated effect strips
 ```
+
+Want to build your own game on this engine? `engine.js` knows nothing about
+Azurerune — swap `data.js` and `scenes.js` for your own content.
 
 ---
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chronicles of Azurerune</title>
+<title>Template Quest</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0a0a1a;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Courier New',monospace}
@@ -41,19 +41,15 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
 <div id="ui">
 <div id="loadScr"><div class="lt">Loading Assets...</div><div class="bar"><div class="fill" id="loadBar"></div></div><div class="info" id="loadInfo"></div></div>
 <div id="title" style="display:none">
-<h1>Chronicles of Azurerune</h1>
-<h2>The Heroes' Challenge</h2>
-<div class="sub">Session 1 — School Day</div>
+<h1>Template Quest</h1>
+<h2>Replace me with your game</h2>
+
 <div style="margin-bottom:12px;display:flex;gap:6px">
   <button class="btn" id="langEN" style="padding:4px 12px;font-size:10px">EN</button>
   <button class="btn" id="langES" style="padding:4px 12px;font-size:10px">ES</button>
   <button class="btn" id="langIT" style="padding:4px 12px;font-size:10px">IT</button>
 </div>
-<button class="btn" id="startBtn">Level 1: School Day</button>
-<button class="btn" id="startBtn2">Level 2: Kingfisher Festival</button>
-<button class="btn" id="startBtn3">Level 3: Library of Secrets</button>
-<button class="btn" id="startBtn4">Level 4: Yurthgreen Masquerade</button>
-<button class="btn" id="startBtn5">Level 5: When the Home Burns</button>
+<div id="levelBtns" style="display:flex;flex-direction:column;align-items:center"></div>
 </div>
 <div id="hud"></div>
 <div id="dlg"><div class="sp"></div><div class="tx"></div><div class="pr">[SPACE or CLICK]</div></div>

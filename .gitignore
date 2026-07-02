@@ -1,5 +1,5 @@
 # Development tools
-.claude/
+/.claude/
 *.py
 
 # Documents & planning
@@ -21,4 +21,4 @@ desktop.ini
 # Old game versions (keep only root-level game files)
 game/
 game_v2/
-CLAUDE.md
+/CLAUDE.md
