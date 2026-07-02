@@ -92,6 +92,10 @@ const html=`<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Chronicles of Azurerune — Mobile</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#0a0a1a">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0a0a1a;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Courier New',monospace;touch-action:none}
@@ -146,6 +150,12 @@ ${TOUCH_CSS}
 </div>
 </div>
 ${TOUCH_HTML}
+<script>
+// PWA: offline caching + installability (no-op when opened as a file)
+if('serviceWorker' in navigator&&location.protocol!=='file:'){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+</script>
 <script>
 ${engine}
 </script>

@@ -35,6 +35,23 @@ Classic school trip.
 
 Some browsers let you open `game_v3/index.html` directly. If assets don't load, use Option A.
 
+### Option C — Phone / installable app (GitHub Pages) 📱
+
+The game is a full PWA: hosted on GitHub Pages it installs to your phone's
+home screen with an icon and **plays fully offline** after the first visit.
+
+1. Repo → **Settings → Pages** → "Deploy from a branch" → pick this branch, folder `/ (root)` → Save.
+2. Wait ~1 minute, then open:
+   - `https://<user>.github.io/dragon-game/` → desktop game (keyboard)
+   - `https://<user>.github.io/dragon-game/game_v3/mobile.html` → touch version
+3. On your phone: Chrome menu → **Add to Home Screen** (or the "Install app"
+   prompt). Landscape, fullscreen, offline-capable.
+
+No hosting at all? `game_v3/mobile.html` is also fully self-contained
+(assets inlined) — send the single file to anyone and it runs from a
+download, no server needed. Regenerate it after code changes with
+`node tools/build_mobile.mjs`.
+
 ---
 
 ## 🕹️ Controls

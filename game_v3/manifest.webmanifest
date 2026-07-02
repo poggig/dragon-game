@@ -1,0 +1,16 @@
+{
+  "name": "Chronicles of Azurerune",
+  "short_name": "Azurerune",
+  "description": "A 2D side-scrolling action platformer — five heroes, five levels, zero chill.",
+  "start_url": "./mobile.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0a0a1a",
+  "theme_color": "#0a0a1a",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
