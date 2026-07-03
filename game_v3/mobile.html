@@ -629,12 +629,20 @@ class TM{
 class Ent{
   constructor(x,y,w,h){this.x=x;this.y=y;this.w=w;this.h=h;this.vx=0;this.vy=0;this.gnd=false;this.rt=true;this.hp=100;this.mhp=100;this.on=true;this.inv=0;this.animFrame=0}
   hits(o){return this.x<o.x+o.w&&this.x+this.w>o.x&&this.y<o.y+o.h&&this.y+this.h>o.y}
-  // Snap entity down to the nearest STANDABLE surface: solid tile with
-  // enough clear tiles above for the entity's body. The old version snapped
-  // to the first solid row it saw, which could bury a spawn inside a tower.
+  // Snap entity to the nearest STANDABLE surface. Handles both cases:
+  // spawned in open air (scan down for a solid row with body headroom) and
+  // spawned INSIDE terrain (rise to the top of that solid block) — Lv4's
+  // balcony spawn buried the whole party before the rise pass existed.
   snapGnd(tm){
     const bx1=Math.floor((this.x+4)/T),bx2=Math.floor((this.x+this.w-4)/T);
     const bodyRows=Math.ceil(this.h/T);
+    let feet=Math.max(0,Math.floor((this.y+this.h-1)/T));
+    if(tm.sol(bx1,feet)||tm.sol(bx2,feet)){
+      // Embedded in solid: climb to the surface of this block and stand on it
+      let y=feet;
+      while(y>0&&(tm.sol(bx1,y)||tm.sol(bx2,y)))y--;
+      this.y=(y+1)*T-this.h;this.gnd=true;this.vy=0;return;
+    }
     let startY=Math.max(0,Math.floor(this.y/T));
     for(let y=startY;y<tm.h;y++){
       if(!(tm.sol(bx1,y)||tm.sol(bx2,y)))continue;
@@ -2773,10 +2781,18 @@ class Scene{
     if(this.tm){
       for(const h of this.heroes)h.snapGnd(this.tm);
       if(this.enemies)for(const e of this.enemies){e.snapGnd(this.tm);e._scene=this;}
+      // NPC ground snap (mirrors snapGnd: rise out of terrain if embedded,
+      // otherwise scan down). NPC bottom renders at n.y+10.
       if(this.npcs)for(const n of this.npcs){
         const bx=Math.floor(n.x/T);
-        for(let yy=Math.floor(n.y/T);yy<this.tm.h;yy++){
-          if(this.tm.sol(bx,yy)){n.y=yy*T-10;break}
+        let yy=Math.max(0,Math.floor((n.y+9)/T));
+        if(this.tm.sol(bx,yy)){
+          while(yy>0&&this.tm.sol(bx,yy))yy--;
+          n.y=(yy+1)*T-10;
+        }else{
+          for(;yy<this.tm.h;yy++){
+            if(this.tm.sol(bx,yy)){n.y=yy*T-10;break}
+          }
         }
       }
     }

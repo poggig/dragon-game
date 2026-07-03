@@ -38,10 +38,18 @@ class Scene{
     if(this.tm){
       for(const h of this.heroes)h.snapGnd(this.tm);
       if(this.enemies)for(const e of this.enemies){e.snapGnd(this.tm);e._scene=this;}
+      // NPC ground snap (mirrors snapGnd: rise out of terrain if embedded,
+      // otherwise scan down). NPC bottom renders at n.y+10.
       if(this.npcs)for(const n of this.npcs){
         const bx=Math.floor(n.x/T);
-        for(let yy=Math.floor(n.y/T);yy<this.tm.h;yy++){
-          if(this.tm.sol(bx,yy)){n.y=yy*T-10;break}
+        let yy=Math.max(0,Math.floor((n.y+9)/T));
+        if(this.tm.sol(bx,yy)){
+          while(yy>0&&this.tm.sol(bx,yy))yy--;
+          n.y=(yy+1)*T-10;
+        }else{
+          for(;yy<this.tm.h;yy++){
+            if(this.tm.sol(bx,yy)){n.y=yy*T-10;break}
+          }
         }
       }
     }

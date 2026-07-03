@@ -113,3 +113,30 @@ Automated in headless Chromium (Playwright) against a local server:
 - ESC pause opens/resumes; fishing completes 3 catches and advances to Act 4.
 - Spanish/Italian strings reach in-game dialogue.
 - Victory screen reachable and returns to title.
+
+---
+
+## Post-release fix log
+
+### 2026-07-03 — Lv4 "buried in the floor" (placement inside terrain)
+
+**Symptom.** Level 4 (Masquerade) started with the whole party embedded in
+the floor and unable to move; two NPCs (masked Bakaris, Levna) sunk waist-deep.
+
+**Root cause.** Levels spawn entities at ground height `(H-4)*T`, but Lv4's
+spawn zone sits on the raised left *balcony* (solid rows H-6..H-4, x<~690).
+Both placement routines assumed spawns start in open air:
+`snapGnd` only scanned **downward** and required body headroom — impossible
+from inside a solid block — so it silently did nothing; the NPC snap accepted
+the solid row it was already inside. Lv1 had the same latent bug at its tower
+(dodged earlier by moving the spawn); Lv4 was the remaining case.
+
+**Fix.** Placement now self-heals: if an entity's feet are inside solid
+terrain, it rises to the top of that block and stands on it; otherwise the
+downward headroom scan runs as before (`engine.js snapGnd`, plus the NPC
+snap in `scenes.js`). Same fix applied to the studio engine template.
+
+**Lesson (saved to the playtester agent's mandatory checks).** "Level enters
+cleanly" is not enough: at the start of EVERY act, assert the controlled
+hero (a) is not overlapping solid tiles and (b) can actually move ±30px.
+Placement code must never trust level data to put spawns in open air.
