@@ -1128,7 +1128,8 @@ class Enem extends Ent{
       }
     }
 
-    // Underwater floating movement
+    // Underwater floating movement — vertical drift respects terrain
+    // (the old version let floaters sink into the seabed over time)
     if(this._underwater){
       this.vy=Math.sin(performance.now()/800+(this._floatOffset||0))*60*dt;
       const tgt=heroes.find(hh=>hh.ctrl&&hh.on);
@@ -1136,7 +1137,14 @@ class Enem extends Ent{
       this.vy=Math.max(-2,Math.min(2,this.vy));
       if(this.vx!==0&&!this.blockedH(tm,this.vx))this.x+=this.vx;
       else this.vx=0;
-      this.y+=this.vy;this.gnd=false;
+      if(this.vy>0&&this.onSolid(tm)){
+        this.y=Math.floor((this.y+this.h)/T)*T-this.h;this.vy=0;
+      }else if(this.vy<0&&this.blockedUp(tm)){
+        this.vy=0;this.y=Math.ceil(this.y/T)*T;
+      }else{
+        this.y+=this.vy;
+      }
+      this.gnd=false;
     }else{
       this.vy=Math.min(this.vy+GR,MF);
       if(this.vx!==0&&!this.blockedH(tm,this.vx))this.x+=this.vx;
