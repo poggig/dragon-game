@@ -1,4 +1,0 @@
-node_modules/
-games/*/PLAYTEST.md
-*.png
-!templates/**/*.png
